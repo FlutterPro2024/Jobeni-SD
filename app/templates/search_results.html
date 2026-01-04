@@ -87,7 +87,7 @@
                         <h6 class="fw-bold mb-2 text-dark" style="font-size: 0.95rem;">{{ g_job.get('title', 'بدون عنوان') }}</h6>
 
                         <div class="d-grid gap-2 mt-3">
-                            <form action="/job/apply-global" method="POST">
+                            <form action="{{ url_for('applications.auto_apply_global') }}" method="POST">
                                 <input type="hidden" name="job_title" value="{{ g_job.get('title') }}">
                                 <input type="hidden" name="job_link" value="{{ g_job.get('link') }}">
                                 <input type="hidden" name="company" value="{{ g_job.get('company') }}">

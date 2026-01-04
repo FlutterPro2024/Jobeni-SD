@@ -49,7 +49,6 @@ def apply_local(job_id):
     db.session.add(new_app)
     db.session.commit()
 
-    # استخدام employer_ref كما هو محدد في models.py
     if job.employer_ref and job.employer_ref.telegram_id:
         try:
             msg = f"🔔 متقدم جديد لـ: {job.title}\n👤 الإسم: {current_user.username}\n🎯 المطابقة: {score}%\n📝 السبب: {reason[:100]}..."
@@ -75,8 +74,8 @@ def auto_apply_global():
     prompt = f"Analyze if candidate CV ({user_cv.profession}) matches global job ({job_title}) at ({company}). Answer briefly in Arabic."
     analysis = openrouter_ai._call_ai(prompt)
 
-    return render_template('global_apply_helper.html', 
-                           job_title=job_title, 
-                           job_link=job_link, 
-                           company=company, 
+    return render_template('global_apply_helper.html',
+                           job_title=job_title,
+                           job_link=job_link,
+                           company=company,
                            analysis=analysis)
