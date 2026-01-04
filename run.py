@@ -6,9 +6,13 @@ from app import create_app, db
 load_dotenv()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
-app = create_app('development')
+
+# تحديد الإعدادات بناءً على البيئة (Vercel يستخدم الإنتاج أوتوماتيكياً)
+env = 'production' if os.environ.get('VERCEL') else 'development'
+app = create_app(env)
 
 def telegram_worker(flask_app):
+    """هذا الخيط سيعمل فقط في البيئة المحلية ولا يعمل في Vercel"""
     token = os.environ.get('TELEGRAM_BOT_TOKEN')
     if not token: return
     last_id = 0
@@ -19,8 +23,6 @@ def telegram_worker(flask_app):
             if res.get("ok"):
                 for up in res.get("result", []):
                     last_id = up["update_id"]
-                    # معالجة الرسائل تتم الآن عبر الـ Webhook أو هذا الخيط
-                    # استدعاء الدالة من telegram_bot لتوحيد المعالجة
                     from app.telegram_bot import handle_telegram_webhook
                     with flask_app.app_context():
                         handle_telegram_webhook(up)
@@ -28,6 +30,7 @@ def telegram_worker(flask_app):
             print(f"Telegram Thread Error: {e}")
         time.sleep(3)
 
+# الجزء القادم هو الأهم لضمان عمل الروابط في Vercel
 if __name__ == '__main__':
     with app.app_context():
         # التأكد من إنشاء الجداول في PostgreSQL عند التشغيل
@@ -35,9 +38,13 @@ if __name__ == '__main__':
         # إنشاء مجلدات الرفع إذا لم تكن موجودة
         os.makedirs(os.path.join(BASE_DIR, 'app', 'static', 'uploads', 'cvs'), exist_ok=True)
 
-    # تشغيل خيط البوت إذا وجد التوكن
-    if os.environ.get('TELEGRAM_BOT_TOKEN'):
+    # تشغيل خيط البوت فقط إذا كنا لسنا في Vercel (للمحلي فقط)
+    if os.environ.get('TELEGRAM_BOT_TOKEN') and not os.environ.get('VERCEL'):
         threading.Thread(target=telegram_worker, args=(app,), daemon=True).start()
-        print("🤖 Telegram Bot: RUNNING (Long Polling Mode)")
+        print("🤖 Telegram Bot: RUNNING (Long Polling Mode - Local)")
 
     app.run(host='0.0.0.0', port=5000, debug=False)
+else:
+    # هذا الجزء يضمن لـ Vercel أن الجداول موجودة عند بدء التشغيل السحابي
+    with app.app_context():
+        db.create_all()
