@@ -4,7 +4,7 @@ from flask_login import login_required, current_user
 from app.models import Job, CV, Application, InterviewSession, db
 from app.openrouter_ai import openrouter_ai
 from app.serper_search import serper_searcher
-from app.telegram_bot import send_message # استيراد لإرسال تنبيهات النجاح
+from app.telegram_bot import send_message 
 
 search_bp = Blueprint('search', __name__)
 
@@ -14,21 +14,29 @@ def jobs_list():
     q = request.args.get('q', '').strip()
     loc = request.args.get('location', '').strip()
 
-    query = Job.query.filter_by(is_active=True)
-    if q: 
-        query = query.filter(Job.title.ilike(f'%{q}%') | Job.description.ilike(f'%{q}%'))
-    if loc: 
-        query = query.filter(Job.location.ilike(f'%{loc}%'))
-    
-    local_jobs = query.all()
+    # البحث المحلي في قاعدة البيانات
+    try:
+        query = Job.query.filter_by(is_active=True)
+        if q:
+            query = query.filter(Job.title.ilike(f'%{q}%') | Job.description.ilike(f'%{q}%'))
+        if loc:
+            query = query.filter(Job.location.ilike(f'%{loc}%'))
+        local_jobs = query.all()
+    except:
+        local_jobs = []
 
+    # البحث العالمي عبر Serper API
     global_jobs = []
     if q:
         try:
-            results = serper_searcher.search_jobs(f"{q} {loc}")
-            global_jobs = results.get('jobs', [])
-        except: 
-            pass
+            # دمج الكلمات للبحث العالمي
+            full_query = f"{q} {loc}".strip()
+            results = serper_searcher.search_jobs(full_query)
+            # التأكد من أن النتائج قائمة وليست None
+            global_jobs = results.get('jobs', []) if results else []
+        except Exception as e:
+            print(f"Middleware Global Search Error: {e}")
+            global_jobs = []
 
     return render_template('search_results.html',
                            jobs=local_jobs,
@@ -40,11 +48,12 @@ def jobs_list():
 @login_required
 def skill_analysis():
     """المستشار الذكي: تحليل المهارات بناءً على الـ CV"""
-    cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
+    cv = CV.query.filter_by(user_id=current_user.id).order_at(CV.created_at.desc()).first()
     if not cv:
         flash('يرجى رفع سيرتك الذاتية أولاً لتفعيل المستشار الذكي.', 'info')
         return redirect(url_for('cv.upload_cv'))
 
+    # معالجة المهارات سواء كانت JSON أو String
     skills_list = cv.skills if isinstance(cv.skills, list) else []
     skills_data = []
     for s in skills_list:
@@ -69,22 +78,25 @@ def interview_prep(skill):
 
     prompt = (f"أنت خبير توظيف تقني. قدم 5 أسئلة مقابلة ذكية مع إجاباتها النموذجية "
               f"لمتخصص في ({profession}) حول مهارة ({skill}) بالعربية.")
-    
-    content = openrouter_ai._call_ai(prompt, temperature=0.7)
-    
-    if content:
-        new_session = InterviewSession(
-            user_id=current_user.id,
-            skill_name=skill,
-            questions_content=content
-        )
-        db.session.add(new_session)
-        db.session.commit()
 
-        # --- إضافة تنبيه تلجرام عند جاهزية جلسة التدريب ---
-        if current_user.telegram_id:
-            msg = f"🧠 <b>جلسة تدريب جاهزة!</b>\n\nلقد تم توليد أسئلة مقابلة لمهارة: <b>{skill}</b>\nيمكنك مراجعتها الآن في لوحة التحكم."
-            send_message(current_user.telegram_id, msg)
+    content = openrouter_ai._call_ai(prompt, temperature=0.7)
+
+    if content:
+        try:
+            new_session = InterviewSession(
+                user_id=current_user.id,
+                skill_name=skill,
+                questions_content=content
+            )
+            db.session.add(new_session)
+            db.session.commit()
+
+            # إرسال تنبيه تلجرام
+            if current_user.telegram_id:
+                msg = f"🧠 <b>جلسة تدريب جاهزة!</b>\n\nلقد تم توليد أسئلة مقابلة لمهارة: <b>{skill}</b>"
+                send_message(current_user.telegram_id, msg)
+        except:
+            db.session.rollback()
 
         return render_template('interview_prep_view.html', skill=skill, content=content)
 
@@ -101,12 +113,12 @@ def delete_session(session_id):
     db.session.commit()
     return redirect(url_for('auth.dashboard'))
 
-# حساب نسبة المطابقة (دالة مساعدة يستخدمها jobs.py)
 def calculate_match_score(cv_text, job_desc):
     """حساب نسبة المطابقة للوظيفة باستخدام الذكاء الاصطناعي"""
     if not cv_text or not job_desc:
         return 0
     try:
-        return openrouter_ai.get_match_score(cv_text, job_desc)
+        score, explanation = openrouter_ai.get_match_score(cv_text, job_desc)
+        return score
     except:
-        return 50 # نتيجة افتراضية في حال تعطل الـ API
+        return 50 

@@ -8,27 +8,26 @@ load_dotenv()
 
 class SerperSearcher:
     def __init__(self):
-        # استخدام المفتاح من البيئة أو المفتاح الافتراضي
-        self.api_key = os.getenv("SERPER_API_KEY") or "fbe0d3c43b26afed1d11adce1718bdd568d8d331"
-        self.url = "https://google.serper.dev/search"
-
+        # بياخد المفتاح من Environment Variables في فيرسيل أو المحلي
+        self.api_key = os.getenv("SERPER_API_KEY")
+        self.url = "https://google.serper.dev/search"      
+    
     def search_jobs(self, query):
         if not self.api_key:
+            print("⚠️ SERPER_API_KEY is missing!")
             return {"jobs": []}
 
-        # تحسين الاستعلام ليشمل كلمات دلالية تجلب روابط التقديم المباشر
-        # مثل: hiring, career, apply now
-        refined_query = f"{query} hiring career opportunities"
-        
+        # تحسين الاستعلام لجلب نتائج توظيف حقيقية
+        refined_query = f"{query} hiring career opportunities 2026"
+
         headers = {
             'X-API-KEY': self.api_key,
             'Content-Type': 'application/json'
-        }
-
+        }                                                  
         payload = json.dumps({
             "q": refined_query,
-            "gl": "us", # البحث عالمياً
-            "hl": "ar", # دعم النتائج العربية والإنجليزية معاً
+            "gl": "us", 
+            "hl": "ar", 
             "num": 12
         })
 
@@ -41,20 +40,27 @@ class SerperSearcher:
                 jobs = []
                 for item in organic:
                     link = item.get('link', '')
-                    # استخراج اسم الموقع الذكي (مثل LinkedIn أو Indeed)
-                    domain_parts = link.split('/')[2].replace('www.', '').split('.')
-                    company_name = domain_parts[0].capitalize() if len(domain_parts) > 1 else "Global Job"
+                    if not link: continue
+                    
+                    # استخراج اسم الموقع بأمان لتجنب الـ Index Error
+                    try:
+                        domain_parts = link.split('/')[2].replace('www.', '').split('.')
+                        company_name = domain_parts[0].capitalize() if len(domain_parts) > 1 else "Global Job"
+                    except:
+                        company_name = "Global Source"
 
                     jobs.append({
-                        'title': item.get('title'),
+                        'title': item.get('title', 'No Title'),
                         'link': link,
                         'company': company_name,
                         'location': 'International / Remote',
                         'snippet': item.get('snippet', '')
                     })
                 return {"jobs": jobs}
+            else:
+                print(f"Serper API Status Error: {response.status_code}")
         except Exception as e:
-            print(f"Serper Search Error: {e}")
+            print(f"Serper Search Connection Error: {e}")
 
         return {"jobs": []}
 
