@@ -7,11 +7,11 @@ from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
 from flask_mail import Mail
 
-# إضافة المسار الرئيسي للمشروع
+# إضافة المسار الرئيسي للمشروع لضمان وصول الاستيرادات
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import config
 
-# تعريف الكائنات الأساسية
+# تعريف كائنات الإضافات
 db = SQLAlchemy()
 login_manager = LoginManager()
 migrate = Migrate()
@@ -19,12 +19,16 @@ mail = Mail()
 
 def create_app(config_name='default'):
     app = Flask(__name__)
-    app.config.from_object(config[config_name])
+    
+    # اختيار الإعدادات (Production في حال Vercel)
+    if os.environ.get('VERCEL'):
+        app.config.from_object(config['production'])
+    else:
+        app.config.from_object(config[config_name])
 
-    # الضبط اليدوي للمرسل الافتراضي لضمان الربط مع Gmail
     app.config['MAIL_DEFAULT_SENDER'] = app.config.get('MAIL_USERNAME')
 
-    # تهيئة الإضافات
+    # تهيئة الإضافات مع التطبيق
     db.init_app(app)
     login_manager.init_app(app)
     migrate.init_app(app, db)
@@ -51,10 +55,9 @@ def create_app(config_name='default'):
         from app.admin import admin_bp
         from app.chat import chat_bp
         from app.applications import apps_bp
-        # استيراد الوكيل الذكي الجديد هنا
-        from app.agent_worker import agent_bp
+        from app.agent_worker import agent_bp  # الوكيل الجديد
 
-        # تسجيل الـ Blueprints في نظام فلاسك
+        # تسجيل الـ Blueprints
         app.register_blueprint(auth_bp)
         app.register_blueprint(cv_bp)
         app.register_blueprint(jobs_bp)
@@ -63,10 +66,9 @@ def create_app(config_name='default'):
         app.register_blueprint(admin_bp)
         app.register_blueprint(chat_bp)
         app.register_blueprint(apps_bp)
-        # تسجيل الوكيل الذكي
-        app.register_blueprint(agent_bp)
+        app.register_blueprint(agent_bp) # تفعيل مسار الوكيل
 
-        # إنشاء الجداول الجديدة (بما فيها حقول الوكيل)
+        # إنشاء الجداول (تلقائياً عند التشغيل الأول)
         db.create_all()
 
     @login_manager.user_loader

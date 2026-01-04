@@ -11,17 +11,9 @@
       "src": "/run-jobs-agent",
       "dest": "run.py"
     },
-    { "handle": "filesystem" },
     {
       "src": "/(.*)",
       "dest": "run.py"
     }
-  ],
-  "crons": [
-    {
-      "path": "/run-jobs-agent",
-      "schedule": "0 */12 * * *"
-    }
   ]
 }
-
