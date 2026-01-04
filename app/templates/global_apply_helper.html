@@ -13,23 +13,23 @@
                         </div>
                         <div>
                             <h4 class="fw-bold mb-0">المساعد الذكي للتقديم العالمي</h4>
-                            <p class="mb-0 opacity-75">تم تخصيص طلبك بناءً على خبراتك في الـ AI والحوسبة السحابية</p>
+                            <p class="mb-0 opacity-75">تحليل ذكي مخصص بناءً على سيرتك الذاتية</p>
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="card-body p-4 bg-light">
                     <div class="alert alert-info border-0 rounded-3 mb-4">
-                        <i class="fas fa-info-circle me-2"></i>
-                        لقد قام الذكاء الاصطناعي بكتابة <strong>خطاب تقديم (Cover Letter)</strong> مخصص لهذه الوظيفة. قم بنسخه واستخدامه عند التقديم في الموقع الأصلي.
+                        <i class="fas fa-robot me-2"></i>
+                        لقد قام الذكاء الاصطناعي بتحليل الوظيفة ومقارنتها بمهاراتك. إليك <strong>خطاب التقديم والتحليل</strong> المقترح:
                     </div>
 
                     <div class="mb-4">
                         <label class="form-label fw-bold text-dark">
-                            <i class="fas fa-file-alt me-2 text-primary"></i> خطاب التقديم المقترح (باللغة الإنجليزية):
+                            <i class="fas fa-file-alt me-2 text-primary"></i> تحليل الملاءمة وخطاب التقديم:
                         </label>
                         <div class="position-relative">
-                            <textarea id="coverLetterText" class="form-control rounded-3 shadow-sm border-0 p-3" rows="12" readonly style="background: white; font-family: 'Courier New', Courier, monospace; line-height: 1.6;">{{ cover_letter }}</textarea>
+                            <textarea id="coverLetterText" class="form-control rounded-3 shadow-sm border-0 p-3" rows="12" readonly style="background: white; line-height: 1.6;">{{ analysis }}</textarea>
                             <button onclick="copyCoverLetter()" class="btn btn-dark btn-sm position-absolute top-0 end-0 m-2 rounded-pill px-3">
                                 <i class="fas fa-copy me-1"></i> نسخ النص
                             </button>
@@ -56,9 +56,9 @@
                         </a>
                     </div>
                 </div>
-                
+
                 <div class="card-footer bg-white text-center py-3 border-0">
-                    <small class="text-muted">نصيحة: التقديم باستخدام خطاب مخصص يزيد من فرص قبولك بنسبة 40%</small>
+                    <small class="text-muted">نصيحة: استخدام تحليل الذكاء الاصطناعي يزيد من احترافية تقديمك</small>
                 </div>
             </div>
         </div>
@@ -71,23 +71,7 @@ function copyCoverLetter() {
     copyText.select();
     copyText.setSelectionRange(0, 99999);
     document.execCommand("copy");
-    
-    // تغيير شكل الزر مؤقتاً
-    const btn = event.target.closest('button');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-check me-1"></i> تم النسخ';
-    btn.classList.replace('btn-dark', 'btn-success');
-    
-    setTimeout(() => {
-        btn.innerHTML = originalText;
-        btn.classList.replace('btn-success', 'btn-dark');
-    }, 2000);
+    alert("تم نسخ التحليل بنجاح!");
 }
 </script>
-
-<style>
-    .card { border: none !important; }
-    .btn-primary { background: linear-gradient(135deg, #0d6efd 0%, #0043a8 100%); }
-    textarea:focus { box-shadow: none !important; border: 1px solid #0d6efd !important; }
-</style>
 {% endblock %}

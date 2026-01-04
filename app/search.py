@@ -4,7 +4,7 @@ from flask_login import login_required, current_user
 from app.models import Job, CV, Application, InterviewSession, db
 from app.openrouter_ai import openrouter_ai
 from app.serper_search import serper_searcher
-from app.telegram_bot import send_message 
+from app.telegram_bot import send_message
 
 search_bp = Blueprint('search', __name__)
 
@@ -29,10 +29,8 @@ def jobs_list():
     global_jobs = []
     if q:
         try:
-            # دمج الكلمات للبحث العالمي
             full_query = f"{q} {loc}".strip()
             results = serper_searcher.search_jobs(full_query)
-            # التأكد من أن النتائج قائمة وليست None
             global_jobs = results.get('jobs', []) if results else []
         except Exception as e:
             print(f"Middleware Global Search Error: {e}")
@@ -48,12 +46,12 @@ def jobs_list():
 @login_required
 def skill_analysis():
     """المستشار الذكي: تحليل المهارات بناءً على الـ CV"""
-    cv = CV.query.filter_by(user_id=current_user.id).order_at(CV.created_at.desc()).first()
+    # تم تصحيح order_at إلى order_by هنا
+    cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
     if not cv:
         flash('يرجى رفع سيرتك الذاتية أولاً لتفعيل المستشار الذكي.', 'info')
         return redirect(url_for('cv.upload_cv'))
 
-    # معالجة المهارات سواء كانت JSON أو String
     skills_list = cv.skills if isinstance(cv.skills, list) else []
     skills_data = []
     for s in skills_list:
@@ -91,7 +89,6 @@ def interview_prep(skill):
             db.session.add(new_session)
             db.session.commit()
 
-            # إرسال تنبيه تلجرام
             if current_user.telegram_id:
                 msg = f"🧠 <b>جلسة تدريب جاهزة!</b>\n\nلقد تم توليد أسئلة مقابلة لمهارة: <b>{skill}</b>"
                 send_message(current_user.telegram_id, msg)
@@ -114,11 +111,10 @@ def delete_session(session_id):
     return redirect(url_for('auth.dashboard'))
 
 def calculate_match_score(cv_text, job_desc):
-    """حساب نسبة المطابقة للوظيفة باستخدام الذكاء الاصطناعي"""
     if not cv_text or not job_desc:
         return 0
     try:
         score, explanation = openrouter_ai.get_match_score(cv_text, job_desc)
         return score
     except:
-        return 50 
+        return 50
