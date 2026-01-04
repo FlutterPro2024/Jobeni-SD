@@ -68,12 +68,23 @@ def add_job():
 @jobs_bp.route('/job/delete/<int:job_id>', methods=['POST'])
 @login_required
 def delete_job(job_id):
+    """حذف الوظيفة مع كافة الارتباطات لتفادي خطأ Internal Server Error"""
     job = Job.query.get_or_404(job_id)
     if job.employer_id != current_user.id:
         abort(403)
-    db.session.delete(job)
-    db.session.commit()
-    flash('تم حذف الوظيفة بنجاح.', 'info')
+    
+    try:
+        # حذف جميع طلبات التقديم المرتبطة بهذه الوظيفة أولاً
+        Application.query.filter_by(job_id=job.id).delete()
+        
+        # حذف الوظيفة نفسها
+        db.session.delete(job)
+        db.session.commit()
+        flash('تم حذف الوظيفة وكافة البيانات المرتبطة بها بنجاح.', 'info')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'حدث خطأ أثناء الحذف: {str(e)}', 'danger')
+        
     return redirect(url_for('auth.dashboard'))
 
 @jobs_bp.route('/job/apply/<int:job_id>', methods=['POST'])
@@ -95,24 +106,25 @@ def apply_to_job(job_id):
         flash('لقد قدمت مسبقاً على هذه الوظيفة.', 'info')
         return redirect(url_for('jobs.job_detail', job_id=job_id))
 
-    # --- التعديل الجذري هنا لحل مشكلة الـ Tuple ---
-    # نستخدم محرك الـ AI الجديد لفك النسبة والتفسير
+    # استخدام محرك الـ AI الجديد (المعدل في openrouter_ai)
     match_score, match_explanation = openrouter_ai.get_match_score(user_cv.extracted_text, job.description)
 
     new_app = Application(
-        user_id=current_user.id, 
-        job_id=job_id, 
-        cv_id=cv_id, 
+        user_id=current_user.id,
+        job_id=job_id,
+        cv_id=cv_id,
         match_score=int(match_score),
-        match_explanation=match_explanation # حفظ التفسير في الحقل الجديد
+        match_explanation=match_explanation
     )
-    
+
     db.session.add(new_app)
     db.session.commit()
 
     employer = User.query.get(job.employer_id)
     if employer and employer.telegram_id:
-        notify_employer_new_app(employer.telegram_id, current_user.username, job.title, match_score)
+        try:
+            notify_employer_new_app(employer.telegram_id, current_user.username, job.title, match_score)
+        except: pass
 
     flash(f'تم التقديم بنجاح! نسبة المطابقة الذكية: {match_score}%', 'success')
     return redirect(url_for('jobs.job_detail', job_id=job_id))
@@ -131,7 +143,9 @@ def update_application_status(app_id):
 
         applicant = User.query.get(application.user_id)
         if applicant and applicant.telegram_id:
-            notify_status_update(applicant.telegram_id, job.title, new_status)
+            try:
+                notify_status_update(applicant.telegram_id, job.title, new_status)
+            except: pass
 
         flash(f'تم تحديث الحالة إلى ({new_status}) وإرسال تنبيه للمتقدم.', 'success')
     return redirect(url_for('jobs.view_candidates', job_id=job.id))
@@ -161,7 +175,9 @@ def generate_interview_questions(app_id):
 
         applicant = User.query.get(application.user_id)
         if applicant and applicant.telegram_id:
-            notify_status_update(applicant.telegram_id, job.title, 'interview')
+            try:
+                notify_status_update(applicant.telegram_id, job.title, 'interview')
+            except: pass
 
         return render_template('interview_questions.html', questions=questions, app=application, job=job)
     except:
