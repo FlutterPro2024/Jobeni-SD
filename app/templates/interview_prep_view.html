@@ -28,7 +28,14 @@
 
                     <div class="ai-content-wrapper p-2 p-md-4 rounded-4 bg-light shadow-inner">
                         <div class="ai-content lh-lg text-dark" style="font-size: 1.15rem;">
-                            {{ content | safe | replace('\n', '<br>') }}
+                            {% if content %}
+                                {{ content | safe | replace('\n', '<br>') }}
+                            {% else %}
+                                <div class="text-center py-4">
+                                    <i class="fas fa-exclamation-triangle text-warning fa-3x mb-3"></i>
+                                    <p class="text-muted">نعتذر، لم نتمكن من جلب الأسئلة حالياً. يرجى المحاولة مرة أخرى.</p>
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
 
@@ -68,7 +75,7 @@
     .gradient-header {
         background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
     }
-    
+
     .icon-circle {
         width: 60px;
         height: 60px;
@@ -82,14 +89,13 @@
         border: 1px solid #e9ecef;
         background-color: #ffffff;
         background-image: radial-gradient(#f1f5f9 1.1px, transparent 1.1px);
-        background-size: 22px 22px; /* خلفية منقطة خفيفة تعطي طابع تقني */
+        background-size: 22px 22px; 
     }
 
     .ai-content {
-        white-space: pre-line; /* يحافظ على المسافات والأسطر بشكل أفضل */
+        white-space: pre-wrap; /* تم التعديل من pre-line لـ pre-wrap لضمان أفضل عرض */
     }
 
-    /* جعل الكلمات المفتاحية والترقيم بارزاً */
     .ai-content b, .ai-content strong {
         color: #0d6efd;
         font-weight: 700;
@@ -119,7 +125,7 @@
     }
 
     @media print {
-        .btn, .alert, .gradient-header i {
+        .btn, .alert, .gradient-header i, .icon-circle {
             display: none !important;
         }
         .card {
