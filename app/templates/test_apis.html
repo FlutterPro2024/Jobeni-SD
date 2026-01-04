@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار APIs والنماذج - Jobeni-SD</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .test-card {
+            transition: all 0.3s ease;
+            border-left: 5px solid #6c757d;
+        }
+        .test-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .test-card.success {
+            border-left-color: #198754;
+        }
+        .test-card.error {
+            border-left-color: #dc3545;
+        }
+        .test-card.warning {
+            border-left-color: #ffc107;
+        }
+        .spinner {
+            width: 3rem;
+            height: 3rem;
+        }
+        .api-key-display {
+            font-family: monospace;
+            background: #f8f9fa;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .status-badge {
+            font-size: 0.8em;
+            padding: 3px 8px;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('auth.index') }}">
+                <i class="fas fa-vial"></i> Jobeni-SD Tester
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('auth.dashboard') }}">
+                    <i class="fas fa-tachometer-alt"></i> لوحة التحكم
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-5">
+        <div class="text-center mb-5">
+            <h1 class="display-5 mb-3">
+                <i class="fas fa-search"></i> اختبار APIs والنماذج
+            </h1>
+            <p class="lead text-muted">
+                تحقق من حالة جميع خدمات الذكاء الاصطناعي والبحث
+            </p>
+        </div>
+
+        <!-- بطاقة حالة النظام -->
+        <div class="card mb-4">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="fas fa-server"></i> حالة النظام</h5>
+            </div>
+            <div class="card-body">
+                <div class="row" id="systemStatus">
+                    <div class="col-md-3 mb-3">
+                        <div class="card text-center h-100">
+                            <div class="card-body">
+                                <div class="spinner-border text-primary mb-2" role="status"></div>
+                                <h6>Serper API</h6>
+                                <p class="text-muted small mb-0">جارِ الفحص...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card text-center h-100">
+                            <div class="card-body">
+                                <div class="spinner-border text-primary mb-2" role="status"></div>
+                                <h6>OpenRouter AI</h6>
+                                <p class="text-muted small mb-0">جارِ الفحص...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card text-center h-100">
+                            <div class="card-body">
+                                <div class="spinner-border text-primary mb-2" role="status"></div>
+                                <h6>بحث Serper</h6>
+                                <p class="text-muted small mb-0">جارِ الفحص...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card text-center h-100">
+                            <div class="card-body">
+                                <div class="spinner-border text-primary mb-2" role="status"></div>
+                                <h6>تحليل AI</h6>
+                                <p class="text-muted small mb-0">جارِ الفحص...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-center mt-3">
+                    <button class="btn btn-primary" onclick="runAllTests()">
+                        <i class="fas fa-play"></i> تشغيل جميع الاختبارات
+                    </button>
+                    <button class="btn btn-secondary" onclick="checkAPIKeys()">
+                        <i class="fas fa-key"></i> فحص مفاتيح API
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- نتائج الاختبارات التفصيلية -->
+        <div class="row" id="testResults">
+            <!-- سيتم ملء هذا القسم بالنتائج -->
+        </div>
+
+        <!-- اختبارات سريعة -->
+        <div class="card mt-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-bolt"></i> اختبارات سريعة</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6><i class="fas fa-search text-primary"></i> اختبار بحث Serper</h6>
+                                <p class="small text-muted">ابحث عن وظائف حقيقية على الإنترنت</p>
+                                <div class="input-group mb-2">
+                                    <input type="text" class="form-control" id="searchQuery" 
+                                           placeholder="مثال: مطور ويب" value="مطور ويب">
+                                    <button class="btn btn-primary" onclick="testSerperSearch()">
+                                        <i class="fas fa-search"></i> اختبار
+                                    </button>
+                                </div>
+                                <div id="serperSearchResult"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6><i class="fas fa-brain text-success"></i> اختبار تحليل AI</h6>
+                                <p class="small text-muted">اختبر قدرة الذكاء الاصطناعي على التحليل</p>
+                                <textarea class="form-control mb-2" id="cvText" rows="2" 
+                                          placeholder="أدخل نص سيرة ذاتية للتحليل">
+أحمد محمد - مطور ويب - 3 سنوات خبرة - Python, Flask</textarea>
+                                <button class="btn btn-success w-100" onclick="testAIAnalysis()">
+                                    <i class="fas fa-robot"></i> اختبار التحليل
+                                </button>
+                                <div id="aiAnalysisResult" class="mt-2"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- معلومات مفيدة -->
+        <div class="card mt-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> معلومات مفيدة</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-key"></i> مفاتيح API الحالية:</h6>
+                        <div class="mb-3">
+                            <small class="text-muted">Serper API Key:</small>
+                            <div class="api-key-display" id="serperKeyDisplay">جارِ التحميل...</div>
+                        </div>
+                        <div class="mb-3">
+                            <small class="text-muted">OpenRouter API Key:</small>
+                            <div class="api-key-display" id="openrouterKeyDisplay">جارِ التحميل...</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-question-circle"></i> إذا كانت هناك مشاكل:</h6>
+                        <ul class="small">
+                            <li>تأكد من اتصال الإنترنت</li>
+                            <li>تحقق من صحة مفاتيح API</li>
+                            <li>تأكد من أن رصيد API لم ينفذ</li>
+                            <li>جرب إعادة تشغيل التطبيق</li>
+                            <li>تحقق من ملف .env أو متغيرات البيئة</li>
+                        </ul>
+                        <div class="alert alert-warning small">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>ملاحظة:</strong> مفاتيح API تظهر الأجزاء الأولى فقط لأغراض الأمان.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript للاختبارات -->
+    <script>
+        // فحص مفاتيح API
+        async function checkAPIKeys() {
+            const keys = {
+                serper: document.getElementById('serperKeyDisplay'),
+                openrouter: document.getElementById('openrouterKeyDisplay')
+            };
+            
+            // استخراج مفاتيح من النتائج (تظهر بعد تشغيل الاختبارات)
+            keys.serper.textContent = 'سيظهر بعد تشغيل اختبار Serper';
+            keys.openrouter.textContent = 'سيظهر بعد تشغيل اختبار OpenRouter';
+            
+            alert('🚀 سيظهر تفاصيل مفاتيح API بعد تشغيل الاختبارات');
+        }
+
+        // تشغيل جميع الاختبارات
+        async function runAllTests() {
+            // إعادة تعيين الحالة
+            const systemStatus = document.getElementById('systemStatus');
+            systemStatus.innerHTML = `
+                <div class="col-12 text-center">
+                    <div class="spinner-border text-primary mb-3" role="status"></div>
+                    <h5>جارِ تشغيل جميع الاختبارات...</h5>
+                </div>
+            `;
+            
+            // تشغيل اختبار شامل
+            try {
+                const response = await fetch('/api/test/all');
+                const data = await response.json();
+                
+                // عرض النتائج
+                displayAllResults(data);
+            } catch (error) {
+                systemStatus.innerHTML = `
+                    <div class="col-12">
+                        <div class="alert alert-danger">
+                            <i class="fas fa-times-circle"></i> فشل تشغيل الاختبارات: ${error.message}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // عرض نتائج جميع الاختبارات
+        function displayAllResults(data) {
+            const systemStatus = document.getElementById('systemStatus');
+            const testResults = document.getElementById('testResults');
+            
+            // تحديث حالة النظام
+            const summary = data.summary;
+            systemStatus.innerHTML = `
+                <div class="col-md-3 mb-3">
+                    <div class="card text-center h-100 ${summary.passed_tests > 0 ? 'bg-success text-white' : 'bg-light'}">
+                        <div class="card-body">
+                            <h1 class="display-4">${summary.passed_tests}</h1>
+                            <h6>اختبار ناجح</h6>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card text-center h-100 ${summary.failed_tests > 0 ? 'bg-danger text-white' : 'bg-light'}">
+                        <div class="card-body">
+                            <h1 class="display-4">${summary.failed_tests}</h1>
+                            <h6>اختبار فاشل</h6>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card text-center h-100 bg-info text-white">
+                        <div class="card-body">
+                            <h1 class="display-4">${summary.success_rate}</h1>
+                            <h6>معدل النجاح</h6>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card text-center h-100 bg-warning">
+                        <div class="card-body">
+                            <h1 class="display-4">${summary.total_tests}</h1>
+                            <h6>إجمالي الاختبارات</h6>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // عرض النتائج التفصيلية
+            const detailed = data.detailed_results;
+            let resultsHTML = '';
+            
+            for (const [testName, result] of Object.entries(detailed)) {
+                const statusClass = result.status === 'success' ? 'success' : 'error';
+                const statusIcon = result.status === 'success' ? 'fa-check-circle' : 'fa-times-circle';
+                const statusColor = result.status === 'success' ? 'text-success' : 'text-danger';
+                
+                resultsHTML += `
+                    <div class="col-md-6 mb-3">
+                        <div class="card test-card ${statusClass}">
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    <i class="fas ${statusIcon} ${statusColor}"></i>
+                                    ${getTestName(testName)}
+                                </h6>
+                                <p class="card-text">${result.message}</p>
+                                
+                                ${result.details ? `
+                                <div class="small text-muted">
+                                    <strong>التفاصيل:</strong>
+                                    <ul class="mb-0 mt-1">
+                                        ${Object.entries(result.details).map(([key, value]) => 
+                                            `<li><strong>${key}:</strong> ${value}</li>`
+                                        ).join('')}
+                                    </ul>
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            testResults.innerHTML = resultsHTML;
+            
+            // تحديث مفاتيح API
+            updateAPIKeysDisplay(detailed);
+        }
+
+        // ترجمة أسماء الاختبارات
+        function getTestName(testName) {
+            const names = {
+                'serper_basic': 'Serper API الأساسي',
+                'openrouter_basic': 'OpenRouter API الأساسي',
+                'serper_search': 'بحث Serper العملي',
+                'openrouter_analysis': 'تحليل OpenRouter العملي'
+            };
+            return names[testName] || testName;
+        }
+
+        // تحديث عرض مفاتيح API
+        function updateAPIKeysDisplay(results) {
+            const serperKey = results.serper_basic?.details?.api_key_first_chars || 'غير متوفر';
+            const openrouterKey = results.openrouter_basic?.details?.api_key_first_chars || 'غير متوفر';
+            
+            document.getElementById('serperKeyDisplay').textContent = serperKey;
+            document.getElementById('openrouterKeyDisplay').textContent = openrouterKey;
+        }
+
+        // اختبار بحث Serper سريع
+        async function testSerperSearch() {
+            const query = document.getElementById('searchQuery').value;
+            const resultDiv = document.getElementById('serperSearchResult');
+            
+            if (!query) {
+                resultDiv.innerHTML = '<div class="alert alert-warning">أدخل كلمة بحث</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border spinner-border-sm text-primary"></div>
+                    جارِ البحث عن "${query}"...
+                </div>
+            `;
+            
+            try {
+                const response = await fetch(`/api/test/serper_search`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle"></i> ${data.message}
+                            <div class="mt-2">
+                                <strong>النتائج:</strong> ${data.details.total_jobs} وظيفة
+                                <br>
+                                <strong>الوقت:</strong> ${data.details.response_time}
+                                ${data.details.sample_titles && data.details.sample_titles.length > 0 ? `
+                                <br>
+                                <strong>عناوين:</strong>
+                                <ul class="small mb-0">
+                                    ${data.details.sample_titles.map(title => `<li>${title}</li>`).join('')}
+                                </ul>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-times-circle"></i> ${data.message}
+                            ${data.details?.error ? `<div class="mt-1 small">${data.details.error}</div>` : ''}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-times-circle"></i> فشل البحث: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        // اختبار تحليل AI سريع
+        async function testAIAnalysis() {
+            const cvText = document.getElementById('cvText').value;
+            const resultDiv = document.getElementById('aiAnalysisResult');
+            
+            if (!cvText) {
+                resultDiv.innerHTML = '<div class="alert alert-warning">أدخل نص السيرة الذاتية</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border spinner-border-sm text-success"></div>
+                    جارِ تحليل السيرة الذاتية...
+                </div>
+            `;
+            
+            try {
+                const response = await fetch(`/api/test/openrouter_full`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle"></i> ${data.message}
+                            <div class="mt-2">
+                                <strong>الوقت:</strong> ${data.details.response_time}
+                                <br>
+                                <strong>المفاتيح:</strong> ${data.details.analysis_keys.join(', ')}
+                                <br>
+                                <strong>النتيجة:</strong> ${data.details.sample_data.overall_score}/100
+                                <br>
+                                <strong>مهارات:</strong> ${data.details.sample_data.skills_count} مهارة تقنية
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-times-circle"></i> ${data.message}
+                            ${data.details?.error ? `<div class="mt-1 small">${data.details.error}</div>` : ''}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-times-circle"></i> فشل التحليل: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        // تشغيل اختبار تلقائي عند تحميل الصفحة
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(runAllTests, 1000);
+        });
+    </script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

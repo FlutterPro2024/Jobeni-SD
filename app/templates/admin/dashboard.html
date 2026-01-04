@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">📊 لوحة تحكم النظام العالمية</h1>
+    
+    <div class="row text-center mb-5">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white p-3 shadow">
+                <h3>{{ stats.total_users }}</h3>
+                <p>إجمالي المستخدمين</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white p-3 shadow">
+                <h3>{{ stats.total_jobs }}</h3>
+                <p>وظائف منشورة</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white p-3 shadow">
+                <h3>{{ stats.total_cvs }}</h3>
+                <p>سير ذاتية محللة بالـ AI</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark p-3 shadow">
+                <h3>{{ stats.total_apps }}</h3>
+                <p>عمليات تقديم</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card shadow p-4">
+                <h4>🔥 المهن الأكثر طلباً/انتشاراً</h4>
+                <canvas id="professionsChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card shadow p-4">
+                <h4>🏢 الشركات الأكثر توظيفاً</h4>
+                <table class="table mt-3">
+                    <thead>
+                        <tr><th>الشركة</th><th>عدد المتقدمين</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for comp, count in companies %}
+                        <tr><td>{{ comp }}</td><td>{{ count }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('professionsChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: [{% for prof, c in professions %}"{{ prof }}",{% endfor %}],
+            datasets: [{
+                data: [{% for prof, c in professions %}{{ c }},{% endfor %}],
+                backgroundColor: ['#1e3a8a', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe']
+            }]
+        }
+    });
+</script>
+{% endblock %}

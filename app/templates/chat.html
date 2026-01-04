@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}الدردشة مع {{ recipient.full_name or recipient.username }}{% endblock %}
+
+{% block content %}
+<div class="container py-4 text-end" dir="rtl">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden" style="background: #f8fafc; height: 80vh;">
+                <div class="card-header bg-white border-0 py-3 shadow-sm d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 45px; height: 45px;">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0 text-dark">{{ recipient.full_name or recipient.username }}</h6>
+                            {% if job %}
+                                <small class="text-primary fw-bold">بخصوص: {{ job.title }}</small>
+                            {% else %}
+                                <small class="text-muted">دردشة مباشرة</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <a href="{{ url_for('auth.dashboard') }}" class="btn btn-sm btn-outline-secondary rounded-pill">
+                        <i class="fas fa-times"></i>
+                    </a>
+                </div>
+
+                <div class="card-body overflow-auto p-4" id="chatWindow" style="flex: 1; background: #e2e8f0;">
+                    {% for msg in messages %}
+                        <div class="d-flex mb-3 {% if msg.sender_id == current_user.id %}justify-content-start flex-row-reverse{% else %}justify-content-start{% endif %}">
+                            <div class="p-3 shadow-sm {% if msg.sender_id == current_user.id %}bg-primary text-white ms-2{% else %}bg-white text-dark me-2{% endif %}" 
+                                 style="max-width: 75%; border-radius: 20px; border-bottom-right-radius: {% if msg.sender_id == current_user.id %}2px{% else %}20px{% endif %}; border-bottom-left-radius: {% if msg.sender_id != current_user.id %}2px{% else %}20px{% endif %};">
+                                <p class="mb-1 small">{{ msg.body }}</p>
+                                <div class="text-start" style="font-size: 0.65rem; opacity: 0.8;">
+                                    {{ msg.timestamp.strftime('%H:%M') }}
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-comments fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">ابدأ المحادثة الآن..</p>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="card-footer bg-white border-0 p-3">
+                    <form action="" method="POST" class="d-flex gap-2">
+                        <input type="text" name="message" class="form-control rounded-pill border-0 bg-light px-4" 
+                               placeholder="اكتب رسالتك هنا..." required autocomplete="off">
+                        <button type="submit" class="btn btn-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // التمرير التلقائي لأسفل عند فتح الدردشة
+    var chatWindow = document.getElementById("chatWindow");
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+</script>
+
+<style>
+    /* تحسين شكل شريط التمرير */
+    #chatWindow::-webkit-scrollbar { width: 6px; }
+    #chatWindow::-webkit-scrollbar-track { background: transparent; }
+    #chatWindow::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    .bg-primary { background: linear-gradient(135deg, #2563eb, #1e40af) !important; }
+</style>
+{% endblock %}

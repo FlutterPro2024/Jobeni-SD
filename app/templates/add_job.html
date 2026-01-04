@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}نشر وظيفة - تحديد الموقع{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<div class="container py-5 text-end" dir="rtl">
+    <div class="row justify-content-center">
+        <div class="col-md-9">
+            <div class="card border-0 shadow-lg rounded-4 p-4 p-md-5">
+                <h2 class="fw-bold mb-4 text-primary"><i class="fas fa-plus-circle me-2"></i>نشر فرصة عمل جديدة</h2>
+                
+                <form action="{{ url_for('jobs.add_job') }}" method="POST">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">عنوان الوظيفة</label>
+                            <input type="text" name="title" class="form-control rounded-pill" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">اسم الشركة</label>
+                            <input type="text" name="company_name" class="form-control rounded-pill" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-danger"><i class="fas fa-map-marker-alt me-1"></i> حدد الموقع على الخريطة (عالمياً)</label>
+                        <div id="map" style="height: 350px; border-radius: 20px;" class="shadow-sm border"></div>
+                        
+                        <input type="hidden" name="latitude" id="lat">
+                        <input type="hidden" name="longitude" id="lng">
+                        
+                        <input type="text" name="location" class="form-control mt-2 rounded-pill" placeholder="وصف كتابي للموقع (مثلاً: الخرطوم - حي الرياض أو دبي - شارع الشيخ زايد)">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">الفئة</label>
+                            <input type="text" name="category" class="form-control rounded-pill" placeholder="مثلاً: تقنية، طب، هندسة">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">نوع العمل</label>
+                            <select name="job_type" class="form-select rounded-pill">
+                                <option value="دوام كامل">دوام كامل</option>
+                                <option value="دوام جزئي">دوام جزئي</option>
+                                <option value="عن بعد">عن بعد</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">وصف الوظيفة والمتطلبات</label>
+                        <textarea name="description" class="form-control rounded-4" rows="5" required></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg w-100 rounded-pill shadow">نشر الوظيفة الآن</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // إعداد الخريطة بزووم واسع لتشمل المنطقة العربية وأفريقيا
+    var map = L.map('map').setView([15.5007, 32.5599], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    var marker;
+
+    map.on('click', function(e) {
+        if (marker) { map.removeLayer(marker); }
+        marker = L.marker(e.latlng, {draggable: true}).addTo(map);
+        updateFields(e.latlng);
+
+        // تحديث الإحداثيات عند سحب الدبوس
+        marker.on('dragend', function(event) {
+            updateFields(event.target.getLatLng());
+        });
+    });
+
+    function updateFields(latlng) {
+        document.getElementById('lat').value = latlng.lat;
+        document.getElementById('lng').value = latlng.lng;
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}أسئلة المقابلة الذكية - {{ app.applicant.username }}{% endblock %}
+
+{% block content %}
+<div class="container py-5 text-end" dir="rtl">
+    <div class="row justify-content-center">
+        <div class="col-md-9">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden mb-4">
+                <div class="card-body p-4 bg-dark text-white d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="fw-bold mb-1 text-warning">
+                            <i class="fas fa-robot me-2"></i> مساعد المقابلات الذكي
+                        </h3>
+                        <p class="mb-0 opacity-75">أسئلة مخصصة للمرشح: <strong>{{ app.applicant.full_name or app.applicant.username }}</strong></p>
+                    </div>
+                    <div class="text-start">
+                        <span class="badge bg-primary px-3 py-2 rounded-pill">وظيفة: {{ job.title }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4 bg-white">
+                <div class="card-body p-5">
+                    <div class="interview-content lh-lg" style="white-space: pre-line; font-size: 1.1rem;">
+                        {{ questions | safe }}
+                    </div>
+                    
+                    <hr class="my-5">
+
+                    <div class="d-flex flex-wrap gap-3 justify-content-center">
+                        <button onclick="window.print()" class="btn btn-outline-dark px-4 rounded-pill">
+                            <i class="fas fa-print me-2"></i> طباعة الأسئلة للمقابلة
+                        </button>
+                        
+                        <a href="{{ url_for('chat.open_chat', job_id=job.id, recipient_id=app.user_id) }}" class="btn btn-primary px-5 rounded-pill shadow-sm">
+                            <i class="fas fa-paper-plane me-2"></i> إرسال موعد المقابلة للمرشح
+                        </a>
+                        
+                        <a href="{{ url_for('jobs.view_candidates', job_id=job.id) }}" class="btn btn-light px-4 rounded-pill border">
+                            العودة لقائمة المرشحين
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <p class="text-center mt-4 text-muted small">
+                <i class="fas fa-info-circle me-1"></i> هذه الأسئلة تم توليدها بناءً على تحليل السيرة الذاتية ووصف الوظيفة بواسطة Jobeni AI.
+            </p>
+        </div>
+    </div>
+</div>
+
+<style>
+    @media print {
+        .btn, nav, footer { display: none !important; }
+        .card { border: none !important; shadow: none !important; }
+        body { background: white !important; }
+    }
+    .interview-content {
+        color: #2c3e50;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+</style>
+{% endblock %}

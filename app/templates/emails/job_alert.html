@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: white; padding: 40px 20px; text-align: center; }
+        .content { padding: 30px; line-height: 1.6; color: #334155; }
+        .job-card { background: #f8fafc; border-right: 5px solid #3b82f6; padding: 20px; margin: 20px 0; border-radius: 8px; }
+        .button { display: inline-block; padding: 15px 30px; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 50px; font-weight: bold; margin-top: 20px; }
+        .footer { background: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #64748b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>فرصة عمل جديدة تهمك! 🚀</h1>
+        </div>
+        <div class="content">
+            <p>مرحباً <strong>{{ user.username }}</strong>،</p>
+            <p>لقد عثر محرك جوبيني الذكي على وظيفة جديدة تتوافق تماماً مع مهاراتك وتخصصك المكتشف في سيرتك الذاتية:</p>
+            
+            <div class="job-card">
+                <h2 style="margin: 0; color: #1e3a8a;">{{ job.title }}</h2>
+                <p style="margin: 5px 0;"><strong>الشركة:</strong> {{ job.company_name }}</p>
+                <p style="margin: 5px 0;"><strong>الموقع:</strong> {{ job.location }}</p>
+            </div>
+
+            <p>لا تضيع الفرصة، كن من أوائل المتقدمين!</p>
+            <center>
+                <a href="{{ url_for('jobs.job_detail', job_id=job.id, _external=True) }}" class="button">عرض تفاصيل الوظيفة والتقديم</a>
+            </center>
+        </div>
+        <div class="footer">
+            <p>© 2025 Jobeni Global - منصة التوظيف الذكية الأولى</p>
+            <p>لقد تلقيت هذا البريد لأنك مسجل في منصة جوبيني.</p>
+        </div>
+    </div>
+</body>
+</html>

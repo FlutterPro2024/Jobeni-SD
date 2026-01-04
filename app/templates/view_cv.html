@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-5 text-end" dir="rtl">
+    <div class="card border-0 shadow-lg rounded-4 overflow-hidden mb-4">
+        <div class="card-body p-4 bg-primary text-white d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="fw-bold mb-0">{{ cv.profession or 'متخصص' }}</h2>
+                <p class="mb-0 opacity-75">تحليل الذكاء الاصطناعي للسيرة الذاتية</p>
+            </div>
+            {% if current_user.id == cv.user_id %}
+                <a href="{{ url_for('cv.optimize_cv_view', cv_id=cv.id) }}" class="btn btn-warning rounded-pill px-4 fw-bold">تحسين الـ ATS ✨</a>
+            {% else %}
+                <a href="{{ url_for('chat.open_chat', job_id=0, recipient_id=cv.user_id) }}" class="btn btn-light rounded-pill px-4 fw-bold">تواصل مع المرشح</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 rounded-4 p-4 text-center">
+                <h6 class="text-muted mb-3">قوة السيرة</h6>
+                <h1 class="display-4 fw-bold text-primary">{{ cv.score }}%</h1>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0 rounded-4 p-4">
+                <h5 class="fw-bold border-bottom pb-2">النص المستخلص</h5>
+                <pre class="bg-light p-3 rounded" style="white-space: pre-wrap; font-size: 0.9rem;">{{ cv.extracted_text }}</pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

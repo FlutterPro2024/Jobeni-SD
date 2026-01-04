@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% block title %}لوحة التحكم - Jobeni SD{% endblock %}
+
+{% block content %}
+<div class="container py-4 text-end" dir="rtl">
+    <div class="card border-0 text-white shadow-lg rounded-4 mb-4" style="background: linear-gradient(135deg, #1a1d20 0%, #0d6efd 100%);">
+        <div class="card-body p-5">
+            <h2 class="fw-bold mb-2">أهلاً بك، {{ current_user.full_name or current_user.username }}! 👋</h2>
+            <p class="lead mb-0 opacity-75 small">مرحباً بك في منصة جوبيني الذكية للتطوير المهني.</p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-0"><i class="fas fa-robot text-primary me-2"></i>تحليل مهاراتك الحالي</h5>
+                </div>
+                <div class="card-body p-4">
+                    {% set latest_cv = current_user.cvs[-1] if current_user.cvs else None %}
+                    {% if latest_cv %}
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                        <div class="flex-grow-1">
+                            <h6 class="fw-bold mb-1">المسمى: <span class="text-primary">{{ latest_cv.profession }}</span></h6>
+                            <div class="mb-3 mt-2">
+                                {% for skill in latest_cv.skills %}
+                                <span class="badge bg-light text-primary rounded-pill px-3 py-2 mb-1">{{ skill }}</span>
+                                {% endfor %}
+                            </div>
+                            <a href="{{ url_for('search.skill_analysis') }}" class="btn btn-sm btn-dark rounded-pill px-4">فتح المستشار الذكي 🧠</a>
+                        </div>
+                        <div class="circular-progress" style="--value:{{ latest_cv.score or 0 }}">
+                            <span class="fw-bold">{{ latest_cv.score or 0 }}%</span>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <p class="text-muted">لم تقم برفع سيرتك الذاتية بعد.</p>
+                        <a href="{{ url_for('cv.upload_cv') }}" class="btn btn-primary btn-sm rounded-pill px-4">ارفعها الآن</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4 bg-white">
+                <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0"><i class="fas fa-history text-success me-2"></i>سجل التدريبات (AI)</h5>
+                    <span class="badge bg-light text-muted rounded-pill">{{ current_user.interview_sessions|length }} جلسة</span>
+                </div>
+                <div class="card-body">
+                    {% if current_user.interview_sessions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle border-0">
+                            <tbody>
+                                {% for session in current_user.interview_sessions[::-1][:5] %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold text-dark">تدريب {{ session.skill_name }}</div>
+                                        <small class="text-muted">{{ session.created_at.strftime('%Y-%m-%d') }}</small>
+                                    </td>
+                                    <td class="text-start">
+                                        <a href="{{ url_for('search.interview_prep', skill=session.skill_name) }}" class="btn btn-sm btn-outline-primary rounded-circle"><i class="fas fa-eye"></i></a>
+                                        <form action="{{ url_for('search.delete_session', session_id=session.id) }}" method="POST" class="d-inline" onsubmit="return confirm('حذف الجلسة؟')">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger rounded-circle ms-1"><i class="fas fa-trash"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted py-4 small">لا يوجد سجل تدريبات حالياً.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 text-center">
+            <div class="row g-3">
+                <div class="col-12">
+                    <a href="{{ url_for('cv.upload_cv') }}" class="card border-0 shadow-sm rounded-4 p-4 bg-primary text-white text-decoration-none transition-hover">
+                        <i class="fas fa-file-upload fa-2x mb-2"></i>
+                        <h6 class="fw-bold">رفع ملف جديد</h6>
+                    </a>
+                </div>
+                <div class="col-12">
+                    <a href="{{ url_for('search.jobs_list') }}" class="card border-0 shadow-sm rounded-4 p-4 bg-dark text-white text-decoration-none transition-hover">
+                        <i class="fas fa-search fa-2x mb-2 text-warning"></i>
+                        <h6 class="fw-bold">استكشاف الوظائف</h6>
+                    </a>
+                </div>
+
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm rounded-4 bg-white text-end">
+                        <div class="card-header bg-white border-0 pt-3 px-3">
+                            <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-envelope text-primary ms-2"></i>الرسائل الواردة</h6>
+                        </div>
+                        <div class="card-body p-2">
+                            {% for msg in messages[::-1][:3] %}
+                            <a href="{{ url_for('chat.open_chat', job_id=msg.job_id or 0, recipient_id=msg.sender_id) }}" class="text-decoration-none">
+                                <div class="p-2 mb-2 bg-light rounded-3 small border-start border-primary border-4">
+                                    <div class="d-flex justify-content-between">
+                                        <strong class="text-dark">{{ msg.author.username }}</strong>
+                                        <small class="text-muted">{{ msg.timestamp.strftime('%H:%M') }}</small>
+                                    </div>
+                                    <div class="text-muted text-truncate">{{ msg.body }}</div>
+                                </div>
+                            </a>
+                            {% else %}
+                            <p class="text-muted small py-3 mb-0">لا توجد رسائل جديدة.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .circular-progress { width: 80px; height: 80px; background: radial-gradient(closest-side, white 79%, transparent 80% 100%), conic-gradient(#0d6efd calc(var(--value) * 1%), #eef2ff 0); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+    .transition-hover:hover { transform: translateY(-5px); transition: 0.3s; }
+</style>
+{% endblock %}

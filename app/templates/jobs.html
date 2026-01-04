@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الوظائف - Jobeni-SD</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding-top: 56px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .job-card { border-left: 4px solid #3498db; margin-bottom: 20px; transition: transform 0.3s; }
+        .job-card:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('auth.index') }}">Jobeni-SD</a>
+            <div class="navbar-nav ms-auto">
+                {% if current_user.is_authenticated %}
+                    <span class="nav-item nav-link">مرحباً {{ current_user.username }}</span>
+                    <a class="nav-link" href="{{ url_for('auth.dashboard') }}">لوحة التحكم</a>
+                    {% if current_user.is_employer %}
+                        <a class="nav-link" href="{{ url_for('jobs.create_job') }}">نشر وظيفة</a>
+                    {% endif %}
+                    <a class="nav-link" href="{{ url_for('auth.logout') }}">تسجيل الخروج</a>
+                {% else %}
+                    <a class="nav-link" href="{{ url_for('auth.login') }}">تسجيل الدخول</a>
+                    <a class="nav-link" href="{{ url_for('auth.register') }}">إنشاء حساب</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <main class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>الوظائف المتاحة</h1>
+            {% if current_user.is_authenticated and current_user.is_employer %}
+                <a href="{{ url_for('jobs.create_job') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> نشر وظيفة جديدة
+                </a>
+            {% endif %}
+        </div>
+        
+        <!-- شريط البحث -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="GET" action="{{ url_for('jobs.jobs_list') }}" class="row g-3">
+                    <div class="col-md-8">
+                        <input type="text" name="q" class="form-control" placeholder="ابحث عن وظيفة..." value="{{ search_query }}">
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-primary w-100">بحث</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- قائمة الوظائف -->
+        <div class="row">
+            {% if jobs %}
+                {% for job in jobs %}
+                    <div class="col-md-6 mb-4">
+                        <div class="card job-card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ job.title }}</h5>
+                                <p class="card-text">{{ job.description[:150] }}...</p>
+                                
+                                <div class="mb-3">
+                                    {% if job.job_type %}
+                                        <span class="badge bg-secondary">{{ job.job_type }}</span>
+                                    {% endif %}
+                                    {% if job.location %}
+                                        <span class="badge bg-info">{{ job.location }}</span>
+                                    {% endif %}
+                                    {% if job.salary %}
+                                        <span class="badge bg-success">{{ job.salary }}</span>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <a href="{{ url_for('jobs.job_detail', job_id=job.id) }}" class="btn btn-primary">عرض التفاصيل</a>
+                                    <small class="text-muted">{{ job.company_name }}</small>
+                                </div>
+                            </div>
+                            <div class="card-footer text-muted">
+                                منذ {{ ((now - job.created_at).days) if now and job.created_at else '0' }} يوم
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-12">
+                    <div class="alert alert-info text-center py-5">
+                        <h4 class="mb-3">لا توجد وظائف متاحة حالياً</h4>
+                        {% if current_user.is_authenticated and current_user.is_employer %}
+                            <p class="mb-3">كن أول من ينشر وظيفة على المنصة!</p>
+                            <a href="{{ url_for('jobs.create_job') }}" class="btn btn-primary">نشر وظيفة جديدة</a>
+                        {% else %}
+                            <p>تابعنا قريباً للحصول على فرص عمل جديدة.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <footer class="bg-dark text-white py-4 mt-5">
+        <div class="container text-center">
+            <p>&copy; 2026 Jobeni-SD. جميع الحقوق محفوظة.</p>
+            <p>jobeni-sd7@gmail.com</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+</body>
+</html>

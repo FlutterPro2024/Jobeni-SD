@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}الملف الشخصي - Jobeni SD{% endblock %}
+
+{% block content %}
+<div class="container py-5" dir="rtl">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="card-header bg-primary text-white p-4 border-0">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-box bg-white text-primary me-3 p-3 rounded-circle" style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-user-edit fa-lg"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h4 class="fw-bold mb-0">إعدادات الحساب</h4>
+                            <p class="mb-0 opacity-75">إدارة بياناتك الشخصية وتنبيهات التلجرام</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-4 p-lg-5">
+                    <form method="POST">
+                        <div class="row g-3">
+                            <div class="col-md-6 text-end">
+                                <label class="form-label fw-bold">الاسم الكامل</label>
+                                <input type="text" name="full_name" class="form-control" value="{{ current_user.full_name or '' }}" required>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <label class="form-label fw-bold">اسم المستخدم</label>
+                                <input type="text" name="username" class="form-control" value="{{ current_user.username }}" required>
+                            </div>
+                            <div class="col-12 text-end">
+                                <label class="form-label fw-bold">البريد الإلكتروني</label>
+                                <input type="email" name="email" class="form-control" value="{{ current_user.email }}" required>
+                            </div>
+                        </div>
+
+                        <hr class="my-5">
+
+                        <div class="bg-light p-4 rounded-4 border-start border-4 border-info text-end">
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="fab fa-telegram fa-2x text-info me-3"></i>
+                                <h5 class="fw-bold mb-0 ms-2">إشعارات التلجرام الذكية</h5>
+                            </div>
+
+                            {% if current_user.telegram_id %}
+                                <div class="alert alert-success d-flex align-items-center rounded-3">
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    <div>حسابك مربوط بالتلجرام (ID: {{ current_user.telegram_id }}). ستصلك التنبيهات هنا فوراً.</div>
+                                </div>
+                            {% else %}
+                                <p class="text-muted small mb-3">اربط حسابك لتصلك تنبيهات الوظائف الجديدة، وحالة طلباتك، والرسائل المباشرة على هاتفك.</p>
+                                <a href="https://t.me/Jobeni_Task_Bot?start={{ current_user.id }}" target="_blank" class="btn btn-info text-white rounded-pill px-4 shadow-sm">
+                                    <i class="fab fa-telegram-plane me-1"></i> تفعيل الربط الآن
+                                </a>
+                            {% endif %}
+                        </div>
+
+                        <div class="mt-5 d-flex gap-2">
+                            <button type="submit" class="btn btn-primary px-5 rounded-pill shadow">حفظ التغييرات</button>
+                            <a href="{{ url_for('auth.dashboard') }}" class="btn btn-light px-4 rounded-pill border">عودة</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .icon-box { flex-shrink: 0; }
+    .form-control:focus { border-color: #0d6efd; box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.1); }
+</style>
+{% endblock %}

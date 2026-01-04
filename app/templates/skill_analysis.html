@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-5 text-end" dir="rtl">
+    <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="card-body p-5 text-center text-white" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
+            <i class="fas fa-brain fa-4x text-info mb-3"></i>
+            <h2 class="fw-bold">مستشار المهارات الذكي</h2>
+            <div class="badge bg-info p-2 px-4 rounded-pill fs-6 mt-2">تخصصك المرصود: {{ profession }}</div>
+        </div>
+
+        <div class="card-body p-5 bg-white">
+            <div class="row align-items-center">
+                <div class="col-md-7">
+                    <h4 class="fw-bold mb-4 border-bottom pb-2"><i class="fas fa-lightbulb text-warning"></i> مهارات ننصحك بها لعام 2026:</h4>
+                    <div class="row g-3">
+                        {% for skill in skills_data %}
+                        <div class="col-sm-6">
+                            <div class="p-3 rounded-4 bg-light border-start border-4 border-info shadow-sm">
+                                <div class="fw-bold text-dark mb-2">{{ skill.name }}</div>
+                                <div class="d-flex gap-1">
+                                    <a href="{{ skill.url }}" target="_blank" class="btn btn-sm btn-outline-danger w-100 py-0 small"><i class="fab fa-youtube"></i> تعلم</a>
+                                    <a href="{{ url_for('search.interview_prep', skill=skill.name) }}" class="btn btn-sm btn-outline-dark w-100 py-0 small">تدرب</a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="col-md-5 text-center">
+                    <div class="p-4 rounded-4 shadow-sm" style="background: #f0f9ff; border: 2px dashed #bae6fd;">
+                        <h1 class="display-3 fw-bold text-primary">{{ cv_score }}%</h1>
+                        <p class="text-muted fw-bold">قوة مطابقتك الحالية</p>
+                        <a href="{{ url_for('cv.optimize_cv_view', cv_id=cv_id) }}" class="btn btn-primary btn-lg rounded-pill w-100 shadow">حسن سيرتك الآن ✨</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

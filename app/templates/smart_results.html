@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block title %}نتائج المطابقة الذكية - Jobeni SD{% endblock %}
+
+{% block content %}
+<div class="container py-5" dir="rtl">
+    <div class="text-center mb-5 animate__animated animate__fadeIn">
+        <div class="ai-badge mb-3 d-inline-block px-4 py-2 rounded-pill shadow-sm bg-white border">
+            <i class="fas fa-robot text-primary me-2"></i>
+            <span class="fw-bold">محرك المطابقة المدعوم بـ Gemini AI</span>
+        </div>
+        <h2 class="fw-bold display-6">أفضل الوظائف المتاحة لك 🎯</h2>
+        <p class="text-muted fs-5">قمنا بمطابقة خبراتك في السيرة الذاتية مع متطلبات السوق الحالية.</p>
+    </div>
+
+    <div class="row g-4">
+        {% for job in jobs %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 border-0 shadow-sm rounded-4 transition-hover overflow-hidden">
+                <div class="progress rounded-0" style="height: 6px;">
+                    <div class="progress-bar {% if job.match_score > 75 %}bg-success{% elif job.match_score > 50 %}bg-primary{% else %}bg-warning{% endif %}" 
+                         role="progressbar" style="width: {{ job.match_score }}%"></div>
+                </div>
+
+                <div class="card-body p-4 text-end">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <span class="badge {% if job.match_score > 75 %}bg-soft-success text-success{% else %}bg-soft-primary text-primary{% endif %} rounded-pill px-3 py-2">
+                            مطابقة بنسبة {{ job.match_score }}%
+                        </span>
+                        <div class="icon-circle bg-light">
+                            <i class="fas fa-briefcase text-muted"></i>
+                        </div>
+                    </div>
+
+                    <h5 class="fw-bold mb-1 text-dark">{{ job.title }}</h5>
+                    <p class="text-primary fw-bold small mb-3">{{ job.company_name }}</p>
+
+                    <div class="mb-4">
+                        <div class="text-muted small mb-1"><i class="fas fa-map-marker-alt ms-1"></i> {{ job.location }}</div>
+                        <div class="text-muted small mb-1"><i class="fas fa-clock ms-1"></i> {{ job.job_type }}</div>
+                    </div>
+
+                    <div class="ai-reason p-3 rounded-3 bg-light mb-4 small text-secondary border-start border-primary border-4">
+                        <i class="fas fa-info-circle ms-1"></i>
+                        {{ job.match_reason }}
+                    </div>
+
+                    <div class="d-grid">
+                        <a href="{{ url_for('jobs.job_detail', job_id=job.id) }}" class="btn btn-primary rounded-pill py-2 fw-bold shadow-sm">
+                            عرض التفاصيل والتقديم
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12 text-center py-5">
+            <div class="empty-state">
+                <i class="fas fa-search-minus fa-4x text-muted mb-4 opacity-25"></i>
+                <h4 class="fw-bold">لم نجد وظائف مطابقة تماماً حالياً</h4>
+                <p class="text-muted">جرب رفع سيرة ذاتية تحتوي على مهارات أكثر تفصيلاً، أو تصفح الوظائف يدوياً.</p>
+                <a href="{{ url_for('cv.upload_cv') }}" class="btn btn-outline-primary rounded-pill px-4 mt-3">تحديث السيرة الذاتية</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    /* تحسينات بصرية */
+    .transition-hover { transition: all 0.3s ease; border: 1px solid transparent !important; }
+    .transition-hover:hover { 
+        transform: translateY(-8px); 
+        box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important;
+        border-color: rgba(13, 110, 253, 0.2) !important;
+    }
+    
+    .bg-soft-success { background-color: #e6f9ed; }
+    .bg-soft-primary { background-color: #eef2ff; }
+    
+    .ai-badge { border: 1px solid #eee; }
+    .ai-reason { 
+        line-height: 1.6; 
+        background-color: #f8faff !important;
+    }
+
+    .icon-circle {
+        width: 40px; height: 40px;
+        display: flex; align-items: center; justify-content: center;
+        border-radius: 50%;
+    }
+
+    /* أنيميشن */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .card { animation: fadeIn 0.5s ease backwards; }
+    {% for i in range(1, 10) %}
+    .card:nth-child({{i}}) { animation-delay: {{i * 0.1}}s; }
+    {% endfor %}
+</style>
+{% endblock %}

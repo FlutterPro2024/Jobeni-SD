@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card border-0 shadow-sm text-center p-4">
+                <i class="fas fa-user-circle fa-5x text-secondary mb-3"></i>
+                <h4>{{ application.user.full_name }}</h4>
+                <p class="text-muted">{{ application.user.email }}</p>
+                <hr>
+                <form action="{{ url_for('applications.update_application_status', application_id=application.id) }}" method="POST">
+                    <label class="form-label fw-bold">تغيير حالة الطلب:</label>
+                    <select name="status" class="form-select mb-3">
+                        <option value="pending" {% if application.status == 'pending' %}selected{% endif %}>قيد المراجعة</option>
+                        <option value="accepted" {% if application.status == 'accepted' %}selected{% endif %}>قبول المتقدم</option>
+                        <option value="rejected" {% if application.status == 'rejected' %}selected{% endif %}>رفض الطلب</option>
+                    </select>
+                    <button type="submit" class="btn btn-dark w-100">تحديث الحالة</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white fw-bold">خطاب التقديم (Cover Letter)</div>
+                <div class="card-body">
+                    <p class="lh-lg">{{ application.cover_letter or 'لم يتم إرفاق خطاب تقديم.' }}</p>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <span class="fw-bold">السيرة الذاتية المرفقة</span>
+                    <a href="{{ url_for('cv.view_cv', cv_id=application.cv_id) }}" class="btn btn-sm btn-primary">فتح الملف الأصلي</a>
+                </div>
+                <div class="card-body bg-light" style="max-height: 500px; overflow-y: auto;">
+                    <h6 class="text-primary fw-bold">النص المستخرج من الـ CV:</h6>
+                    <p class="small text-muted">{{ application.cv.extracted_text|replace('\n', '<br>')|safe }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

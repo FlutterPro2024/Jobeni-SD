@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}تحليل السيرة الذاتية - Jobeni SD{% endblock %}
+
+{% block content %}
+<div class="container py-5" dir="rtl">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-lg rounded-5 overflow-hidden">
+                <div style="height: 6px; background: var(--gradient-blue);"></div>
+                
+                <div class="card-header bg-white text-center py-5 border-0">
+                    <div class="ai-orb mb-4 mx-auto">
+                        <i class="fas fa-magic fa-2x text-white"></i>
+                    </div>
+                    <h2 class="fw-bold text-dark mb-2">محرك الذكاء الاصطناعي</h2>
+                    <p class="text-muted px-4">ارفع ملفك الآن وسيقوم نظام <span class="text-primary fw-bold">Gemini AI</span> بتحليل خبراتك واستخراج مهاراتك بدقة</p>
+                </div>
+
+                <div class="card-body p-4 p-md-5 pt-0">
+                    <form id="uploadForm" method="POST" enctype="multipart/form-data" action="{{ url_for('cv.upload_cv') }}">
+                        <div class="upload-zone p-5 mb-4 border-dashed rounded-4 text-center position-relative transition-all">
+                            <input type="file" name="cv_file" id="cvInput" class="position-absolute w-100 h-100 top-0 start-0 opacity-0 cursor-pointer" accept=".pdf" required>
+
+                            <div id="uploadPlaceholder">
+                                <div class="upload-anim mb-3">
+                                    <i class="fas fa-file-upload fa-4x text-primary opacity-25"></i>
+                                </div>
+                                <h5 class="fw-bold text-secondary">اسحب ملف الـ PDF هنا</h5>
+                                <p class="small text-muted mb-0">أو انقر لاختيار ملف من جهازك</p>
+                            </div>
+
+                            <div id="fileInfo" class="d-none">
+                                <div class="icon-circle bg-soft-success mx-auto mb-3">
+                                    <i class="fas fa-check-circle fa-3x text-success"></i>
+                                </div>
+                                <h6 id="fileName" class="fw-bold text-primary mb-1 text-truncate px-3"></h6>
+                                <span class="badge bg-success rounded-pill px-3 shadow-sm">جاهز للتحليل</span>
+                            </div>
+                        </div>
+
+                        <button type="submit" id="submitBtn" class="btn btn-primary btn-lg w-100 rounded-pill py-3 fw-bold shadow-lg border-0" style="background: var(--gradient-blue);">
+                            <i class="fas fa-rocket me-2"></i> بدء التحليل الذكي
+                        </button>
+                    </form>
+
+                    <div id="loadingArea" class="text-center mt-4 d-none">
+                        <div class="scanner-container mb-4 mx-auto">
+                            <div class="scanner-line"></div>
+                            <i class="fas fa-file-pdf fa-4x text-muted opacity-25"></i>
+                        </div>
+                        <h5 class="fw-bold text-primary animate-pulse mb-3">جاري استخراج المهارات والخبرات...</h5>
+                        <div class="progress rounded-pill bg-light" style="height: 10px;">
+                            <div id="uploadProgress" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width: 0%;"></div>
+                        </div>
+                        <p class="small text-muted mt-3">قد تستغرق هذه العملية من 5 إلى 10 ثوانٍ.</p>
+                    </div>
+                </div>
+            </div>
+
+            <p class="text-center text-muted mt-4 small">
+                <i class="fas fa-shield-alt me-1 text-success"></i> خصوصيتك محمية. لا يتم مشاركة بياناتك مع أي طرف ثالث.
+            </p>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* الهوية البصرية */
+    .ai-orb {
+        width: 70px; height: 70px;
+        background: var(--gradient-blue);
+        border-radius: 22px;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 10px 20px rgba(13, 110, 253, 0.2);
+        animation: float 3s ease-in-out infinite;
+    }
+
+    .border-dashed { border: 2px dashed #e0e6ed; transition: 0.3s; background: #fbfcfe; }
+    .upload-zone:hover { border-color: var(--primary-color); background-color: #f0f7ff; transform: scale(1.01); }
+    .cursor-pointer { cursor: pointer; }
+    
+    .bg-soft-success { background-color: #e6f9ed; width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+
+    /* أنيميشن الماسح الضوئي */
+    .scanner-container {
+        position: relative;
+        width: 80px;
+        height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .scanner-line {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: var(--primary-color);
+        box-shadow: 0 0 15px var(--primary-color);
+        animation: scan 2s ease-in-out infinite;
+        z-index: 2;
+    }
+
+    @keyframes scan {
+        0%, 100% { top: 0%; }
+        50% { top: 100%; }
+    }
+
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .animate-pulse { animation: pulse 1.5s infinite; }
+</style>
+
+<script>
+    const cvInput = document.getElementById('cvInput');
+    const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+
+    cvInput.onchange = function() {
+        if (this.files[0]) {
+            // التحقق من أن الملف PDF
+            if (this.files[0].type !== "application/pdf") {
+                alert("يرجى اختيار ملف بصيغة PDF فقط.");
+                this.value = "";
+                return;
+            }
+            uploadPlaceholder.classList.add('d-none');
+            fileInfo.classList.remove('d-none');
+            fileName.innerText = this.files[0].name;
+        }
+    };
+
+    document.getElementById('uploadForm').onsubmit = function() {
+        document.getElementById('uploadForm').classList.add('d-none');
+        document.getElementById('loadingArea').classList.remove('d-none');
+
+        let progress = 0;
+        const progressBar = document.getElementById('uploadProgress');
+        const interval = setInterval(() => {
+            progress += (95 - progress) * 0.1; // تقدم واقعي يتباطأ تدريجياً
+            progressBar.style.width = progress + '%';
+            if (progress >= 94) clearInterval(interval);
+        }, 500);
+    };
+</script>
+{% endblock %}

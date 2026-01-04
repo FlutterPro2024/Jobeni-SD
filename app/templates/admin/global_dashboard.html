@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-5 text-end" dir="rtl">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold text-danger mb-0">لوحة التحكم السيادية 🛡️</h2>
+        <span class="badge bg-dark rounded-pill px-3 py-2 small">مسؤول النظام</span>
+    </div>
+
+    <div class="row g-3 mb-5">
+        <div class="col-md-3">
+            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-primary border-4">
+                <small class="text-muted small fw-bold">إجمالي المستخدمين</small>
+                <h2 class="fw-bold text-primary">{{ stats.total_users }}</h2>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-info border-4">
+                <small class="text-muted small fw-bold">ربط تليجرام</small>
+                <h2 class="fw-bold text-info">{{ stats.tg_users }}</h2>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-success border-4">
+                <small class="text-muted small fw-bold">تحليلات السير الذاتية</small>
+                <h2 class="fw-bold text-success">{{ stats.total_cvs }}</h2>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-warning border-4">
+                <small class="text-muted small fw-bold">الوظائف النشطة</small>
+                <h2 class="fw-bold text-warning">{{ all_jobs|length }}</h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+                <h5 class="fw-bold mb-4"><i class="fas fa-briefcase text-warning me-2"></i> الرقابة على الوظائف</h5>
+                <div class="table-responsive">
+                    <table class="table align-middle table-hover text-end">
+                        <thead class="bg-light small">
+                            <tr>
+                                <th class="pe-3">الوظيفة / الشركة</th>
+                                <th class="text-center">المتقدمين</th>
+                                <th class="text-start ps-3">الإجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for job in all_jobs %}
+                            <tr>
+                                <td class="pe-3">
+                                    <div class="fw-bold text-dark">{{ job.title }}</div>
+                                    <small class="text-muted">{{ job.company_name }} | {{ job.location }}</small>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-light text-dark border">{{ job.applications|length }}</span>
+                                </td>
+                                <td class="text-start ps-3">
+                                    <form action="{{ url_for('jobs.delete_job', job_id=job.id) }}" method="POST" class="d-inline" onsubmit="return confirm('تنبيه سيادي: هل تريد حذف هذه الوظيفة نهائياً؟');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0">
+                                            <i class="fas fa-trash-alt"></i> حذف
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="3" class="text-center py-4">لا توجد وظائف لمراقبتها.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 p-4">
+                <h5 class="fw-bold mb-4"><i class="fas fa-robot text-primary me-2"></i> آخر نشاطات AI</h5>
+                <div class="list-group list-group-flush text-end">
+                    {% for cv in recent_analyses %}
+                    <div class="list-group-item border-0 px-0 mb-3 bg-light-soft rounded-3 p-2">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <h6 class="fw-bold mb-0 small">{{ cv.owner.username }}</h6>
+                            <small class="text-muted" style="font-size: 0.7rem;">{{ cv.created_at.strftime('%Y-%m-%d') }}</small>
+                        </div>
+                        <span class="badge bg-white text-primary border fw-normal">{{ cv.profession or 'تخصص غير محدد' }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-light-soft { background-color: #f8f9fa; border-right: 3px solid #0d6efd; }
+    .table thead th { border:0; }
+</style>
+{% endblock %}

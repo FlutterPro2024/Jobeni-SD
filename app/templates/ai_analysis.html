@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تحليل AI متقدم - {{ cv.filename }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .ai-card {
+            border-left: 5px solid #6f42c1;
+            margin-bottom: 20px;
+        }
+        .match-score {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #6f42c1;
+        }
+        .skill-badge {
+            margin: 2px;
+            font-size: 0.85em;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('auth.index') }}">
+                <i class="fas fa-brain"></i> Jobeni-SD AI
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('cv.view_cv', cv_id=cv.id) }}">
+                    <i class="fas fa-arrow-right"></i> العودة للسيرة
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-5">
+        <div class="card ai-card">
+            <div class="card-header bg-purple text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-robot"></i> تحليل الذكاء الاصطناعي المتقدم
+                    <small class="float-left">النموذج: {{ analysis.get('ai_model', 'OpenRouter AI') }}</small>
+                </h4>
+            </div>
+            <div class="card-body">
+                <!-- درجة التقييم -->
+                <div class="text-center mb-4">
+                    <div class="match-score">{{ analysis.get('overall_score', 0) }}/100</div>
+                    <p class="text-muted">التقييم الإجمالي باستخدام الذكاء الاصطناعي</p>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar progress-bar-striped bg-purple" 
+                             style="width: {{ analysis.get('overall_score', 0) }}%">
+                            {{ analysis.get('overall_score', 0) }}%
+                        </div>
+                    </div>
+                </div>
+
+                <!-- المهارات -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h5><i class="fas fa-code"></i> المهارات التقنية</h5>
+                        <div class="d-flex flex-wrap">
+                            {% for skill in analysis.skills.technical %}
+                            <span class="badge bg-primary skill-badge">{{ skill }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h5><i class="fas fa-users"></i> المهارات الشخصية</h5>
+                        <div class="d-flex flex-wrap">
+                            {% for skill in analysis.skills.soft %}
+                            <span class="badge bg-success skill-badge">{{ skill }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- نقاط القوة والضعف -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-success text-white">
+                                <h6 class="mb-0"><i class="fas fa-thumbs-up"></i> نقاط القوة</h6>
+                            </div>
+                            <div class="card-body">
+                                <ul class="mb-0">
+                                    {% for strength in analysis.strengths %}
+                                    <li>{{ strength }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-warning text-white">
+                                <h6 class="mb-0"><i class="fas fa-exclamation-triangle"></i> نقاط للتحسين</h6>
+                            </div>
+                            <div class="card-body">
+                                <ul class="mb-0">
+                                    {% for weakness in analysis.weaknesses %}
+                                    <li>{{ weakness }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- نصائح التحسين -->
+                {% if analysis.improvement_tips %}
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0"><i class="fas fa-lightbulb"></i> نصائح الذكاء الاصطناعي للتحسين</h6>
+                    </div>
+                    <div class="card-body">
+                        <ol>
+                            {% for tip in analysis.improvement_tips %}
+                            <li>{{ tip }}</li>
+                            {% endfor %}
+                        </ol>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- الوظائف المقترحة -->
+                {% if analysis.job_recommendations %}
+                <div class="card mb-4">
+                    <div class="card-header bg-secondary text-white">
+                        <h6 class="mb-0"><i class="fas fa-briefcase"></i> الوظائف المقترحة لك</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for job in analysis.job_recommendations %}
+                            <a href="{{ url_for('jobs.external_job_search') }}?q={{ job }}" 
+                               class="btn btn-outline-primary">
+                                {{ job }}
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- التحليل النصي -->
+                {% if analysis.analysis_summary %}
+                <div class="card">
+                    <div class="card-header bg-dark text-white">
+                        <h6 class="mb-0"><i class="fas fa-file-alt"></i> ملخص التحليل</h6>
+                    </div>
+                    <div class="card-body">
+                        <p>{{ analysis.analysis_summary }}</p>
+                        <small class="text-muted">
+                            <i class="fas fa-clock"></i> 
+                            تم التحليل في: {{ analysis.get('analyzed_at', 'الآن') }}
+                        </small>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="text-center mt-4">
+            <a href="{{ url_for('cv.find_jobs_for_cv', cv_id=cv.id) }}" class="btn btn-primary">
+                <i class="fas fa-search"></i> ابحث عن وظائف مناسبة
+            </a>
+            <a href="{{ url_for('jobs.external_job_search') }}" class="btn btn-success">
+                <i class="fas fa-globe"></i> البحث عن وظائف خارجية
+            </a>
+            <a href="{{ url_for('cv.view_cv', cv_id=cv.id) }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-right"></i> العودة للسيرة
+            </a>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

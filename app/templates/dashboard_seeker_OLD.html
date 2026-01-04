@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}لوحة التحكم - Jobeni SD{% endblock %}
+
+{% block content %}
+<div class="container py-4" dir="rtl">
+    <div class="row mb-4 align-items-center">
+        <div class="col-md-8">
+            <h2 class="fw-bold text-dark">أهلاً، {{ current_user.full_name or current_user.username }} 👋</h2>
+            <p class="text-muted">إليك آخر التحديثات على ملفك المهني والفرص المتاحة.</p>
+        </div>
+        <div class="col-md-4 text-md-start">
+            <a href="{{ url_for('cv.upload_cv') }}" class="btn btn-primary rounded-pill px-4 shadow-sm">
+                <i class="fas fa-file-upload me-1"></i> تحديث السيرة الذاتية
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0 text-primary"><i class="fas fa-globe-americas me-2"></i> وظائف عالمية مقترحة (AI)</h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-3">
+                        {% for job in web_jobs %}
+                        <div class="col-md-6">
+                            <div class="p-3 border rounded-4 hover-shadow transition">
+                                <h6 class="fw-bold text-dark mb-1 text-truncate">{{ job.title }}</h6>
+                                <p class="small text-muted mb-2">{{ job.company }}</p>
+                                <a href="{{ job.link }}" target="_blank" class="btn btn-sm btn-outline-info w-100 rounded-pill">عرض الفرصة</a>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-4 text-muted">ارفع سيرتك الذاتية لنقترح لك وظائف.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-comments text-primary ms-2"></i> الرسائل والدردشة</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for msg in current_user.received_messages[:3] %}
+                        <a href="{{ url_for('chat.open_chat', job_id=msg.job_id or 0, recipient_id=msg.sender_id) }}" class="list-group-item list-group-item-action px-4 py-3 border-0">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-light rounded-circle p-2 me-3 text-primary shadow-sm" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-user-tie"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0 fw-bold">{{ msg.sender.username }}</h6>
+                                        <small class="text-muted text-truncate d-block" style="max-width: 200px;">{{ msg.body }}</small>
+                                    </div>
+                                </div>
+                                <small class="text-muted small">{{ msg.timestamp.strftime('%H:%M') }}</small>
+                            </div>
+                        </a>
+                        {% else %}
+                        <div class="text-center py-4 text-muted small">لا توجد رسائل جديدة.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-0">حالة طلباتك الأخيرة</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 text-center">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="px-4 border-0">الوظيفة</th>
+                                    <th class="border-0">الحالة</th>
+                                    <th class="border-0">المطابقة</th>
+                                    <th class="border-0">التاريخ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for app in recent_applications %}
+                                <tr>
+                                    <td class="px-4 fw-bold text-end">{{ app.job.title }}</td>
+                                    <td>
+                                        <span class="badge {% if app.status == 'accepted' %}bg-success{% elif app.status == 'rejected' %}bg-danger{% else %}bg-warning text-dark{% endif %} rounded-pill">
+                                            {{ app.status }}
+                                        </span>
+                                    </td>
+                                    <td><span class="text-primary fw-bold">{{ app.match_score }}%</span></td>
+                                    <td class="small text-muted">{{ app.applied_at.strftime('%Y-%m-%d') }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 bg-dark text-white mb-4">
+                <div class="card-body p-4">
+                    <i class="fas fa-lightbulb text-warning fa-2x mb-3"></i>
+                    <h5 class="fw-bold">مستشار المهارات</h5>
+                    <p class="small opacity-75">حلل مهاراتك لتعرف ما ينقصك في سوق العمل.</p>
+                    <a href="{{ url_for('search.skill_analysis') }}" class="btn btn-warning w-100 rounded-pill fw-bold">ابدأ التحليل</a>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4 p-4 text-center">
+                <h6 class="text-muted fw-bold mb-3">قوة سيرتك الذاتية</h6>
+                {% set latest_cv = cvs[0] if cvs else None %}
+                {% if latest_cv %}
+                    <div class="display-6 fw-bold text-primary mb-2">{{ latest_cv.score }}%</div>
+                    <div class="progress mb-3" style="height: 6px;">
+                        <div class="progress-bar" style="width: {{ latest_cv.score }}%"></div>
+                    </div>
+                    <a href="{{ url_for('cv.view_cv', cv_id=latest_cv.id) }}" class="btn btn-outline-primary btn-sm rounded-pill w-100">عرض التفاصيل</a>
+                {% else %}
+                    <p class="small text-muted">لا يوجد سيرة ذاتية مرفوعة.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

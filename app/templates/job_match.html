@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}المطابقة الذكية العالمية - Jobeni{% endblock %}
+
+{% block content %}
+<div class="container py-5" dir="rtl">
+    <div class="text-center mb-5">
+        <h2 class="fw-bold text-primary"><i class="fas fa-globe-americas me-2"></i> المطابقة الذكية العالمية</h2>
+        <p class="text-muted">بناءً على ملفك الشخصي كـ: <span class="badge bg-info text-dark p-2">{{ cv.profession }}</span></p>
+    </div>
+
+    <div class="mb-5">
+        <h4 class="fw-bold mb-4"><i class="fas fa-map-marker-alt text-danger me-2"></i> وظائف محلية مقترحة</h4>
+        <div class="row g-4">
+            {% if local_matches %}
+                {% for item in local_matches %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 border-0 shadow-sm rounded-4 hover-shadow transition">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="badge bg-success rounded-pill">{{ item.score }}% تطابق</span>
+                                <small class="text-muted">{{ item.job.location }}</small>
+                            </div>
+                            <h5 class="fw-bold">{{ item.job.title }}</h5>
+                            <p class="text-primary small mb-3">{{ item.job.company_name }}</p>
+                            <div class="d-grid">
+                                <a href="{{ url_for('jobs.job_detail', job_id=item.job.id) }}" class="btn btn-sm btn-outline-primary rounded-pill">التفاصيل والتقديم</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-12 text-center text-muted py-3">لا توجد وظائف محلية مطابقة حالياً.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <hr class="my-5">
+
+    <div>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="fw-bold mb-0"><i class="fas fa-external-link-alt text-primary me-2"></i> فرص عالمية وعن بُعد (Remote)</h4>
+            <span class="badge bg-light text-dark border">نتائج حية من الإنترنت</span>
+        </div>
+        
+        <div class="row g-4">
+            {% if global_jobs %}
+                {% for job in global_jobs %}
+                <div class="col-md-6">
+                    <div class="card h-100 border-start border-primary border-4 shadow-sm hover-shadow transition">
+                        <div class="card-body">
+                            <h6 class="fw-bold mb-1">{{ job.title }}</h6>
+                            <p class="text-muted small mb-2"><i class="fas fa-globe me-1"></i> {{ job.source }} | {{ job.location }}</p>
+                            <p class="small text-secondary" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                                {{ job.snippet }}
+                            </p>
+                            <a href="{{ job.link }}" target="_blank" class="btn btn-sm btn-link text-decoration-none p-0">
+                                عرض المصدر الخارجي <i class="fas fa-chevron-left small ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-12 text-center py-4">
+                    <p class="text-muted">جاري البحث عن فرص عالمية تليق بمهاراتك...</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .hover-shadow:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important; }
+    .transition { transition: all 0.3s ease; }
+    .card { background: #ffffff; }
+</style>
+{% endblock %}

@@ -1,0 +1,27 @@
+# الحماية القصوى: منع ملفات البيئة والباسوردات
+.env
+instance/
+.cache
+config.pyc
+
+# ملفات قاعدة البيانات المحلية (إحنا انتقلنا لـ Postgres خلاص)
+*.db
+jobeni_local.db
+
+# بيئة العمل والمكتبات (Vercel حيبنيها بنفسه)
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ملفات الرفع (ما نرفع السي في بتاع الناس للجيت هب)
+app/static/uploads/cvs/*
+!app/static/uploads/cvs/.gitkeep
+
+# ملفات النظام واللوغز
+*.log
+.DS_Store
+.vscode/
+.idea/

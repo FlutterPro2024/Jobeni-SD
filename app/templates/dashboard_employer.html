@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}لوحة الشركات - Jobeni SD{% endblock %}
+
+{% block content %}
+<div class="container py-4 text-end" dir="rtl">
+    <div class="d-md-flex justify-content-between align-items-center mb-5">
+        <div>
+            <h1 class="fw-bold mb-1 text-dark">لوحة تحكم الشركات 🏢</h1>
+            <p class="text-muted small">مرحباً {{ current_user.full_name or current_user.username }}، تابع أداء وظائفك.</p>
+        </div>
+        <div class="d-flex gap-2 justify-content-end mt-3 mt-md-0">
+            {% if not current_user.telegram_id %}
+            <a href="https://t.me/Jobeni_Task_Bot?start={{ current_user.id }}" target="_blank" class="btn btn-outline-primary rounded-pill px-4 fw-bold small">
+                <i class="fab fa-telegram-plane me-1"></i> ربط التلجرام
+            </a>
+            {% endif %}
+            <a href="{{ url_for('jobs.add_job') }}" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold">
+                <i class="fas fa-plus-circle me-1"></i> نشر وظيفة
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-5 text-center">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white border-bottom border-primary border-4">
+                <h6 class="text-muted small fw-bold">الوظائف النشطة</h6>
+                <h2 class="fw-bold mb-0 text-dark">{{ jobs|length }}</h2>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white border-bottom border-success border-4">
+                <h6 class="text-muted small fw-bold">إجمالي المتقدمين</h6>
+                <h2 class="fw-bold mb-0 text-dark">
+                    {% set total = 0 %}{% for j in jobs %}{% set total = total + j.applications|length %}{% endfor %}{{ total }}
+                </h2>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white border-bottom border-warning border-4">
+                <h6 class="text-muted small fw-bold">متوسط المطابقة</h6>
+                <h2 class="fw-bold mb-0 text-dark">AI</h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+        <div class="card-header bg-white py-4 border-bottom">
+            <h5 class="mb-0 fw-bold"><i class="fas fa-tasks text-primary me-2"></i> إدارة الوظائف</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 text-end">
+                <thead class="bg-light">
+                    <tr class="small text-muted">
+                        <th class="pe-4">الوظيفة</th>
+                        <th class="text-center">المرشحين</th>
+                        <th class="text-start ps-4">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for job in jobs %}
+                    <tr>
+                        <td class="pe-4 py-4">
+                            <div class="fw-bold text-dark">{{ job.title }}</div>
+                            <small class="text-muted">{{ job.created_at.strftime('%Y-%m-%d') }} | {{ job.location }}</small>
+                        </td>
+                        <td class="text-center">
+                            <a href="{{ url_for('jobs.view_candidates', job_id=job.id) }}" class="badge bg-primary rounded-pill px-3 py-2 text-decoration-none">
+                                <i class="fas fa-users me-1"></i> {{ job.applications|length }}
+                            </a>
+                        </td>
+                        <td class="text-start ps-4">
+                            <div class="d-flex gap-2 justify-content-start">
+                                <a href="{{ url_for('jobs.view_candidates', job_id=job.id) }}" class="btn btn-sm btn-outline-primary" title="المتقدمين">
+                                    <i class="fas fa-users-cog"></i> إدارة
+                                </a>
+                                <form action="{{ url_for('jobs.delete_job', job_id=job.id) }}" method="POST" onsubmit="return confirm('هل أنت متأكد من حذف الوظيفة؟');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="حذف">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="3" class="text-center py-5 text-muted">لم تنشر أي وظيفة بعد.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

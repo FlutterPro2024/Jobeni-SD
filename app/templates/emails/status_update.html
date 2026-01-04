@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <style>
+        .container { max-width: 600px; margin: 20px auto; border: 1px solid #e2e8f0; border-radius: 10px; }
+        .status-header { padding: 30px; text-align: center; color: white; }
+        .accepted { background-color: #10b981; }
+        .rejected { background-color: #ef4444; }
+        .interview { background-color: #f59e0b; }
+        .body { padding: 30px; text-align: right; color: #1e293b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="status-header {{ status }}">
+            {% if status == 'accepted' %}
+                <h1>تم قبول طلبك! 🎉</h1>
+            {% elif status == 'interview' %}
+                <h1>دعوة للمقابلة الشخصية 📅</h1>
+            {% else %}
+                <h1>تحديث بخصوص طلبك</h1>
+            {% endif %}
+        </div>
+        <div class="body">
+            <p>عزيزي <strong>{{ user.username }}</strong>،</p>
+            <p>نود إعلامك بأن شركة <strong>{{ job.company_name }}</strong> قد قامت بتحديث حالة طلبك لوظيفة <strong>{{ job.title }}</strong> إلى:</p>
+            <h2 style="text-align: center; color: #334155;">
+                {% if status == 'accepted' %} مقبول مبدئياً {% elif status == 'interview' %} موعد مقابلة {% else %} مرفوض {% endif %}
+            </h2>
+            <p>يرجى تسجيل الدخول إلى لوحة التحكم لمتابعة الخطوات القادمة.</p>
+        </div>
+    </div>
+</body>
+</html>

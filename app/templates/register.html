@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}إنشاء حساب جديد - Jobeni SD{% endblock %}
+
+{% block content %}
+<div class="container py-5" dir="rtl">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="row g-0">
+                    <div class="col-md-4 bg-primary d-none d-md-flex align-items-center justify-content-center text-white p-4" style="background: var(--gradient-blue) !important;">
+                        <div class="text-center">
+                            <i class="fas fa-user-rocket fa-4x mb-4"></i>
+                            <h4 class="fw-bold">خطوة واحدة تفصلك عن النجاح</h4>
+                            <p class="small opacity-75">انضم إلى آلاف السودانيين الذين وجدوا وظائفهم عبر الذكاء الاصطناعي</p>
+                        </div>
+                    </div>
+
+                    <div class="col-md-8 bg-white p-4 p-md-5">
+                        <h3 class="fw-bold mb-4">إنشاء حساب جديد</h3>
+                        
+                        <form method="POST" action="{{ url_for('auth.register') }}">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label small fw-bold">اسم المستخدم</label>
+                                    <input type="text" class="form-control bg-light border-0" name="username" placeholder="مثلاً: ahmed99" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label small fw-bold">البريد الإلكتروني</label>
+                                    <input type="email" class="form-control bg-light border-0" name="email" placeholder="mail@example.com" required>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label small fw-bold">الاسم الكامل</label>
+                                    <input type="text" class="form-control bg-light border-0" name="full_name" placeholder="الاسم ثلاثي">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label small fw-bold">رقم الهاتف</label>
+                                    <input type="tel" class="form-control bg-light border-0" name="phone" placeholder="09xxxxxxxx">
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label small fw-bold">كلمة المرور</label>
+                                    <input type="password" class="form-control bg-light border-0" name="password" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label small fw-bold">تأكيد كلمة المرور</label>
+                                    <input type="password" class="form-control bg-light border-0" name="confirm_password" required>
+                                </div>
+                            </div>
+
+                            <div class="mb-4 mt-3">
+                                <label class="form-label small fw-bold mb-3">ما هو هدفك من الانضمام؟</label>
+                                <div class="row g-3">
+                                    <div class="col-6">
+                                        <input type="radio" class="btn-check" name="role" id="role_seeker" value="seeker" checked>
+                                        <label class="btn btn-outline-primary w-100 py-3 rounded-3" for="role_seeker">
+                                            <i class="fas fa-search-dollar d-block mb-2 fs-4"></i>
+                                            أبحث عن وظيفة
+                                        </label>
+                                    </div>
+                                    <div class="col-6">
+                                        <input type="radio" class="btn-check" name="role" id="role_employer" value="employer">
+                                        <label class="btn btn-outline-primary w-100 py-3 rounded-3" for="role_employer">
+                                            <i class="fas fa-user-tie d-block mb-2 fs-4"></i>
+                                            أريد التوظيف
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-grid mt-4">
+                                <button type="submit" class="btn btn-primary btn-lg rounded-pill fw-bold py-3 border-0 shadow" style="background: var(--gradient-blue);">
+                                    إنشاء حسابك الآن <i class="fas fa-arrow-left ms-2"></i>
+                                </button>
+                            </div>
+                        </form>
+
+                        <div class="text-center mt-4">
+                            <p class="text-muted small">لديك حساب بالفعل؟ <a href="{{ url_for('auth.login') }}" class="text-primary fw-bold text-decoration-none">سجل دخولك من هنا</a></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

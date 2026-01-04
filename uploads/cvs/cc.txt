@@ -1,0 +1,39 @@
+​MOHAMMED ABDELGADIR ALSIRAJ
+​Telecommunications & ICT Engineer
+Phone: +249 128706206 | Email: mohammedu3615@gmail.com
+Address: North Omdurman, Khartoum, Sudan
+​SUMMARY
+​Results-driven ICT Engineer specializing in Application Development and Artificial Intelligence. Proven expertise in building AI models and cloud-based architectures. Highly skilled in leveraging TensorFlow, PyTorch, and Frontend technologies to drive innovation. Committed to delivering scalable and efficient tech solutions in dynamic environments.
+​EDUCATION
+​University of Science and Technology | 2018 – 2025 (Expected)
+​Bachelor’s in Information and Communication Technology (ICT)
+​Al-Khadraa Secondary School | 2015 – 2017
+​High School Diploma
+​Etisalaty Academy
+​Professional Technical Training
+​PROFESSIONAL EXPERIENCE
+​AI Engineering & Development:
+​Designed and implemented robust AI models using TensorFlow and PyTorch, enhancing system accuracy and performance.
+​Developed the Arabic Smart Writing Assistant, focusing on natural language processing and AI-driven text analysis.
+​Data Science & Processing:
+​Utilized Pandas and NumPy for advanced data manipulation and efficient processing of large datasets.
+​Applied statistical analysis to derive actionable insights from complex data structures.
+​Cloud & Infrastructure:
+​Engineered and deployed cloud computing services, ensuring high availability, scalability, and security.
+​Hands-on experience with modern cloud architectures and service integration.
+​Frontend Development:
+​Created responsive and user-centric web applications using cutting-edge frontend technologies.
+​Focused on improving user engagement through intuitive UI/UX design.
+​CORE SKILLS
+​AI & ML: TensorFlow, PyTorch, Model Deployment, Neural Networks.
+​Data Tools: Pandas, NumPy, Data Analysis, Data Visualization.
+​Cloud Engineering: Cloud Architecture, Scalability, Remote Infrastructure.
+​Frontend: HTML5, CSS3, JavaScript, Responsive Design.
+​Languages: Arabic (Native), English (Professional Proficiency).
+​ACTIVITIES & INTERESTS
+​Research: Actively following AI research from MIT and OpenAI to stay ahead of industry trends.
+​Innovation: Passionate about applying AI solutions to solve real-world communication challenges.
+​PERSONAL INFORMATION
+​Date of Birth: April 17, 2001
+​Nationality: Sudanese
+​Marital Status: Single

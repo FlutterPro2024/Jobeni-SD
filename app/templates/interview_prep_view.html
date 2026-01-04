@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}تدريب: {{ skill }} - جوبيناي سودان{% endblock %}
+
+{% block content %}
+<div class="container py-5 text-end" dir="rtl">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden gradient-header">
+                <div class="card-body p-4 d-flex justify-content-between align-items-center">
+                    <div class="text-white">
+                        <h3 class="fw-bold mb-1"><i class="fas fa-microchip me-2"></i> جلسة تدريبية ذكية</h3>
+                        <p class="mb-0 opacity-75">المجال المستهدف: <span class="badge bg-white text-primary fs-6">{{ skill }}</span></p>
+                    </div>
+                    <div class="icon-circle bg-white bg-opacity-25 text-white">
+                        <i class="fas fa-robot fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-lg rounded-4">
+                <div class="card-body p-4 p-md-5">
+                    <div class="d-flex align-items-center mb-4 border-bottom pb-3">
+                        <div class="bg-info bg-opacity-10 p-2 rounded-3 me-3">
+                            <i class="fas fa-question-circle text-info fa-lg"></i>
+                        </div>
+                        <h4 class="fw-bold mb-0 text-dark">أسئلة المقابلة المقترحة والإجابات</h4>
+                    </div>
+
+                    <div class="ai-content-wrapper p-2 p-md-4 rounded-4 bg-light shadow-inner">
+                        <div class="ai-content lh-lg text-dark" style="font-size: 1.15rem;">
+                            {{ content | safe | replace('\n', '<br>') }}
+                        </div>
+                    </div>
+
+                    <hr class="my-5 opacity-50">
+
+                    <div class="d-flex flex-column flex-md-row gap-3 justify-content-center">
+                        <a href="{{ url_for('search.skill_analysis') }}" class="btn btn-outline-secondary rounded-pill px-4 hover-lift">
+                            <i class="fas fa-arrow-right me-2"></i> العودة للمستشار
+                        </a>
+                        <button onclick="window.print()" class="btn btn-dark rounded-pill px-4 hover-lift">
+                            <i class="fas fa-print me-2"></i> طباعة الأسئلة
+                        </button>
+                        <a href="https://www.google.com/search?q=interview+questions+for+{{ skill }}" target="_blank" class="btn btn-info text-white rounded-pill px-4 hover-lift">
+                            <i class="fab fa-google me-2"></i> مصادر إضافية
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-custom mt-4 rounded-4 border-0 shadow-sm p-4">
+                <div class="d-flex align-items-center">
+                    <div class="pulse-icon me-3">
+                        <i class="fas fa-lightbulb text-warning fa-2x"></i>
+                    </div>
+                    <div>
+                        <h6 class="fw-bold mb-1 text-dark">نصيحة جوبني المهنية:</h6>
+                        <p class="mb-0 text-secondary small">لا تكتفِ بقراءة الإجابات، حاول صياغتها بأسلوبك الخاص وتدرب على نبرة صوت واثقة.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* تنسيقات جمالية إضافية */
+    .gradient-header {
+        background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+    }
+    
+    .icon-circle {
+        width: 60px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+    }
+
+    .ai-content-wrapper {
+        border: 1px solid #e9ecef;
+        background-color: #ffffff;
+        background-image: radial-gradient(#f1f5f9 1.1px, transparent 1.1px);
+        background-size: 22px 22px; /* خلفية منقطة خفيفة تعطي طابع تقني */
+    }
+
+    .ai-content {
+        white-space: pre-line; /* يحافظ على المسافات والأسطر بشكل أفضل */
+    }
+
+    /* جعل الكلمات المفتاحية والترقيم بارزاً */
+    .ai-content b, .ai-content strong {
+        color: #0d6efd;
+        font-weight: 700;
+        margin-top: 10px;
+        display: inline-block;
+    }
+
+    .alert-custom {
+        background-color: #fff9db;
+        border-right: 5px solid #ffec99 !important;
+    }
+
+    .hover-lift:hover {
+        transform: translateY(-3px);
+        transition: all 0.3s ease;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    .pulse-icon {
+        animation: pulse-animation 2s infinite;
+    }
+
+    @keyframes pulse-animation {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+
+    @media print {
+        .btn, .alert, .gradient-header i {
+            display: none !important;
+        }
+        .card {
+            border: none !important;
+            box-shadow: none !important;
+        }
+        .ai-content-wrapper {
+            background: none !important;
+            border: none !important;
+        }
+    }
+</style>
+{% endblock %}

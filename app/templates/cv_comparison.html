@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>محرر الـ ATS الذكي | Jobeni SD</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/all.min.css">
+    <style>
+        :root {
+            --primary-dark: #0f172a;
+            --accent-blue: #3b82f6;
+            --bg-editor: #ffffff;
+        }
+
+        body { 
+            background-color: var(--primary-dark); 
+            color: #f1f5f9; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* رأس الصفحة المحسن */
+        .header-gradient { 
+            background: linear-gradient(135deg, #1e40af 0%, #1e293b 100%); 
+            padding: 25px; 
+            border-radius: 20px; 
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        /* منطقة المحرر */
+        .editor { 
+            height: 650px; 
+            background: var(--bg-editor); 
+            color: #1e293b; 
+            border-radius: 15px; 
+            padding: 30px; 
+            font-size: 1.1rem; 
+            line-height: 1.7; 
+            border: 5px solid var(--accent-blue);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            resize: none;
+            transition: all 0.3s ease;
+        }
+
+        .editor:focus {
+            box-shadow: 0 0 0 5px rgba(59, 130, 246, 0.5);
+            outline: none;
+        }
+
+        /* منطقة النص الأصلي */
+        .comparison-box { 
+            height: 650px; 
+            overflow-y: auto; 
+            background: rgba(30, 41, 59, 0.7); 
+            border-radius: 15px; 
+            padding: 25px; 
+            font-size: 0.95rem; 
+            border: 1px dashed rgba(255,255,255,0.2);
+            color: #cbd5e1;
+            white-space: pre-wrap;
+        }
+
+        /* تنسيقات العناوين */
+        .label-style {
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* شريط الأدوات السفلي */
+        .action-bar {
+            background: rgba(15, 23, 42, 0.9);
+            padding: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            position: sticky;
+            bottom: 0;
+            z-index: 100;
+        }
+
+        .btn-success-custom {
+            background: #10b981;
+            border: none;
+            padding: 12px 40px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .btn-success-custom:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        /* شريط تمرير أنيق */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
+    </style>
+</head>
+<body class="p-3 p-md-5">
+
+    <div class="container-fluid">
+        <div class="header-gradient mb-5 d-flex flex-column flex-md-row justify-content-between align-items-center">
+            <div class="text-center text-md-start mb-3 mb-md-0">
+                <h2 class="fw-bold mb-1"><i class="fas fa-robot text-info me-2"></i> محرر الـ ATS الذكي</h2>
+                <p class="mb-0 opacity-75">لقد قمنا بإعادة صياغة سيرتك الذاتية لتتجاوز أنظمة الفرز بنجاح</p>
+            </div>
+            <div class="d-flex gap-2">
+                <button onclick="copyText()" class="btn btn-outline-info rounded-pill px-4">
+                    <i class="fas fa-copy me-1"></i> نسخ النص
+                </button>
+                <a href="{{ url_for('cv.view_cv', cv_id=cv_id) }}" class="btn btn-outline-light rounded-pill px-4">إلغاء</a>
+            </div>
+        </div>
+
+        <form action="{{ url_for('cv.generate_ats_pdf', cv_id=cv_id) }}" method="POST">
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <div class="label-style opacity-75">
+                        <i class="fas fa-history me-2"></i> المسودة الأصلية المستخرجة
+                    </div>
+                    <div class="comparison-box shadow-sm">
+                        {{ old_text }}
+                    </div>
+                </div>
+
+                <div class="col-lg-8">
+                    <div class="label-style text-info">
+                        <i class="fas fa-sparkles me-2"></i> النسخة المحسنة (قابلة للتعديل والتحرير)
+                    </div>
+                    <textarea id="optimizedEditor" name="optimized_content" class="form-control editor shadow-lg" 
+                              placeholder="جاري تجهيز النص..." spellcheck="false">{{ new_text }}</textarea>
+                    
+                    <div class="d-flex justify-content-between mt-2 px-2">
+                        <small class="text-muted"><i class="fas fa-info-circle me-1"></i> ملاحظة: النص أعلاه بتنسيق Markdown احترافي.</small>
+                        <small id="charCount" class="text-info fw-bold">0 حرف</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-5 text-center action-bar rounded-pill shadow">
+                <button type="submit" class="btn btn-success-custom rounded-pill btn-lg shadow-lg">
+                    <i class="fas fa-check-circle me-2"></i> اعتماد هذه النسخة وحفظها
+                </button>
+                <p class="text-muted small mt-2 mb-0">بالضغط على اعتماد، سيتم حفظ التعديلات وتجهيز السيرة للطباعة كـ PDF.</p>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const editor = document.getElementById('optimizedEditor');
+        const charCount = document.getElementById('charCount');
+
+        // تحديث عداد الحروف
+        function updateCharCount() {
+            charCount.innerText = editor.value.length + " حرف";
+        }
+
+        editor.addEventListener('input', updateCharCount);
+        window.onload = updateCharCount;
+
+        // وظيفة النسخ
+        function copyText() {
+            editor.select();
+            document.execCommand('copy');
+            alert('تم نسخ النص المحسن إلى الحافظة!');
+        }
+    </script>
+
+</body>
+</html>

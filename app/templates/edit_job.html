@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}تعديل وظيفة {{ job.title }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-warning text-dark py-3">
+                    <h4 class="mb-0 fw-bold"><i class="fas fa-edit me-2"></i> تعديل بيانات الوظيفة</h4>
+                </div>
+                <div class="card-body p-4">
+                    <form action="{{ url_for('jobs.edit_job', job_id=job.id) }}" method="POST">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">عنوان الوظيفة</label>
+                            <input type="text" name="title" class="form-control" value="{{ job.title }}" required>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">الموقع</label>
+                                <input type="text" name="location" class="form-control" value="{{ job.location }}" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">نوع العمل</label>
+                                <select name="job_type" class="form-select">
+                                    <option value="دوام كامل" {% if job.job_type == 'دوام كامل' %}selected{% endif %}>دوام كامل</option>
+                                    <option value="دوام جزئي" {% if job.job_type == 'دوام جزئي' %}selected{% endif %}>دوام جزئي</option>
+                                    <option value="عمل حر" {% if job.job_type == 'عمل حر' %}selected{% endif %}>عمل حر</option>
+                                    <option value="عن بعد" {% if job.job_type == 'عن بعد' %}selected{% endif %}>عن بعد</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">وصف الوظيفة والمتطلبات</label>
+                            <textarea name="description" class="form-control" rows="8" required>{{ job.description }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">الراتب (اختياري)</label>
+                            <input type="text" name="salary" class="form-control" value="{{ job.salary }}">
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg shadow">حفظ التغييرات</button>
+                            <a href="{{ url_for('auth.dashboard') }}" class="btn btn-outline-secondary">إلغاء</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

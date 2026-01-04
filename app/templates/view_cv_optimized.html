@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}النسخة المحسنة - {{ cv.profession }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            <div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
+                <h3 class="text-white fw-bold">النسخة الاحترافية الجاهزة</h3>
+                <div class="btn-group shadow-sm">
+                    <button onclick="window.print()" class="btn btn-primary px-4 rounded-pill me-2">
+                        <i class="fas fa-print me-2"></i> حفظ كـ PDF / طباعة
+                    </button>
+                    <a href="{{ url_for('auth.dashboard') }}" class="btn btn-outline-light rounded-pill">
+                        العودة للوحة التحكم
+                    </a>
+                </div>
+            </div>
+
+            <div class="cv-paper shadow-lg rounded-3 bg-white text-dark p-5" id="cv-content">
+                <div class="cv-header text-center border-bottom pb-4 mb-4">
+                    <h1 class="fw-bold text-uppercase mb-1" style="letter-spacing: 2px;">{{ current_user.full_name or current_user.username }}</h1>
+                    <p class="text-secondary mb-3">{{ cv.profession }}</p>
+                    <div class="d-flex justify-content-center gap-3 small text-muted">
+                        <span><i class="fas fa-envelope me-1"></i> {{ current_user.email }}</span>
+                        {% if current_user.telegram_id %}
+                        <span><i class="fab fa-telegram me-1"></i> Connected</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="cv-body lh-base" style="white-space: pre-wrap; font-size: 1.05rem; font-family: 'Times New Roman', Times, serif;">
+                    {{ cv.optimized_text | safe }}
+                </div>
+
+                <div class="cv-footer mt-5 pt-4 border-top text-center text-muted small">
+                    <p>تم تحسين هذه السيرة الذاتية بواسطة Jobeni AI - منصة التوظيف الذكية</p>
+                </div>
+            </div>
+
+            <p class="text-center mt-4 text-white-50 small d-print-none">
+                <i class="fas fa-info-circle me-1"></i> نصيحة: عند فتح نافذة الطباعة، اختر "Save as PDF" واحفظها على جهازك.
+            </p>
+        </div>
+    </div>
+</div>
+
+<style>
+    body {
+        background: #0f172a !important; /* خلفية داكنة للموقع فقط */
+    }
+    
+    .cv-paper {
+        min-height: 29.7cm; /* طول ورقة A4 */
+        margin: auto;
+        border: 1px solid #e2e8f0;
+    }
+
+    .cv-body {
+        text-align: left; /* السير الذاتية الاحترافية غالباً بالإنجليزية */
+        direction: ltr;
+    }
+
+    /* تنسيق خاص للطباعة */
+    @media print {
+        body {
+            background: white !important;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .d-print-none, nav, footer, .btn-group {
+            display: none !important;
+        }
+        .cv-paper {
+            box-shadow: none !important;
+            border: none !important;
+            width: 100% !important;
+            padding: 0 !important;
+        }
+        @page {
+            margin: 1.5cm;
+        }
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}أسئلة المقابلة المقترحة{% endblock %}
+
+{% block content %}
+<div class="container py-5 text-end" dir="rtl">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="card-header bg-dark text-white p-4">
+                    <h4 class="mb-1"><i class="fas fa-robot text-warning me-2"></i> مساعد المقابلات الذكي</h4>
+                    <p class="mb-0 opacity-75 small">أسئلة مقترحة لـ: {{ applicant.full_name }} بخصوص وظيفة {{ job.title }}</p>
+                </div>
+                <div class="card-body p-4 bg-light">
+                    <div class="bg-white p-4 rounded-4 shadow-sm lh-lg" style="white-space: pre-line;">
+                        {{ questions }}
+                    </div>
+                    
+                    <div class="mt-4 d-flex gap-2">
+                        <button onclick="window.print()" class="btn btn-outline-secondary rounded-pill">
+                            <i class="fas fa-print me-1"></i> طباعة الأسئلة
+                        </button>
+                        <a href="{{ url_for('chat.open_chat', job_id=job.id, recipient_id=applicant.id) }}" class="btn btn-primary rounded-pill flex-grow-1">
+                            <i class="fas fa-paper-plane me-1"></i> إرسال موعد للمرشح
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

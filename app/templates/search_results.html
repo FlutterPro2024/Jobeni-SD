@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+{% block title %}نتائج البحث - Jobeni SD{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<div class="container py-4 text-end" dir="rtl">
+    <div class="row mb-4 justify-content-center">
+        <div class="col-lg-10">
+            <div class="search-box-wrapper p-1 rounded-pill shadow-lg bg-white border">
+                <form action="{{ url_for('search.jobs_list') }}" method="GET" class="row g-0 align-items-center">
+                    <div class="col-md-5">
+                        <div class="input-group border-start">
+                            <span class="input-group-text bg-transparent border-0 text-muted"><i class="fas fa-search"></i></span>
+                            <input type="text" name="q" class="form-control border-0 shadow-none px-2" placeholder="المسمى الوظيفي..." value="{{ search_query }}">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <span class="input-group-text bg-transparent border-0 text-muted"><i class="fas fa-map-marker-alt"></i></span>
+                            <input type="text" name="location" class="form-control border-0 shadow-none px-2" placeholder="الموقع..." value="{{ location_query }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">تحديث البحث</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-5">
+        <div class="col-12">
+            <h5 class="fw-bold mb-3"><i class="fas fa-map-marked-alt text-primary me-2"></i> التوزيع الجغرافي للوظائف المحلية</h5>
+            <div id="searchMap" style="height: 400px; border-radius: 20px;" class="shadow-sm border"></div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="d-flex align-items-center mb-4">
+                <h4 class="fw-bold mb-0">الوظائف المحلية في جوبني</h4>
+                <span class="badge bg-secondary ms-3 rounded-pill">{{ jobs|length }} وظيفة</span>
+            </div>
+
+            <div class="row g-3">
+                {% for job in jobs %}
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm rounded-4 p-4 job-card job-item"
+                         data-lat="{{ job.latitude }}" data-lng="{{ job.longitude }}"
+                         data-title="{{ job.title }}" data-company="{{ job.company_name }}">
+                        <div class="row align-items-center">
+                            <div class="col-md-8 d-flex align-items-center">
+                                <div class="company-logo bg-light rounded-3 p-3 text-center me-3">
+                                    <i class="fas fa-building fa-lg text-secondary"></i>
+                                </div>
+                                <div>
+                                    <h5 class="fw-bold mb-1 text-dark">{{ job.title }}</h5>
+                                    <p class="mb-0 text-muted small"><i class="far fa-building me-1"></i> {{ job.company_name }} | <i class="fas fa-map-pin me-1"></i> {{ job.location }}</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-start mt-3 mt-md-0">
+                                <a href="{{ url_for('jobs.job_detail', job_id=job.id) }}" class="btn btn-outline-primary rounded-pill px-4">تفاصيل الوظيفة</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="col-12 text-center py-5 bg-light rounded-4 border-2 border-dashed">
+                    <p class="text-muted">لم نجد وظائف محلية تطابق بحثك حالياً.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="p-4 bg-white rounded-4 shadow-sm border-top border-4 border-primary sticky-top" style="top: 20px;">
+                <h5 class="fw-bold mb-4 text-primary"><i class="fas fa-globe-americas me-2"></i> فرص عمل عالمية (AI)</h5>
+
+                {% if global_jobs %}
+                    {% for g_job in global_jobs %}
+                    <div class="g-job-item mb-4 pb-3 border-bottom">
+                        <span class="badge bg-info bg-opacity-10 text-info mb-2 small">{{ g_job.company }}</span>
+                        <h6 class="fw-bold mb-2 text-dark" style="font-size: 0.95rem;">{{ g_job.title }}</h6>
+
+                        <div class="d-grid gap-2 mt-3">
+                            <form action="{{ url_for('applications.auto_apply_global') }}" method="POST">
+                                <input type="hidden" name="job_title" value="{{ g_job.title }}">
+                                <input type="hidden" name="job_link" value="{{ g_job.link }}">
+                                <input type="hidden" name="company" value="{{ g_job.company }}">
+                                <button type="submit" class="btn btn-success btn-sm w-100 rounded-pill fw-bold py-2">
+                                    <i class="fas fa-magic me-1"></i> تقديم تلقائي ذكي
+                                </button>
+                            </form>
+                            <a href="{{ g_job.link }}" target="_blank" class="btn btn-sm btn-outline-light text-dark border rounded-pill py-2">
+                                <i class="fas fa-external-link-alt me-1"></i> فتح الموقع الأصلي
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <p class="small text-muted">ابحث عن مسمى وظيفي لجلب الفرص العالمية.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // إنشاء الخريطة
+        var map = L.map('searchMap').setView([15.5, 32.5], 4);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        var bounds = [];
+
+        // جمع البيانات من العناصر التي لديها كلاس job-item
+        document.querySelectorAll('.job-item').forEach(function(item) {
+            var lat = item.getAttribute('data-lat');
+            var lng = item.getAttribute('data-lng');
+            var title = item.getAttribute('data-title');
+            var company = item.getAttribute('data-company');
+
+            if (lat && lng && lat !== 'None' && lng !== 'None') {
+                var marker = L.marker([lat, lng]).addTo(map)
+                    .bindPopup('<b>' + title + '</b><br>' + company);
+                bounds.push([lat, lng]);
+            }
+        });
+
+        // ضبط الخريطة لتشمل جميع الدبابيس المضافة
+        if (bounds.length > 0) {
+            map.fitBounds(bounds);
+        }
+    });
+</script>
+
+<style>
+    .search-box-wrapper { background: white; padding-right: 15px; }
+    .job-card { transition: all 0.3s; border: 1px solid transparent !important; }
+    .job-card:hover { transform: translateY(-3px); border-color: #0d6efd !important; box-shadow: 0 10px 20px rgba(0,0,0,0.05) !important; }
+    .company-logo { width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; }
+    .g-job-item:last-child { border-bottom: 0 !important; }
+    .btn-success { background: #10b981; border: none; }
+</style>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5" dir="rtl">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-lg border-0 rounded-4">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <div class="icon-box bg-primary-soft text-primary d-inline-block p-3 rounded-circle mb-3">
+                            <i class="fas fa-plus-circle fa-2x"></i>
+                        </div>
+                        <h2 class="fw-bold">نشر وظيفة جديدة</h2>
+                        <p class="text-muted">سيقوم نظامنا بمطابقة الوظيفة مع آلاف السير الذاتية وإرسال تنبيهات فورية.</p>
+                    </div>
+
+                    <form action="{{ url_for('jobs.post_job') }}" method="POST">
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">عنوان الوظيفة</label>
+                            <input type="text" name="title" class="form-control form-control-lg rounded-3" placeholder="مثلاً: مهندس برمجيات، محاسب..." required>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">الموقع (الولاية/المدينة)</label>
+                            <select name="location" class="form-select form-control-lg rounded-3">
+                                <option value="الخرطوم">الخرطوم</option>
+                                <option value="بورتسودان">بورتسودان</option>
+                                <option value="ود مدني">ود مدني</option>
+                                <option value="عطبرة">عطبرة</option>
+                                <option value="عن بعد (Remote)">عن بعد (Remote)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">الوصف الوظيفي والمهارات المطلوبة</label>
+                            <textarea name="description" class="form-control rounded-3" rows="6" placeholder="اذكر المسؤوليات، الخبرات المطلوبة، والتقنيات المستخدمة..." required></textarea>
+                            <div class="form-text mt-2"><i class="fas fa-magic text-success"></i> سيقوم Llama-3 بتحليل هذا النص لإيجاد أفضل المرشحين.</div>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-5">
+                            <button type="submit" class="btn btn-primary btn-lg rounded-pill shadow">
+                                <i class="fas fa-paper-plane me-2"></i> نشر الوظيفة وتفعيل التنبيهات
+                            </button>
+                            <a href="{{ url_for('auth.dashboard') }}" class="btn btn-light btn-lg rounded-pill">إلغاء</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-primary-soft { background-color: #e7f1ff; }
+    .card { border-top: 5px solid #0d6efd; }
+</style>
+{% endblock %}
