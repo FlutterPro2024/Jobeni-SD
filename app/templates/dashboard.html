@@ -14,6 +14,30 @@
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
                 <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-robot text-primary me-2"></i> إعدادات الوكيل النشط (AI Agent)</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form action="{{ url_for('auth.update_agent_settings') }}" method="POST" class="row align-items-end g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">المسمى الوظيفي للمراقبة:</label>
+                            <input type="text" name="agent_query" class="form-control rounded-pill" 
+                                   placeholder="مثلاً: Petroleum Engineer" value="{{ current_user.agent_query or '' }}">
+                        </div>
+                        <div class="col-md-4 py-2">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="agent_enabled" id="agentSwitch" {% if current_user.agent_enabled %}checked{% endif %}>
+                                <label class="form-check-label small fw-bold" for="agentSwitch">تفعيل إرسال الوظائف لتلجرام</label>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary w-100 rounded-pill btn-sm py-2">حفظ</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+                <div class="card-header bg-white border-0 pt-4 px-4">
                     <h5 class="fw-bold mb-0"><i class="fas fa-robot text-primary me-2"></i>تحليل مهاراتك الحالي</h5>
                 </div>
                 <div class="card-body p-4">

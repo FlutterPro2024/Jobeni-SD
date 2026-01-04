@@ -14,6 +14,11 @@ class User(db.Model, UserMixin):
     telegram_id = db.Column(db.String(100), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # حقول الوكيل الذكي الجديدة
+    agent_enabled = db.Column(db.Boolean, default=False)
+    agent_query = db.Column(db.String(100))
+    last_agent_run = db.Column(db.DateTime)
+
     # العلاقات
     cvs = db.relationship('CV', backref='owner', lazy=True, cascade="all, delete-orphan")
     jobs = db.relationship('Job', backref='employer_ref', lazy=True)
@@ -47,7 +52,7 @@ class CV(db.Model):
     file_path = db.Column(db.String(200), nullable=False)
     extracted_text = db.Column(db.Text)
     profession = db.Column(db.String(100))
-    skills = db.Column(db.JSON) 
+    skills = db.Column(db.JSON)
     feedback = db.Column(db.Text)
     score = db.Column(db.Integer, default=0)
     optimized_text = db.Column(db.Text)
@@ -61,7 +66,7 @@ class Application(db.Model):
     job_id = db.Column(db.Integer, db.ForeignKey('job.id'), nullable=False)
     cv_id = db.Column(db.Integer, db.ForeignKey('cv.id'))
     match_score = db.Column(db.Integer, default=0)
-    match_explanation = db.Column(db.Text) # <--- الإضافة الجديدة هنا
+    match_explanation = db.Column(db.Text) 
     status = db.Column(db.String(20), default='pending')
     applied_at = db.Column(db.DateTime, default=datetime.utcnow)
 

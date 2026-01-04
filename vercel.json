@@ -8,8 +8,18 @@
   ],
   "routes": [
     {
+      "src": "/run-jobs-agent",
+      "dest": "run.py"
+    },
+    {
       "src": "/(.*)",
       "dest": "run.py"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/run-jobs-agent",
+      "schedule": "0 */12 * * *"
     }
   ]
 }

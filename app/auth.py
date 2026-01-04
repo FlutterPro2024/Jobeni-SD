@@ -49,7 +49,6 @@ def register():
         db.session.commit()
 
         try:
-            # تم استدعاء الدالة مع التأكد من وجود Context التطبيق
             send_welcome_email(new_user.email, new_user.username)
         except Exception as e:
             print(f"❌ [Mail Error] Failed to send: {e}")
@@ -64,13 +63,8 @@ def dashboard():
     if current_user.role == 'employer':
         return render_template('dashboard_employer.html', jobs=current_user.jobs)
 
-    # للمتقدمين عن عمل (Seekers)
     recent_apps = Application.query.filter_by(user_id=current_user.id).order_by(Application.applied_at.desc()).limit(5).all()
-
-    # جلب جلسات التدريب (sessions)
     sessions = InterviewSession.query.filter_by(user_id=current_user.id).order_by(InterviewSession.created_at.desc()).all()
-
-    # جلب الرسائل (messages) المطلوبة في السطر 100 من القالب
     user_messages = getattr(current_user, 'received_messages', [])
 
     web_jobs = []
@@ -90,6 +84,25 @@ def dashboard():
                            web_jobs=web_jobs,
                            sessions=sessions,
                            messages=user_messages)
+
+@auth_bp.route('/update-agent-settings', methods=['POST'])
+@login_required
+def update_agent_settings():
+    """تحديث إعدادات الوكيل الذكي من الداشبورد"""
+    agent_enabled = 'agent_enabled' in request.form
+    agent_query = request.form.get('agent_query', '').strip()
+    
+    current_user.agent_enabled = agent_enabled
+    current_user.agent_query = agent_query
+    
+    try:
+        db.session.commit()
+        flash('✅ تم تحديث إعدادات الوكيل الذكي بنجاح!', 'success')
+    except:
+        db.session.rollback()
+        flash('❌ حدث خطأ أثناء الحفظ.', 'danger')
+        
+    return redirect(url_for('auth.dashboard'))
 
 @auth_bp.route('/profile', methods=['GET', 'POST'])
 @login_required

@@ -7,9 +7,11 @@ from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
 from flask_mail import Mail
 
+# إضافة المسار الرئيسي للمشروع
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import config
 
+# تعريف الكائنات الأساسية
 db = SQLAlchemy()
 login_manager = LoginManager()
 migrate = Migrate()
@@ -22,6 +24,7 @@ def create_app(config_name='default'):
     # الضبط اليدوي للمرسل الافتراضي لضمان الربط مع Gmail
     app.config['MAIL_DEFAULT_SENDER'] = app.config.get('MAIL_USERNAME')
 
+    # تهيئة الإضافات
     db.init_app(app)
     login_manager.init_app(app)
     migrate.init_app(app, db)
@@ -39,7 +42,7 @@ def create_app(config_name='default'):
             return render_template('maintenance.html'), 503
 
     with app.app_context():
-        # استيراد كافة الـ Blueprints بما فيها المفقود
+        # استيراد كافة الـ Blueprints
         from app.auth import auth_bp
         from app.cv import cv_bp
         from app.jobs import jobs_bp
@@ -48,6 +51,8 @@ def create_app(config_name='default'):
         from app.admin import admin_bp
         from app.chat import chat_bp
         from app.applications import apps_bp
+        # استيراد الوكيل الذكي الجديد هنا
+        from app.agent_worker import agent_bp
 
         # تسجيل الـ Blueprints في نظام فلاسك
         app.register_blueprint(auth_bp)
@@ -58,7 +63,10 @@ def create_app(config_name='default'):
         app.register_blueprint(admin_bp)
         app.register_blueprint(chat_bp)
         app.register_blueprint(apps_bp)
+        # تسجيل الوكيل الذكي
+        app.register_blueprint(agent_bp)
 
+        # إنشاء الجداول الجديدة (بما فيها حقول الوكيل)
         db.create_all()
 
     @login_manager.user_loader
