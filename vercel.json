@@ -11,6 +11,7 @@
       "src": "/run-jobs-agent",
       "dest": "run.py"
     },
+    { "handle": "filesystem" },
     {
       "src": "/(.*)",
       "dest": "run.py"
@@ -23,3 +24,4 @@
     }
   ]
 }
+
