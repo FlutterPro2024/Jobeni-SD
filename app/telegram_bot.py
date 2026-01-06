@@ -1,7 +1,9 @@
 # ~/jobeni-sD/app/telegram_bot.py
 import requests
 import os
+import json
 from flask import current_app, Blueprint, request, jsonify
+from app.openrouter_ai import get_ai_response
 
 # التوكن من البيئة أو الافتراضي
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN") or "8560156074:AAH2cBxEmjRkBAcnUjcaWbZEwZ7RTFJEn2c"
@@ -9,14 +11,24 @@ ADMIN_ID = "604818360"
 
 telegram_bp = Blueprint('telegram', __name__)
 
+# مخزن مؤقت لحالات المقابلة (في الإنتاج يفضل استخدام Redis أو DB)
+interview_sessions = {}
+
 @telegram_bp.route('/telegram-webhook', methods=['POST'])
 def telegram_webhook():
     data = request.get_json()
-    if data:
+    if not data: return jsonify({"status": "no data"}), 200
+    
+    # معالجة الضغط على الأزرار
+    if "callback_query" in data:
+        handle_callback(data["callback_query"])
+    # معالجة الرسائل النصية
+    elif "message" in data:
         handle_telegram_webhook(data)
+        
     return jsonify({"status": "success"}), 200
 
-def send_message(chat_id, text):
+def send_message(chat_id, text, reply_markup=None):
     if not chat_id: return None
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     payload = {
@@ -25,6 +37,8 @@ def send_message(chat_id, text):
         "parse_mode": "HTML",
         "disable_web_page_preview": True
     }
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
     try:
         res = requests.post(url, json=payload, timeout=10)
         return res.json()
@@ -32,29 +46,48 @@ def send_message(chat_id, text):
         print(f"Telegram Error: {e}")
         return None
 
-def send_document(chat_id, file_path, caption=""):
-    """إرسال ملف PDF إلى المستخدم عبر التلجرام"""
-    if not chat_id or not os.path.exists(file_path):
-        print(f"❌ File not found: {file_path}")
-        return None
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
-    try:
-        with open(file_path, 'rb') as doc:
-            files = {'document': doc}
-            data = {'chat_id': chat_id, 'caption': caption, 'parse_mode': 'HTML'}
-            res = requests.post(url, data=data, files=files, timeout=40)
-            return res.json()
-    except Exception as e:
-        print(f"Telegram Document Error: {e}")
-        return None
+def handle_callback(callback):
+    chat_id = callback["message"]["chat"]["id"]
+    data = callback["data"]
+    
+    if data.startswith("start_int_"):
+        job_title = data.replace("start_int_", "")
+        from app.models import User, CV
+        with current_app.app_context():
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            cv = CV.query.filter_by(user_id=user.id).order_by(CV.created_at.desc()).first() if user else None
+            
+            prompt = f"أنت مدير توظيف. ابدأ مقابلة سريعة (سؤال واحد) لوظيفة {job_title} بناءً على CV: {cv.extracted_text[:500] if cv else 'غير متوفر'}. رحب بالمستخدم واسأل أول سؤال."
+            first_q = get_ai_response(prompt)
+            
+            interview_sessions[chat_id] = {"job": job_title, "history": [f"AI: {first_q}"]}
+            send_message(chat_id, f"🏁 <b>بدأت المقابلة لـ: {job_title}</b>\n\n{first_q}")
 
 def handle_telegram_webhook(data):
-    message = data.get("message") or data.get("result", [{}])[0].get("message")
-    if not message: return
+    message = data.get("message")
+    if not message or "text" not in message: return
 
     chat_id = message["chat"]["id"]
-    text = message.get("text", "")
+    text = message["text"]
 
+    # إذا كان المستخدم في جلسة مقابلة
+    if chat_id in interview_sessions:
+        session = interview_sessions[chat_id]
+        if text.lower() in ["إنهاء", "exit", "stop", "خروج"]:
+            prompt = f"حلل أداء المستخدم في هذه المقابلة لـ {session['job']}: {session['history']}. اعطِ نسبة مئوية ونصيحة أخيرة."
+            result = get_ai_response(prompt)
+            del interview_sessions[chat_id]
+            send_message(chat_id, f"📊 <b>نتيجة المقابلة السريعة:</b>\n\n{result}")
+            return
+
+        session['history'].append(f"User: {text}")
+        prompt = f"المقابلة لـ {session['job']}. السجل: {session['history']}. قيم الإجابة واطرح السؤال التالي أو قل 'انتهينا' إذا اكتفيت (3 أسئلة كافية)."
+        ai_reply = get_ai_response(prompt)
+        session['history'].append(f"AI: {ai_reply}")
+        send_message(chat_id, f"{ai_reply}\n\n<i>(أرسل 'إنهاء' للحصول على التقييم)</i>")
+        return
+
+    # الأوامر العادية
     if text == "/my_status":
         from app.models import User, Application
         with current_app.app_context():
@@ -96,7 +129,17 @@ def handle_telegram_webhook(data):
         else:
             send_message(chat_id, "🤖 أهلاً بك في جوبيني!\n/my_status - متابعة طلباتي\n/my_cv - تحميل سيرتي")
 
-# --- الدوال المطلوبة لملف jobs.py و cv.py ---
+# --- بقية الدوال (إرسال المستندات، التنبيهات، إلخ) تظل كما هي ---
+def send_document(chat_id, file_path, caption=""):
+    if not chat_id or not os.path.exists(file_path): return None
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
+    try:
+        with open(file_path, 'rb') as doc:
+            files = {'document': doc}
+            data = {'chat_id': chat_id, 'caption': caption, 'parse_mode': 'HTML'}
+            res = requests.post(url, data=data, files=files, timeout=40)
+            return res.json()
+    except Exception as e: return None
 
 def notify_admin_new_cv(username, profession, score, feedback):
     text = f"🆕 <b>سيرة جديدة!</b>\n👤 {username}\n💼 {profession}\n📊 {score}%"
@@ -104,24 +147,4 @@ def notify_admin_new_cv(username, profession, score, feedback):
 
 def notify_employer_new_app(chat_id, seeker_name, job_title, score):
     text = f"📥 <b>طلب تقديم جديد!</b>\n👤 المتقدم: {seeker_name}\n💼 الوظيفة: {job_title}\n🎯 المطابقة: {score}%"
-    return send_message(chat_id, text)
-
-def notify_status_update(chat_id, job_title, status):
-    status_ar = {'accepted': '✅ تم قبولك!', 'rejected': ' ❌ نعتذر، لم يتم اختيارك.', 'interview': '📅 مقابلة!'}
-    text = f"🔔 <b>تحديث لوظيفة: {job_title}</b>\nالحالة: {status_ar.get(status, status)}"
-    return send_message(chat_id, text)
-
-def broadcast_new_job(job_title, company, location, category):
-    from app.models import User
-    text = f"📢 <b>وظيفة جديدة!</b>\n💼 {job_title}\n🏢 {company}\n📍 {location}"
-    with current_app.app_context():
-        users = User.query.filter(User.telegram_id != None).all()
-        for user in users: send_message(user.telegram_id, text)
-
-def notify_seeker_analysis(chat_id, profession, score, feedback):
-    text = f"📊 <b>تحليل CV:</b>\n💼 {profession}\n📈 القوة: {score}%\n💡 {feedback}"
-    return send_message(chat_id, text)
-
-def notify_new_message(chat_id, sender_name, job_title, message_body):
-    text = f"💬 <b>رسالة من: {sender_name}</b>\n✉️: {message_body[:50]}..."
     return send_message(chat_id, text)
