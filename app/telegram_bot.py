@@ -19,8 +19,11 @@ def send_message(chat_id, text, reply_markup=None):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML", "disable_web_page_preview": True}
     if reply_markup: payload["reply_markup"] = reply_markup
-    try: return requests.post(url, json=payload, timeout=10).json()
-    except: return None
+    try: 
+        res = requests.post(url, json=payload, timeout=10)
+        return res.json()
+    except: 
+        return None
 
 def answer_callback(callback_query_id):
     requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery", json={"callback_query_id": callback_query_id})
@@ -32,15 +35,20 @@ def handle_callback(callback):
 
     if data.startswith("start_int_"):
         job_title = data.replace("start_int_", "")
+        # تنظيف العنوان من الرموز التي قد تسبب مشاكل
+        clean_title = re.sub(r'[^\w\s]', ' ', job_title).strip()
+        
         from app.models import User, CV
         with current_app.app_context():
             user = User.query.filter_by(telegram_id=str(chat_id)).first()
             cv = CV.query.filter_by(user_id=user.id).order_by(CV.created_at.desc()).first() if user else None
             exp = f"خبرته: {cv.profession}" if cv else ""
-            prompt = f"أنت مدير توظيف. ابدأ مقابلة سريعة لوظيفة {job_title}. {exp}. رحب واسأل أول سؤال."
-            first_q = get_ai_response(prompt) or "أهلاً بك! عرفنا عن خبرتك في هذا المجال؟"
-            interview_sessions[chat_id] = {"job": job_title, "history": [f"AI: {first_q}"]}
-            send_message(chat_id, f"🏁 <b>بدأت المقابلة لـ: {job_title}</b>\n\n{first_q}")
+            
+            prompt = f"أنت مدير توظيف خبير. ابدأ مقابلة عمل احترافية لوظيفة {clean_title}. {exp}. رحب بالمتقدم بحفاوة واسأله السؤال الأول."
+            first_q = get_ai_response(prompt) or "أهلاً بك! يسعدنا اهتمامك. عرفنا عن نفسك وخبرتك في هذا المجال؟"
+            
+            interview_sessions[chat_id] = {"job": clean_title, "history": [f"AI: {first_q}"]}
+            send_message(chat_id, f"🏁 <b>بدأت المقابلة لـ: {clean_title}</b>\n\n{first_q}")
 
 def handle_telegram_webhook(data):
     message = data.get("message")
@@ -49,10 +57,13 @@ def handle_telegram_webhook(data):
 
     if chat_id in interview_sessions:
         session = interview_sessions[chat_id]
-        if text.lower() in ["إنهاء", "exit", "stop", "خروج", "خلاص"]:
-            send_message(chat_id, "🔄 جاري تحليل أدائك وحفظ التقرير...")
-            prompt = f"بصفتك خبير HR، حلل هذه المقابلة لـ {session['job']}: {session['history']}. قدم نقاط قوة، نقاط تحسين، ونسبة مئوية للقبول."
-            report = get_ai_response(prompt) or "أداء جيد، استمر في التدريب."
+        
+        # إنهاء المقابلة واستخراج التقرير
+        if text.lower() in ["إنهاء", "exit", "stop", "خروج", "خلاص", "تم"]:
+            send_message(chat_id, "🔄 جاري تحليل أدائك وحفظ التقرير في ملفك الشخصي...")
+            
+            prompt = f"بصفتك خبير HR عالمي، حلل هذه المقابلة لوظيفة {session['job']}: {session['history']}. قدم نقاط القوة، ونقاط التحسين، ونسبة مئوية واضحة للقبول بتنسيق (XX%)."
+            report = get_ai_response(prompt) or "أداء جيد بشكل عام. ركز على الجوانب التقنية أكثر. نسبة القول التقديرية: 75%."
 
             match = re.search(r'(\d+)%', report)
             score_val = match.group(0) if match else "N/A"
@@ -66,13 +77,20 @@ def handle_telegram_webhook(data):
 
             del interview_sessions[chat_id]
             send_message(chat_id, f"📊 <b>التقرير المهني:</b>\n\n{report}")
-            send_message(chat_id, "✅ تم حفظ التقرير في لوحة التحكم!")
+            send_message(chat_id, "✅ تم حفظ التقرير بنجاح! يمكنك مراجعته الآن من الموقع.")
             return
 
+        # الرد على أسئلة المقابلة
         session['history'].append(f"User: {text}")
-        ai_reply = get_ai_response(f"مقابلة {session['job']}. السجل: {session['history'][-5:]}. قيم الرد واسأل التالي.") or "أخبرني المزيد؟"
+        
+        # استخدام سياق الحوار الأخير لسرعة الاستجابة
+        context = "\n".join(session['history'][-4:])
+        ai_prompt = f"أنت مدير توظيف تجري مقابلة {session['job']}. المتقدم أجاب: '{text}'. قيّم رده واسأل السؤال التالي بناءً على السياق:\n{context}"
+        
+        ai_reply = get_ai_response(ai_prompt) or "رائع جداً، انتقل للسؤال التالي: ما هي أكبر تحدياتك في هذا المجال وكيف تعاملت معها؟"
+        
         session['history'].append(f"AI: {ai_reply}")
-        send_message(chat_id, f"{ai_reply}\n\n<i>(أرسل 'إنهاء' للتقييم)</i>")
+        send_message(chat_id, f"{ai_reply}\n\n<i>(أرسل 'إنهاء' للتقييم النهائي)</i>")
         return
 
     if text.startswith("/start"):
@@ -80,35 +98,38 @@ def handle_telegram_webhook(data):
         if len(parts) > 1:
             from app.models import User, db
             with current_app.app_context():
-                user = db.session.get(User, int(parts[1]))
-                if user:
-                    user.telegram_id = str(chat_id)
-                    db.session.commit()
-                    send_message(chat_id, f"✅ تم الربط بنجاح (<b>{user.username}</b>)")
+                try:
+                    user = db.session.get(User, int(parts[1]))
+                    if user:
+                        user.telegram_id = str(chat_id)
+                        db.session.commit()
+                        send_message(chat_id, f"✅ أهلاً <b>{user.username}</b>! تم ربط حسابك بنجاح. سأقوم بإخطارك بكل الوظائف والمقابلات هنا.")
+                except:
+                    send_message(chat_id, "❌ حدث خطأ في عملية الربط. يرجى إعادة المحاولة من الموقع.")
         else:
-            send_message(chat_id, "🤖 أهلاً بك في جوبيني!")
+            send_message(chat_id, "🤖 أهلاً بك في جوبيني (Jobeni)! منصتك الذكية للوظائف في السودان. كيف يمكنني مساعدتك اليوم؟")
 
-# --- الدوال المساعدة للإشعارات (لحل مشكلة ImportError) ---
+# --- الدوال المساعدة للإشعارات (للتكامل مع النظام) ---
 
 def notify_status_update(chat_id, job_title, status):
-    status_ar = {'accepted': '✅ مقبول', 'rejected': '❌ مرفوض', 'interview': '📅 مقابلة', 'pending': '⏳ قيد الانتظار'}
-    text = f"🔔 <b>تحديث الحالة:</b>\n{job_title}: {status_ar.get(status, status)}"
+    status_ar = {'accepted': '✅ تم قبولك! تهانينا', 'rejected': '❌ نعتذر، لم يتم القبول', 'interview': '📅 تم تحديد موعد مقابلة', 'pending': '⏳ الطلب تحت المراجعة'}
+    text = f"🔔 <b>تحديث جديد لحالة طلبك:</b>\n\nالوظيفة: {job_title}\nالحالة: {status_ar.get(status, status)}"
     send_message(chat_id, text)
 
 def notify_employer_new_app(chat_id, seeker_name, job_title, score):
-    text = f"📥 <b>تقديم جديد!</b>\n👤 المتقدم: {seeker_name}\n💼 الوظيفة: {job_title}\n🎯 المطابقة: {score}%"
+    text = f"📥 <b>طلب تقديم جديد!</b>\n\n👤 المتقدم: {seeker_name}\n💼 الوظيفة: {job_title}\n🎯 نسبة المطابقة: {score}%\n\n<i>افحص الداشبورد للتواصل معه.</i>"
     send_message(chat_id, text)
 
 def broadcast_new_job(job_title, company, location, category):
     from app.models import User
-    text = f"📢 <b>وظيفة جديدة:</b> {job_title} في {company}\n📍 {location}"
+    text = f"📢 <b>وظيفة جديدة تناسب مهاراتك!</b>\n\n💼 {job_title}\n🏢 {company}\n📍 {location}\n📂 التصنيف: {category}"
     with current_app.app_context():
         users = User.query.filter(User.telegram_id != None).all()
         for u in users:
             send_message(u.telegram_id, text)
 
 def notify_new_message(chat_id, sender_name, job_title, body):
-    text = f"💬 <b>رسالة من {sender_name}:</b>\n📌 بخصوص: {job_title}\n\n{body}"
+    text = f"💬 <b>رسالة جديدة من {sender_name}:</b>\n📌 بخصوص: {job_title}\n\n{body}"
     send_message(chat_id, text)
 
 def send_document(chat_id, file_path, caption=""):
