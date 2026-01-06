@@ -8,42 +8,6 @@
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#007bff">
     <link rel="apple-touch-icon" href="/static/icon.png">
-    
-    <script>
-      let deferredPrompt;
-
-      // تسجيل الـ Service Worker
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
-          navigator.serviceWorker.register("/static/sw.js");
-        });
-      }
-
-      // التقاط حدث طلب التثبيت
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        
-        // إظهار تنبيه للمستخدم بعد 3 ثوانٍ من دخول الموقع
-        setTimeout(() => {
-          if (confirm("هل تريد تثبيت تطبيق جوبيني السودان على هاتفك ليسهل عليك الوصول للوظائف؟")) {
-            installApp();
-          }
-        }, 3000);
-      });
-
-      function installApp() {
-        if (deferredPrompt) {
-          deferredPrompt.prompt();
-          deferredPrompt.userChoice.then((choiceResult) => {
-            if (choiceResult.outcome === 'accepted') {
-              console.log('User accepted the install prompt');
-            }
-            deferredPrompt = null;
-          });
-        }
-      }
-    </script>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -69,9 +33,34 @@
         .search-nav i { position: absolute; right: 12px; top: 10px; color: rgba(255,255,255,0.5); }
         .footer { background: #1a1d20; color: rgba(255,255,255,0.6); padding: 40px 0; margin-top: 80px; }
         .tg-badge { font-size: 10px; vertical-align: middle; }
+        
+        /* PWA Banner Style */
+        #install-banner {
+            display: none; position: fixed; bottom: 20px; left: 20px; right: 20px; 
+            background: white; padding: 15px; border-radius: 20px; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3); z-index: 10000; 
+            border: 1px solid rgba(13, 110, 253, 0.2); animation: slideUp 0.5s ease-out;
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
     </style>
 </head>
 <body>
+    <div id="install-banner">
+        <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
+                <img src="/static/icon.png" width="45" height="45" class="rounded-3 shadow-sm me-3" style="margin-left: 10px;">
+                <div>
+                    <h6 class="mb-0 fw-bold" style="color: #212529;">جوبيني السودان</h6>
+                    <small class="text-muted">ثبت التطبيق لتجربة أسرع</small>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <button id="btn-install" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">تثبيت</button>
+                <button onclick="document.getElementById('install-banner').style.display='none'" class="btn btn-light btn-sm rounded-circle"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+    </div>
+
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
         <div class="container">
             <a class="logo-container" href="{{ url_for('auth.index') }}">
@@ -143,6 +132,48 @@
             <p class="mb-0 small opacity-50">© 2026 Jobeni SD. منصة التوظيف الذكية الأولى في السودان 🇸🇩</p>
         </div>
     </footer>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        let deferredPrompt;
+        const installBanner = document.getElementById('install-banner');
+        const btnInstall = document.getElementById('btn-install');
+
+        // تسجيل الـ Service Worker
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", () => {
+                navigator.serviceWorker.register("/static/sw.js");
+            });
+        }
+
+        // الاستماع لحدث طلب التثبيت
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            // إظهار البانر الأنيق
+            setTimeout(() => {
+                installBanner.style.display = 'block';
+            }, 2000);
+        });
+
+        btnInstall.addEventListener('click', () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User accepted');
+                    }
+                    installBanner.style.display = 'none';
+                    deferredPrompt = null;
+                });
+            }
+        });
+
+        // إخفاء البانر إذا تم التثبيت مسبقاً
+        window.addEventListener('appinstalled', () => {
+            installBanner.style.display = 'none';
+        });
+    </script>
 </body>
 </html>
