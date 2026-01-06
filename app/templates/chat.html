@@ -1,5 +1,7 @@
 {% extends "base.html" %}
-{% block title %}الدردشة مع {{ recipient.full_name or recipient.username }}{% endblock %}
+{% block title %}
+    {% if is_ai_agent %}الدردشة مع الوكيل الذكي{% else %}الدردشة مع {{ recipient.full_name or recipient.username }}{% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="container py-4 text-end" dir="rtl">
@@ -8,13 +10,21 @@
             <div class="card border-0 shadow-lg rounded-4 overflow-hidden" style="background: #f8fafc; height: 80vh;">
                 <div class="card-header bg-white border-0 py-3 shadow-sm d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
-                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 45px; height: 45px;">
-                            <i class="fas fa-user"></i>
+                        <div class="{% if is_ai_agent %}bg-info{% else %}bg-primary{% endif %} text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 45px; height: 45px; margin-left: 10px;">
+                            {% if is_ai_agent %}
+                                <i class="fas fa-robot"></i>
+                            {% else %}
+                                <i class="fas fa-user"></i>
+                            {% endif %}
                         </div>
                         <div>
-                            <h6 class="fw-bold mb-0 text-dark">{{ recipient.full_name or recipient.username }}</h6>
+                            <h6 class="fw-bold mb-0 text-dark">
+                                {% if is_ai_agent %}مساعد جوبيني الذكي{% else %}{{ recipient.full_name or recipient.username }}{% endif %}
+                            </h6>
                             {% if job %}
                                 <small class="text-primary fw-bold">بخصوص: {{ job.title }}</small>
+                            {% elif is_ai_agent %}
+                                <small class="text-info fw-bold"><i class="fas fa-magic me-1"></i> مستشارك المهني المدعوم بالـ AI</small>
                             {% else %}
                                 <small class="text-muted">دردشة مباشرة</small>
                             {% endif %}
@@ -25,31 +35,59 @@
                     </a>
                 </div>
 
-                <div class="card-body overflow-auto p-4" id="chatWindow" style="flex: 1; background: #e2e8f0;">
+                <div class="card-body overflow-auto p-4" id="chatWindow" style="flex: 1; background: #eef2f7;">
                     {% for msg in messages %}
                         <div class="d-flex mb-3 {% if msg.sender_id == current_user.id %}justify-content-start flex-row-reverse{% else %}justify-content-start{% endif %}">
-                            <div class="p-3 shadow-sm {% if msg.sender_id == current_user.id %}bg-primary text-white ms-2{% else %}bg-white text-dark me-2{% endif %}" 
-                                 style="max-width: 75%; border-radius: 20px; border-bottom-right-radius: {% if msg.sender_id == current_user.id %}2px{% else %}20px{% endif %}; border-bottom-left-radius: {% if msg.sender_id != current_user.id %}2px{% else %}20px{% endif %};">
-                                <p class="mb-1 small">{{ msg.body }}</p>
-                                <div class="text-start" style="font-size: 0.65rem; opacity: 0.8;">
+                            
+                            {% if msg.sender_id == 0 %}
+                                <div class="bg-info text-white rounded-circle d-flex align-items-center justify-content-center me-2 shadow-sm" style="width: 30px; height: 30px; min-width: 30px;">
+                                    <i class="fas fa-robot" style="font-size: 0.8rem;"></i>
+                                </div>
+                            {% endif %}
+
+                            <div class="p-3 shadow-sm 
+                                {% if msg.sender_id == current_user.id %}
+                                    bg-primary text-white ms-2
+                                {% elif msg.sender_id == 0 %}
+                                    bg-white border-end border-info border-4 text-dark me-2
+                                {% else %}
+                                    bg-white text-dark me-2
+                                {% endif %}"
+                                 style="max-width: 80%; border-radius: 18px; line-height: 1.6;">
+                                
+                                <div class="message-content small">
+                                    {# تحويل السطور الجديدة إلى <br> لضمان ظهور تقارير الـ AI بشكل منظم #}
+                                    {{ msg.body | replace('\n', '<br>') | safe }}
+                                </div>
+
+                                <div class="text-start mt-2" style="font-size: 0.65rem; opacity: 0.7;">
                                     {{ msg.timestamp.strftime('%H:%M') }}
                                 </div>
                             </div>
                         </div>
                     {% else %}
                         <div class="text-center py-5">
-                            <i class="fas fa-comments fa-3x text-muted mb-3"></i>
-                            <p class="text-muted">ابدأ المحادثة الآن..</p>
+                            <div class="mb-3">
+                                <i class="fas {% if is_ai_agent %}fa-robot{% else %}fa-comments{% endif %} fa-3x text-muted opacity-25"></i>
+                            </div>
+                            <p class="text-muted small">
+                                {% if is_ai_agent %}
+                                    أهلاً بك! أنا مستشارك الذكي. اسألني عن سيرتك الذاتية، كيف تطور مهاراتك، أو حتى اطلب مني تحليل وظيفة معينة.
+                                {% else %}
+                                    ابدأ المحادثة الآن..
+                                {% endif %}
+                            </p>
                         </div>
                     {% endfor %}
                 </div>
 
                 <div class="card-footer bg-white border-0 p-3">
                     <form action="" method="POST" class="d-flex gap-2">
-                        <input type="text" name="message" class="form-control rounded-pill border-0 bg-light px-4" 
-                               placeholder="اكتب رسالتك هنا..." required autocomplete="off">
-                        <button type="submit" class="btn btn-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
-                            <i class="fas fa-paper-plane"></i>
+                        <input type="text" name="message" class="form-control rounded-pill border-2 bg-light px-4 shadow-none"
+                               placeholder="{% if is_ai_agent %}اسأل الوكيل الذكي...{% else %}اكتب رسالتك هنا...{% endif %}" 
+                               required autocomplete="off">
+                        <button type="submit" class="btn {% if is_ai_agent %}btn-info{% else %}btn-primary{% endif %} rounded-circle d-flex align-items-center justify-content-center shadow" style="width: 45px; height: 45px; min-width: 45px;">
+                            <i class="fas fa-paper-plane text-white"></i>
                         </button>
                     </form>
                 </div>
@@ -59,16 +97,37 @@
 </div>
 
 <script>
-    // التمرير التلقائي لأسفل عند فتح الدردشة
+    // التمرير التلقائي لأسفل
     var chatWindow = document.getElementById("chatWindow");
     chatWindow.scrollTop = chatWindow.scrollHeight;
+
+    // منع الإرسال المتكرر عند التحديث
+    if ( window.history.replaceState ) {
+        window.history.replaceState( null, null, window.location.href );
+    }
 </script>
 
 <style>
-    /* تحسين شكل شريط التمرير */
-    #chatWindow::-webkit-scrollbar { width: 6px; }
+    #chatWindow::-webkit-scrollbar { width: 5px; }
     #chatWindow::-webkit-scrollbar-track { background: transparent; }
     #chatWindow::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    
     .bg-primary { background: linear-gradient(135deg, #2563eb, #1e40af) !important; }
+    .bg-info { background: linear-gradient(135deg, #0dcaf0, #0aa2bd) !important; }
+    
+    .message-content {
+        word-wrap: break-word;
+        white-space: pre-line; /* لضمان ظهور المسافات والأسطر بشكل جميل */
+    }
+
+    /* أنيميشن خفيف لظهور الرسائل */
+    .d-flex {
+        animation: fadeIn 0.3s ease-in-out;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
 </style>
 {% endblock %}
+

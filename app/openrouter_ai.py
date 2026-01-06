@@ -38,10 +38,15 @@ class OpenRouterAI:
             except: continue
         return None
 
+    # --- الدالة الجديدة للربط مع الوكيل الذكي والدردشة ---
+    def get_ai_response(self, prompt, temperature=0.5):
+        """دالة عامة لاستقبال الطلبات من الوكيل الذكي أو الدردشة"""
+        return self._call_ai(prompt, temperature=temperature)
+
     def analyze_cv_complete(self, cv_text):
         """تحليل عميق للسيرة الذاتية لجميع التخصصات"""
         prompt = f"""
-        As a Senior HR Specialist, analyze this CV text. 
+        As a Senior HR Specialist, analyze this CV text.
         Extract skills, identify the exact profession, and give a general profile score.
         Return ONLY valid JSON format like this:
         {{"skills": ["skill1", "skill2"], "profession": "Job Title", "overall_score": 85, "feedback": "Arabic Text"}}
@@ -52,7 +57,7 @@ class OpenRouterAI:
             try:
                 # تنظيف الرد من أي زيادات قبل وبعد الـ JSON
                 clean = re.search(r'\{.*\}', content.replace("```json", "").replace("```", ""), re.DOTALL)
-                if clean: 
+                if clean:
                     return json.loads(clean.group())
             except: pass
 
@@ -70,7 +75,7 @@ class OpenRouterAI:
         Consider transferable skills and related fields.
         Return ONLY a JSON object:
         {{"score": 85, "reason": "Arabic explanation of why this score was given"}}
-        
+
         Job: {job_desc[:700]}
         CV: {cv_text[:1500]}
         """
@@ -90,10 +95,14 @@ class OpenRouterAI:
         cv_words = set(cv_text.lower().split())
         common = keywords.intersection(cv_words)
         manual_score = min(len(common) * 5, 40) # حد أقصى 40% لو التحليل اليدوي
-        
+
         return manual_score, "تحليل تقريبي (المحرك الذكي مشغول حالياً)."
 
     def generate_improved_text(self, prompt):
         return self._call_ai(prompt, temperature=0.7)
 
+# تصدير الدوال للاستخدام المباشر في الملفات الأخرى
 openrouter_ai = OpenRouterAI()
+
+def get_ai_response(prompt, temperature=0.5):
+    return openrouter_ai.get_ai_response(prompt, temperature)
