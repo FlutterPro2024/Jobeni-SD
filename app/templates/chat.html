@@ -57,8 +57,15 @@
 
                                 <div class="message-content small">
                                     {% if msg.sender_id == 0 %}
-                                        {# تنظيف الرد من الداشات والرموز الزائدة #}
-                                        {{ msg.body | replace('\n', '<br>') | replace('**', '') | replace('- ', '• ') | replace('[OUT]', '') | replace('[/OUT]', '') | safe }}
+                                        {# تنظيف الرد من كافة الرموز والداشات وتنسيق النقاط #}
+                                        <div class="ai-response-text">
+                                            {{ msg.body | replace('**', '') 
+                                                        | replace('###', '') 
+                                                        | replace('[OUT]', '') 
+                                                        | replace('[/OUT]', '') 
+                                                        | replace('- ', '• ') 
+                                                        | replace('\n', '<br>') | safe }}
+                                        </div>
                                     {% else %}
                                         {{ msg.body | replace('\n', '<br>') | safe }}
                                     {% endif %}
@@ -119,7 +126,11 @@
 
     .message-content {
         word-wrap: break-word;
-        white-space: pre-line;
+        white-space: normal !important;
+    }
+
+    .ai-response-text {
+        line-height: 1.8;
     }
 
     .d-flex {
