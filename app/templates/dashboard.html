@@ -14,31 +14,25 @@
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm rounded-4 bg-white mb-4 border-start border-primary border-4">
                 <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
-                    <h5 class="fw-bold mb-0 text-dark">
-                        <i class="fas fa-satellite-dish text-primary me-2"></i> إعدادات المراقبة الآلية (Telegram Agent)
-                    </h5>
-                    {% if current_user.agent_enabled %}
-                        <span class="badge bg-success-soft text-success rounded-pill px-3">نشط الآن</span>
-                    {% else %}
-                        <span class="badge bg-secondary-soft text-muted rounded-pill px-3">متوقف</span>
-                    {% endif %}
+                    <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-satellite-dish text-primary me-2"></i> إعدادات المراقبة الآلية</h5>
+                    <span class="badge {% if current_user.agent_enabled %}bg-success{% else %}bg-secondary{% endif %} rounded-pill">
+                        {{ 'نشط' if current_user.agent_enabled else 'متوقف' }}
+                    </span>
                 </div>
                 <div class="card-body p-4">
                     <form action="{{ url_for('auth.update_agent_settings') }}" method="POST" class="row align-items-end g-3">
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-muted">المسمى الوظيفي للمراقبة:</label>
-                            <input type="text" name="agent_query" class="form-control rounded-pill shadow-none border-2"
-                                   placeholder="مثلاً: Petroleum Engineer" value="{{ current_user.agent_query or '' }}">
-                            <div class="form-text fs-xs opacity-75">اتركه فارغاً للاعتماد على مسمى سيرتك الذاتية.</div>
+                            <input type="text" name="agent_query" class="form-control rounded-pill border-2" placeholder="مثلاً: Cloud Architect" value="{{ current_user.agent_query or '' }}">
                         </div>
                         <div class="col-md-4 py-2">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" name="agent_enabled" id="agentSwitch" {% if current_user.agent_enabled %}checked{% endif %}>
-                                <label class="form-check-label small fw-bold" for="agentSwitch">إرسال الوظائف لتلجرام</label>
+                                <label class="form-check-label small fw-bold" for="agentSwitch">تفعيل الإشعارات</label>
                             </div>
                         </div>
                         <div class="col-md-2">
-                            <button type="submit" class="btn btn-primary w-100 rounded-pill btn-sm py-2 shadow-sm fw-bold">حفظ</button>
+                            <button type="submit" class="btn btn-primary w-100 rounded-pill btn-sm py-2 shadow-sm">حفظ</button>
                         </div>
                     </form>
                 </div>
@@ -46,106 +40,75 @@
 
             <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
                 <div class="card-header bg-white border-0 pt-4 px-4">
-                    <h5 class="fw-bold mb-0"><i class="fas fa-chart-line text-primary me-2"></i>تحليل مهاراتك الحالي</h5>
+                    <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-file-invoice text-primary me-2"></i> سجل مقابلات تليجرام الذكية</h5>
+                </div>
+                <div class="card-body p-4">
+                    {% if current_user.interview_reports %}
+                        <div class="list-group list-group-flush">
+                            {% for report in current_user.interview_reports[::-1][:5] %}
+                            <div class="list-group-item border-0 bg-light rounded-4 mb-2 p-3 shadow-sm">
+                                <div class="d-flex justify-content-between">
+                                    <h6 class="fw-bold">{{ report.job_title }}</h6>
+                                    <span class="badge bg-primary">{{ report.score }}</span>
+                                </div>
+                                <p class="small text-muted mb-1">{{ report.created_at.strftime('%Y-%m-%d') }}</p>
+                                <div class="small text-secondary text-truncate">{{ report.full_report[:100] }}...</div>
+                                <button class="btn btn-link btn-sm p-0 mt-1 fw-bold" onclick="alert(`{{ report.full_report }}`)">عرض التقرير الكامل</button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-center text-muted small">لا توجد تقارير مقابلة محفوظة. ابدأ مقابلة من تليجرام الآن!</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-chart-line text-primary me-2"></i> تحليل السيرة الذاتية</h5>
                 </div>
                 <div class="card-body p-4">
                     {% set latest_cv = current_user.cvs[-1] if current_user.cvs else None %}
                     {% if latest_cv %}
-                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
-                        <div class="flex-grow-1">
-                            <h6 class="fw-bold mb-1">المسمى: <span class="text-primary">{{ latest_cv.profession }}</span></h6>
-                            <div class="mb-3 mt-2">
-                                {% for skill in latest_cv.skills %}
-                                <span class="badge bg-light text-primary rounded-pill px-3 py-2 mb-1 border">{{ skill }}</span>
-                                {% endfor %}
-                            </div>
-                            <a href="{{ url_for('search.skill_analysis') }}" class="btn btn-sm btn-dark rounded-pill px-4">فتح تفاصيل التحليل 📊</a>
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="fw-bold text-primary">{{ latest_cv.profession }}</h6>
+                            {% for skill in latest_cv.skills %}
+                            <span class="badge bg-light text-primary border rounded-pill me-1">{{ skill }}</span>
+                            {% endfor %}
                         </div>
                         <div class="circular-progress" style="--value:{{ latest_cv.score or 0 }}">
                             <span class="fw-bold">{{ latest_cv.score or 0 }}%</span>
                         </div>
                     </div>
                     {% else %}
-                    <div class="text-center py-3">
-                        <p class="text-muted">لم تقم برفع سيرتك الذاتية بعد.</p>
-                        <a href="{{ url_for('cv.upload_cv') }}" class="btn btn-primary btn-sm rounded-pill px-4">ارفعها الآن</a>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <div class="card border-0 shadow-sm rounded-4 bg-white">
-                <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
-                    <h5 class="fw-bold mb-0"><i class="fas fa-history text-success me-2"></i>سجل التدريبات (AI)</h5>
-                    <span class="badge bg-light text-muted rounded-pill">{{ sessions|length }} جلسة</span>
-                </div>
-                <div class="card-body">
-                    {% if sessions %}
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle border-0">
-                            <tbody>
-                                {% for session in sessions[::-1][:5] %}
-                                <tr>
-                                    <td>
-                                        <div class="fw-bold text-dark">تدريب {{ session.skill_name }}</div>
-                                        <small class="text-muted">{{ session.created_at.strftime('%Y-%m-%d') }}</small>
-                                    </td>
-                                    <td class="text-start">
-                                        <a href="{{ url_for('search.interview_prep', skill=session.skill_name) }}" class="btn btn-sm btn-outline-primary rounded-circle"><i class="fas fa-eye"></i></a>
-                                        <form action="{{ url_for('search.delete_session', session_id=session.id) }}" method="POST" class="d-inline" onsubmit="return confirm('حذف الجلسة؟')">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger rounded-circle ms-1"><i class="fas fa-trash"></i></button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <p class="text-center text-muted py-4 small">لا يوجد سجل تدريبات حالياً.</p>
+                    <div class="text-center py-2"><a href="{{ url_for('cv.upload_cv') }}" class="btn btn-sm btn-primary rounded-pill">ارفع CV الآن</a></div>
                     {% endif %}
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-4 text-center">
+        <div class="col-lg-4">
             <div class="row g-3">
                 <div class="col-12">
-                    <a href="{{ url_for('chat.open_chat', job_id=0, recipient_id=0) }}" class="card border-0 shadow-lg rounded-4 p-4 text-decoration-none ai-card transition-hover">
-                        <div class="ai-icon-container mb-2">
-                            <i class="fas fa-robot fa-2x text-white"></i>
-                            <div class="pulse-ring"></div>
-                        </div>
-                        <h6 class="fw-bold text-white mb-1">استشر الوكيل الذكي</h6>
-                        <small class="text-white-50">دردشة فورية لتحليل مستقبلك المهني</small>
+                    <a href="{{ url_for('chat.open_chat', job_id=0, recipient_id=0) }}" class="card border-0 shadow-lg rounded-4 p-4 text-decoration-none ai-card text-center text-white">
+                        <i class="fas fa-robot fa-2x mb-2"></i>
+                        <h6 class="fw-bold">استشر الوكيل الذكي</h6>
+                        <small class="opacity-75">دردشة تحليلية فورية</small>
                     </a>
                 </div>
-
-                <div class="col-12">
-                    <a href="{{ url_for('cv.upload_cv') }}" class="card border-0 shadow-sm rounded-4 p-4 bg-primary text-white text-decoration-none transition-hover shadow">
-                        <i class="fas fa-file-upload fa-2x mb-2"></i>
-                        <h6 class="fw-bold">رفع سيرة ذاتية جديدة</h6>
-                    </a>
-                </div>
-
-                <div class="col-12">
-                    <div class="card border-0 shadow-sm rounded-4 bg-white text-end">
-                        <div class="card-header bg-white border-0 pt-3 px-3">
-                            <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-envelope text-primary ms-2"></i>الرسائل الواردة</h6>
+                <div class="col-12 text-end">
+                    <div class="card border-0 shadow-sm rounded-4 bg-white">
+                        <div class="card-header bg-white border-0 pt-3">
+                            <h6 class="fw-bold text-dark"><i class="fas fa-envelope text-primary me-2"></i>الرسائل</h6>
                         </div>
                         <div class="card-body p-2">
-                            {% for msg in messages[::-1][:3] %}
-                            <a href="{{ url_for('chat.open_chat', job_id=msg.job_id or 0, recipient_id=msg.sender_id) }}" class="text-decoration-none">
-                                <div class="p-2 mb-2 bg-light rounded-3 small border-start border-primary border-4 chat-item">
-                                    <div class="d-flex justify-content-between">
-                                        <strong class="text-dark">{{ msg.author.username if msg.sender_id != 0 else 'مساعد جوبيني الذكي' }}</strong>
-                                        <small class="text-muted">{{ msg.timestamp.strftime('%H:%M') }}</small>
-                                    </div>
-                                    <div class="text-muted text-truncate">{{ msg.body }}</div>
+                            {% for msg in current_user.received_messages[::-1][:3] %}
+                                <div class="p-2 mb-2 bg-light rounded-3 small">
+                                    <strong>{{ msg.author.username }}</strong>: {{ msg.body[:30] }}...
                                 </div>
-                            </a>
                             {% else %}
-                            <p class="text-muted small py-3 mb-0">لا توجد رسائل جديدة.</p>
+                                <p class="text-muted small p-2">لا رسائل.</p>
                             {% endfor %}
                         </div>
                     </div>
@@ -156,15 +119,8 @@
 </div>
 
 <style>
-    .circular-progress { width: 80px; height: 80px; background: radial-gradient(closest-side, white 79%, transparent 80% 100%), conic-gradient(#0d6efd calc(var(--value) * 1%), #eef2ff 0); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-    .transition-hover:hover { transform: translateY(-5px); transition: 0.3s; box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important; }
-    .ai-card { background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%); overflow: hidden; position: relative; }
-    .ai-icon-container { position: relative; z-index: 1; }
-    .pulse-ring { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 50%; animation: pulse 2s infinite; }
-    @keyframes pulse { 0% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; } }
-    .bg-success-soft { background-color: #d1e7dd; }
-    .bg-secondary-soft { background-color: #f8f9fa; }
-    .chat-item:hover { background-color: #f1f5f9 !important; }
-    .fs-xs { font-size: 0.75rem; }
+    .circular-progress { width: 70px; height: 70px; background: radial-gradient(closest-side, white 79%, transparent 80% 100%), conic-gradient(#0d6efd calc(var(--value) * 1%), #eef2ff 0); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+    .ai-card { background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%); transition: 0.3s; }
+    .ai-card:hover { transform: translateY(-5px); }
 </style>
 {% endblock %}

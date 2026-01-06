@@ -24,10 +24,20 @@ class User(db.Model, UserMixin):
     jobs = db.relationship('Job', backref='employer_ref', lazy=True)
     applications = db.relationship('Application', backref='applicant', lazy=True)
     interview_sessions = db.relationship('InterviewSession', backref='user', lazy=True, cascade="all, delete-orphan")
+    # العلاقة الجديدة لتقارير تليجرام
+    interview_reports = db.relationship('InterviewReport', backref='user', lazy=True, cascade="all, delete-orphan")
 
-    # تعديل العلاقات لتتجاهل المعرف 0 (الوكيل) برمجياً
     sent_messages = db.relationship('Message', foreign_keys='Message.sender_id', backref='author', lazy=True, primaryjoin="User.id==Message.sender_id")
     received_messages = db.relationship('Message', foreign_keys='Message.recipient_id', backref='recipient', lazy=True, primaryjoin="User.id==Message.recipient_id")
+
+class InterviewReport(db.Model):
+    __tablename__ = 'interview_report'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    job_title = db.Column(db.String(200))
+    full_report = db.Column(db.Text)
+    score = db.Column(db.String(20))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Job(db.Model):
     __tablename__ = 'job'
@@ -43,7 +53,6 @@ class Job(db.Model):
     longitude = db.Column(db.Float, nullable=True)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
     employer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     applications = db.relationship('Application', backref='job', lazy=True, cascade="all, delete-orphan")
 
@@ -51,7 +60,7 @@ class CV(db.Model):
     __tablename__ = 'cv'
     id = db.Column(db.Integer, primary_key=True)
     file_path = db.Column(db.String(200), nullable=False)
-    extracted_text = db.Column(db.Text) # هذا ما سيقرأه الوكيل الذكي
+    extracted_text = db.Column(db.Text)
     profession = db.Column(db.String(100))
     skills = db.Column(db.JSON)
     feedback = db.Column(db.Text)
@@ -74,7 +83,6 @@ class Application(db.Model):
 class Message(db.Model):
     __tablename__ = 'message'
     id = db.Column(db.Integer, primary_key=True)
-    # إزالة ForeignKey الصارم للسماح بالمعرف 0
     sender_id = db.Column(db.Integer, nullable=False)
     recipient_id = db.Column(db.Integer, nullable=False)
     job_id = db.Column(db.Integer, db.ForeignKey('job.id'), nullable=True)
