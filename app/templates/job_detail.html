@@ -12,6 +12,14 @@
         </ol>
     </nav>
 
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} rounded-4 mb-4">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
     <div class="row g-4">
         <div class="col-lg-8">
             <div class="card shadow-sm border-0 rounded-4 overflow-hidden bg-white mb-4">
@@ -79,17 +87,8 @@
                                         <i class="fas fa-check fa-2x"></i>
                                     </div>
                                     <h5 class="fw-bold text-dark">تم التقديم مسبقاً</h5>
-                                    
                                     <div class="mt-3">
-                                        {% if application.status == 'accepted' %}
-                                            <span class="badge bg-success p-2 px-3 rounded-pill">تم القبول ✅</span>
-                                        {% elif application.status == 'rejected' %}
-                                            <span class="badge bg-danger p-2 px-3 rounded-pill">نعتذر، تم الرفض</span>
-                                        {% elif application.status == 'interview' %}
-                                            <span class="badge bg-info p-2 px-3 rounded-pill">تم تحديد مقابلة 📅</span>
-                                        {% else %}
-                                            <span class="badge bg-warning text-dark p-2 px-3 rounded-pill">قيد المراجعة</span>
-                                        {% endif %}
+                                        <span class="badge bg-info p-2 px-3 rounded-pill">الحالة: {{ application.status }}</span>
                                     </div>
                                 </div>
                             {% else %}
@@ -98,22 +97,23 @@
                                     {% if current_user.cvs %}
                                     <form action="{{ url_for('jobs.apply_to_job', job_id=job.id) }}" method="POST">
                                         <div class="mb-4">
-                                            <label class="form-label small fw-bold text-muted">اختر السيرة الذاتية:</label>
+                                            <label class="form-label small fw-bold text-muted">اختر السيرة الذاتية المناسبة:</label>
                                             <select name="cv_id" class="form-select rounded-pill border-primary border-opacity-25" required>
                                                 {% for cv in current_user.cvs %}
                                                     <option value="{{ cv.id }}">
-                                                        {{ cv.profession or 'سيرة ذاتية #' ~ loop.index }}
+                                                        {{ cv.profession or 'سيرة ذاتية #' ~ loop.index }} ({{ cv.score or 0 }}%)
                                                     </option>
                                                 {% endfor %}
                                             </select>
                                         </div>
                                         <button type="submit" class="btn btn-primary btn-lg w-100 rounded-pill shadow-sm py-3 fw-bold">
-                                            <i class="fas fa-paper-plane me-2"></i>إرسال الطلب
+                                            <i class="fas fa-paper-plane me-2"></i>إرسال الطلب الآن
                                         </button>
                                     </form>
                                     {% else %}
-                                    <div class="alert alert-warning rounded-4 border-0 small">
-                                        لم ترفع سيرتك الذاتية. <a href="{{ url_for('cv.upload_cv') }}" class="fw-bold">ارفعها الآن</a>
+                                    <div class="alert alert-warning rounded-4 border-0 small text-center">
+                                        يجب رفع سيرة ذاتية واحدة على الأقل للتقديم. <br>
+                                        <a href="{{ url_for('cv.upload_cv') }}" class="btn btn-sm btn-warning rounded-pill mt-2">ارفعها الآن</a>
                                     </div>
                                     {% endif %}
                                 </div>
@@ -121,21 +121,15 @@
                         {% endif %}
                     {% else %}
                         <div class="text-center p-3">
-                            <p class="text-muted small mb-4">يجب تسجيل الدخول للتقديم.</p>
-                            <a href="{{ url_for('auth.login') }}" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow">دخول</a>
+                            <p class="text-muted small mb-4">يجب تسجيل الدخول للتقديم على هذه الوظيفة.</p>
+                            <a href="{{ url_for('auth.login') }}" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow">تسجيل الدخول</a>
                         </div>
                     {% endif %}
                 </div>
             </div>
 
             <div class="card shadow-sm border-0 rounded-4 overflow-hidden bg-white sticky-top" style="top: 20px;">
-                <div class="card-header bg-white border-0 py-3">
-                    <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-map-marked-alt text-primary ms-2"></i> موقع العمل</h6>
-                </div>
                 <div id="jobDetailMap" style="height: 250px; width: 100%;"></div>
-                <div class="card-body p-3 bg-light">
-                    <p class="small text-muted mb-0"><i class="fas fa-info-circle ms-1"></i> الموقع التقريبي بناءً على إحداثيات صاحب العمل.</p>
-                </div>
             </div>
         </div>
     </div>
@@ -147,15 +141,8 @@
         var lng = {{ job.longitude if job.longitude else 'null' }};
         if (lat && lng) {
             var map = L.map('jobDetailMap').setView([lat, lng], 14);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap'
-            }).addTo(map);
-            L.marker([lat, lng]).addTo(map)
-                .bindPopup('<b>{{ job.company_name }}</b><br>{{ job.title }}')
-                .openPopup();
-        } else {
-            document.getElementById('jobDetailMap').innerHTML = 
-            '<div class="d-flex align-items-center justify-content-center h-100 bg-light text-muted small">الموقع الجغرافي غير متوفر</div>';
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            L.marker([lat, lng]).addTo(map).bindPopup('<b>{{ job.company_name }}</b>').openPopup();
         }
     });
 </script>
@@ -163,7 +150,6 @@
 <style>
     .bg-soft-primary { background-color: #eef2ff; }
     .bg-soft-success { background-color: #f0fdf4; }
-    .job-content { color: #4a5568; line-height: 1.8; }
-    #jobDetailMap { z-index: 1; border-top: 1px solid #eee; }
+    #jobDetailMap { z-index: 1; border: 1px solid #eee; }
 </style>
 {% endblock %}

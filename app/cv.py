@@ -10,6 +10,13 @@ from app.telegram_bot import send_document
 
 cv_bp = Blueprint('cv', __name__)
 
+@cv_bp.route('/my-cvs')
+@login_required
+def my_cvs():
+    # جلب جميع السير الذاتية الخاصة بالمستخدم الحالي مرتبة من الأحدث للأقدم
+    cvs = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).all()
+    return render_template('my_cvs.html', cvs=cvs)
+
 @cv_bp.route('/upload-cv', methods=['GET', 'POST'])
 @login_required
 def upload_cv():
@@ -23,7 +30,9 @@ def upload_cv():
             flash('يرجى اختيار ملف (PDF أو TXT).', 'warning')
             return redirect(request.url)
 
-        filename = secure_filename(f"user_{current_user.id}_{file.filename}")
+        # إنشاء اسم فريد للملف لتجنب التداخل
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = secure_filename(f"user_{current_user.id}_{timestamp}_{file.filename}")
         ext = filename.split('.')[-1].lower()
 
         if ext not in ['pdf', 'txt']:
@@ -68,8 +77,8 @@ def upload_cv():
             db.session.add(new_cv)
             db.session.commit()
 
-            flash('تم تحليل السيرة الذاتية بنجاح!', 'success')
-            return redirect(url_for('cv.view_cv', cv_id=new_cv.id))
+            flash('تم رفع وتحليل السيرة الذاتية بنجاح!', 'success')
+            return redirect(url_for('cv.my_cvs'))
 
         except Exception as e:
             db.session.rollback()
@@ -82,6 +91,7 @@ def upload_cv():
 @login_required
 def view_cv(cv_id):
     cv = CV.query.get_or_404(cv_id)
+    # السماح للمالك أو لصاحب العمل (عند التقديم) برؤية السيرة
     if cv.user_id != current_user.id and current_user.role != 'employer':
         abort(403)
     return render_template('view_cv.html', cv=cv)
@@ -92,17 +102,15 @@ def optimize_cv_view(cv_id):
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id: abort(403)
 
-    # برومبت محسن لتقليل الضغط على المحرك المجاني وضمان عدم الانقطاع
     prompt = (f"Write a professional ATS-optimized resume content for a {cv.profession}. "
               f"Based on: {cv.extracted_text[:1200]}. "
               f"No tags like <s> or [OUT]. Candidate: {current_user.username}")
 
     optimized_text = openrouter_ai._call_ai(prompt, temperature=0.4)
 
-    # التحقق من نجاح الرد وطوله لضمان جودة المحتوى
     if optimized_text and len(optimized_text.strip()) > 100:
         cleaned_text = optimized_text.replace("[OUT]", "").replace("[/OUT]", "").replace("<s>", "").replace("</s>", "").strip()
-        
+
         final_text = cleaned_text.replace("[Jobseeker's Name]", current_user.username)\
                                 .replace("[Your Name]", current_user.username)\
                                 .replace("[Email Address]", current_user.email or "N/A")\
@@ -110,14 +118,13 @@ def optimize_cv_view(cv_id):
 
         return render_template('cv_comparison.html', cv_id=cv.id, old_text=cv.extracted_text, new_text=final_text)
 
-    # خطة الطوارئ (Fallback) في حال انقطاع الاتصال (Connection Reset)
     flash('المحرك المجاني مزدحم، تم إنشاء نسخة ذكية من بياناتك المخزنة.', 'info')
     backup_text = (f"RESUME: {current_user.username.upper()}\n"
                    f"PROFESSION: {cv.profession}\n"
                    f"SKILLS: {', '.join(cv.skills)}\n\n"
                    f"OBJECTIVE:\nHighly motivated {cv.profession} with expertise in {', '.join(cv.skills[:3])}. "
                    f"Proven ability to deliver professional results and drive technical innovation.")
-    
+
     return render_template('cv_comparison.html', cv_id=cv.id, old_text=cv.extracted_text, new_text=backup_text)
 
 @cv_bp.route('/cv/generate-pdf/<int:cv_id>', methods=['POST'])
@@ -140,7 +147,6 @@ def generate_ats_pdf(cv_id):
         pdf.ln(5)
 
         pdf.set_font("Arial", size=10)
-        # استخدام latin-1 لتفادي أخطاء الحروف الخاصة
         clean_text = new_content.encode("latin-1", "ignore").decode("latin-1")
 
         for line in clean_text.split('\n'):
@@ -168,7 +174,17 @@ def generate_ats_pdf(cv_id):
 def delete_cv(cv_id):
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id: abort(403)
+    
+    # محاولة حذف الملف من السيرفر قبل حذف السجل من القاعدة
+    try:
+        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'cvs', cv.file_path)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    except Exception as e:
+        print(f"File Deletion Error: {e}")
+
     db.session.delete(cv)
     db.session.commit()
-    flash('تم الحذف بنجاح.', 'info')
-    return redirect(url_for('auth.dashboard'))
+    flash('تم حذف السيرة الذاتية بنجاح.', 'info')
+    return redirect(url_for('cv.my_cvs'))
+
