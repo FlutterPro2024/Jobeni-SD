@@ -53,8 +53,7 @@ def handle_telegram_webhook(data):
             send_message(chat_id, "🔄 جاري تحليل أدائك وحفظ التقرير...")
             prompt = f"بصفتك خبير HR، حلل هذه المقابلة لـ {session['job']}: {session['history']}. قدم نقاط قوة، نقاط تحسين، ونسبة مئوية للقبول."
             report = get_ai_response(prompt) or "أداء جيد، استمر في التدريب."
-            
-            # استخراج السكور
+
             match = re.search(r'(\d+)%', report)
             score_val = match.group(0) if match else "N/A"
 
@@ -89,18 +88,28 @@ def handle_telegram_webhook(data):
         else:
             send_message(chat_id, "🤖 أهلاً بك في جوبيني!")
 
-# الدوال المساعدة المطلوبة (للإشعارات)
+# --- الدوال المساعدة للإشعارات (لحل مشكلة ImportError) ---
+
 def notify_status_update(chat_id, job_title, status):
-    send_message(chat_id, f"🔔 <b>تحديث الحالة:</b>\n{job_title}: {status}")
+    status_ar = {'accepted': '✅ مقبول', 'rejected': '❌ مرفوض', 'interview': '📅 مقابلة', 'pending': '⏳ قيد الانتظار'}
+    text = f"🔔 <b>تحديث الحالة:</b>\n{job_title}: {status_ar.get(status, status)}"
+    send_message(chat_id, text)
+
+def notify_employer_new_app(chat_id, seeker_name, job_title, score):
+    text = f"📥 <b>تقديم جديد!</b>\n👤 المتقدم: {seeker_name}\n💼 الوظيفة: {job_title}\n🎯 المطابقة: {score}%"
+    send_message(chat_id, text)
 
 def broadcast_new_job(job_title, company, location, category):
     from app.models import User
+    text = f"📢 <b>وظيفة جديدة:</b> {job_title} في {company}\n📍 {location}"
     with current_app.app_context():
-        for u in User.query.filter(User.telegram_id != None).all():
-            send_message(u.telegram_id, f"📢 <b>وظيفة جديدة:</b> {job_title} في {company}")
+        users = User.query.filter(User.telegram_id != None).all()
+        for u in users:
+            send_message(u.telegram_id, text)
 
 def notify_new_message(chat_id, sender_name, job_title, body):
-    send_message(chat_id, f"💬 <b>رسالة من {sender_name}:</b>\n{body}")
+    text = f"💬 <b>رسالة من {sender_name}:</b>\n📌 بخصوص: {job_title}\n\n{body}"
+    send_message(chat_id, text)
 
 def send_document(chat_id, file_path, caption=""):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"

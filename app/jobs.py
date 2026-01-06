@@ -1,7 +1,7 @@
 # ~/jobeni-sD/app/jobs.py
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
-from app.models import Job, Application, CV, User, Message, db  # أضفنا Message هنا
+from app.models import Job, Application, CV, User, Message, db
 from app.openrouter_ai import openrouter_ai
 from app.telegram_bot import notify_employer_new_app, notify_status_update, broadcast_new_job
 
@@ -68,26 +68,18 @@ def add_job():
 @jobs_bp.route('/job/delete/<int:job_id>', methods=['POST'])
 @login_required
 def delete_job(job_id):
-    """حذف الوظيفة مع كافة الارتباطات (تقديمات ورسائل) لتفادي خطأ ForeignKeyViolation"""
     job = Job.query.get_or_404(job_id)
     if job.employer_id != current_user.id:
         abort(403)
-
     try:
-        # 1. حذف كافة الرسائل المرتبطة بهذه الوظيفة
         Message.query.filter_by(job_id=job.id).delete()
-        
-        # 2. حذف جميع طلبات التقديم المرتبطة بهذه الوظيفة
         Application.query.filter_by(job_id=job.id).delete()
-
-        # 3. حذف الوظيفة نفسها
         db.session.delete(job)
         db.session.commit()
         flash('تم حذف الوظيفة وكافة البيانات المرتبطة بها بنجاح.', 'info')
     except Exception as e:
         db.session.rollback()
         flash(f'حدث خطأ أثناء الحذف: {str(e)}', 'danger')
-
     return redirect(url_for('auth.dashboard'))
 
 @jobs_bp.route('/job/apply/<int:job_id>', methods=['POST'])
@@ -109,7 +101,6 @@ def apply_to_job(job_id):
         flash('لقد قدمت مسبقاً على هذه الوظيفة.', 'info')
         return redirect(url_for('jobs.job_detail', job_id=job_id))
 
-    # استخدام محرك الـ AI الجديد (المعدل في openrouter_ai)
     match_score, match_explanation = openrouter_ai.get_match_score(user_cv.extracted_text, job.description)
 
     new_app = Application(
