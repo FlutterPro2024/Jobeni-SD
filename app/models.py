@@ -24,7 +24,6 @@ class User(db.Model, UserMixin):
     jobs = db.relationship('Job', backref='employer_ref', lazy=True)
     applications = db.relationship('Application', backref='applicant', lazy=True)
     interview_sessions = db.relationship('InterviewSession', backref='user', lazy=True, cascade="all, delete-orphan")
-    # العلاقة الجديدة لتقارير تليجرام
     interview_reports = db.relationship('InterviewReport', backref='user', lazy=True, cascade="all, delete-orphan")
 
     sent_messages = db.relationship('Message', foreign_keys='Message.sender_id', backref='author', lazy=True, primaryjoin="User.id==Message.sender_id")
@@ -54,7 +53,7 @@ class Job(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     employer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    applications = db.relationship('Application', backref='job', lazy=True, cascade="all, delete-orphan")
+    applications = db.relationship('Application', backref='job', lazy=True, cascade="all, delete-orphan")             
 
 class CV(db.Model):
     __tablename__ = 'cv'
@@ -68,6 +67,9 @@ class CV(db.Model):
     optimized_text = db.Column(db.Text)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # هذه العلاقة ضرورية لمنع خطأ 500 عند الحذف
+    linked_applications = db.relationship('Application', backref='associated_cv', lazy=True, cascade="all, delete-orphan")
 
 class Application(db.Model):
     __tablename__ = 'application'

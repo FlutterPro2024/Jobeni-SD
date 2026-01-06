@@ -13,7 +13,6 @@ cv_bp = Blueprint('cv', __name__)
 @cv_bp.route('/my-cvs')
 @login_required
 def my_cvs():
-    # جلب جميع السير الذاتية الخاصة بالمستخدم الحالي مرتبة من الأحدث للأقدم
     cvs = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).all()
     return render_template('my_cvs.html', cvs=cvs)
 
@@ -30,7 +29,6 @@ def upload_cv():
             flash('يرجى اختيار ملف (PDF أو TXT).', 'warning')
             return redirect(request.url)
 
-        # إنشاء اسم فريد للملف لتجنب التداخل
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = secure_filename(f"user_{current_user.id}_{timestamp}_{file.filename}")
         ext = filename.split('.')[-1].lower()
@@ -76,22 +74,19 @@ def upload_cv():
             )
             db.session.add(new_cv)
             db.session.commit()
-
             flash('تم رفع وتحليل السيرة الذاتية بنجاح!', 'success')
             return redirect(url_for('cv.my_cvs'))
 
         except Exception as e:
             db.session.rollback()
             flash(f'خطأ أثناء المعالجة: {str(e)}', 'danger')
-            return redirect(request.url)
-
+            return redirect(request.url)                   
     return render_template('upload_cv.html')
 
 @cv_bp.route('/cv/view/<int:cv_id>')
 @login_required
 def view_cv(cv_id):
     cv = CV.query.get_or_404(cv_id)
-    # السماح للمالك أو لصاحب العمل (عند التقديم) برؤية السيرة
     if cv.user_id != current_user.id and current_user.role != 'employer':
         abort(403)
     return render_template('view_cv.html', cv=cv)
@@ -100,31 +95,22 @@ def view_cv(cv_id):
 @login_required
 def optimize_cv_view(cv_id):
     cv = CV.query.get_or_404(cv_id)
-    if cv.user_id != current_user.id: abort(403)
-
+    if cv.user_id != current_user.id: abort(403)           
     prompt = (f"Write a professional ATS-optimized resume content for a {cv.profession}. "
               f"Based on: {cv.extracted_text[:1200]}. "
               f"No tags like <s> or [OUT]. Candidate: {current_user.username}")
 
     optimized_text = openrouter_ai._call_ai(prompt, temperature=0.4)
-
     if optimized_text and len(optimized_text.strip()) > 100:
         cleaned_text = optimized_text.replace("[OUT]", "").replace("[/OUT]", "").replace("<s>", "").replace("</s>", "").strip()
-
         final_text = cleaned_text.replace("[Jobseeker's Name]", current_user.username)\
                                 .replace("[Your Name]", current_user.username)\
                                 .replace("[Email Address]", current_user.email or "N/A")\
                                 .replace("[Date]", datetime.date.today().strftime("%B %d, %Y"))
-
-        return render_template('cv_comparison.html', cv_id=cv.id, old_text=cv.extracted_text, new_text=final_text)
-
+        return render_template('cv_comparison.html', cv_id=cv.id, old_text=cv.extracted_text, new_text=final_text)    
+    
     flash('المحرك المجاني مزدحم، تم إنشاء نسخة ذكية من بياناتك المخزنة.', 'info')
-    backup_text = (f"RESUME: {current_user.username.upper()}\n"
-                   f"PROFESSION: {cv.profession}\n"
-                   f"SKILLS: {', '.join(cv.skills)}\n\n"
-                   f"OBJECTIVE:\nHighly motivated {cv.profession} with expertise in {', '.join(cv.skills[:3])}. "
-                   f"Proven ability to deliver professional results and drive technical innovation.")
-
+    backup_text = (f"RESUME: {current_user.username.upper()}\nPROFESSION: {cv.profession}\nSKILLS: {', '.join(cv.skills)}\n\nOBJECTIVE:\nHighly motivated {cv.profession} with expertise in {', '.join(cv.skills[:3])}.")
     return render_template('cv_comparison.html', cv_id=cv.id, old_text=cv.extracted_text, new_text=backup_text)
 
 @cv_bp.route('/cv/generate-pdf/<int:cv_id>', methods=['POST'])
@@ -132,12 +118,10 @@ def optimize_cv_view(cv_id):
 def generate_ats_pdf(cv_id):
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id: abort(403)
-
     new_content = request.form.get('optimized_content', '')
     cv.optimized_text = new_content
     cv.score = max((cv.score or 0), 85)
     db.session.commit()
-
     try:
         pdf = FPDF()
         pdf.set_auto_page_break(auto=True, margin=15)
@@ -145,27 +129,18 @@ def generate_ats_pdf(cv_id):
         pdf.set_font("Arial", 'B', 16)
         pdf.cell(0, 10, "ATS-OPTIMIZED RESUME", ln=True, align='C')
         pdf.ln(5)
-
         pdf.set_font("Arial", size=10)
         clean_text = new_content.encode("latin-1", "ignore").decode("latin-1")
-
         for line in clean_text.split('\n'):
-            if line.strip():
-                pdf.multi_cell(0, 7, txt=line.strip())
-            else:
-                pdf.ln(3)
-
+            if line.strip(): pdf.multi_cell(0, 7, txt=line.strip())
+            else: pdf.ln(3)
         pdf_path = os.path.join(current_app.config['UPLOAD_FOLDER'], f"Optimized_CV_{cv.id}.pdf")
         pdf.output(pdf_path)
-
         if current_user.telegram_id:
-            try:
-                send_document(current_user.telegram_id, pdf_path, caption="✅ إليك سيرتك الذاتية المحسنة!")
-            except: pass
-
+            try: send_document(current_user.telegram_id, pdf_path, caption="✅ إليك سيرتك الذاتية المحسنة!")
+            except: pass                                   
         return send_file(pdf_path, as_attachment=True)
     except Exception as e:
-        print(f"PDF Generation Error: {e}")
         flash('تم حفظ التعديلات، ولكن تعذر إنشاء ملف PDF حالياً.', 'warning')
         return redirect(url_for('cv.view_cv', cv_id=cv.id))
 
@@ -173,18 +148,21 @@ def generate_ats_pdf(cv_id):
 @login_required
 def delete_cv(cv_id):
     cv = CV.query.get_or_404(cv_id)
-    if cv.user_id != current_user.id: abort(403)
+    if cv.user_id != current_user.id:
+        abort(403)
     
-    # محاولة حذف الملف من السيرفر قبل حذف السجل من القاعدة
     try:
+        # حذف الملف الفيزيائي من القرص
         file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'cvs', cv.file_path)
         if os.path.exists(file_path):
             os.remove(file_path)
+        
+        # حذف السجل من قاعدة البيانات (سيتم حذف التقديمات تلقائياً بسبب الكاسكيد)
+        db.session.delete(cv)
+        db.session.commit()
+        flash('تم حذف السيرة الذاتية بنجاح.', 'info')
     except Exception as e:
-        print(f"File Deletion Error: {e}")
+        db.session.rollback()
+        flash(f'حدث خطأ أثناء الحذف من قاعدة البيانات: {str(e)}', 'danger')
 
-    db.session.delete(cv)
-    db.session.commit()
-    flash('تم حذف السيرة الذاتية بنجاح.', 'info')
     return redirect(url_for('cv.my_cvs'))
-
