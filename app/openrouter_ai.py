@@ -33,12 +33,12 @@ class OpenRouterAI:
                     "temperature": temperature,
                     "max_tokens": 800  # تحديد عدد التوكنز لسرعة الاستجابة
                 }
-                # تقليل التايم آوت لـ 9 ثوانٍ ليناسب قيود فيرسل (10 ثوانٍ)
-                res = requests.post(self.url.strip(), headers=headers, json=payload, timeout=9)
+                # زيادة التايم آوت لـ 15 ثانية لضمان جودة الرد في المقابلات
+                res = requests.post(self.url.strip(), headers=headers, json=payload, timeout=15)
                 if res.status_code == 200:
                     return res.json()['choices'][0]['message']['content']
                 continue
-            except: 
+            except:
                 continue
         return None
 
@@ -76,7 +76,7 @@ class OpenRouterAI:
         """مطابقة ذكية تفهم تداخل التخصصات مع سكور متغير وحقيقي"""
         prompt = f"""
         Act as a Strict Expert Recruiter. Compare the Candidate CV with the Job Description.
-        Calculate a precise match percentage (0-100). 
+        Calculate a precise match percentage (0-100).
         Do not give a generic 85 score. Be very specific based on requirements.
         Return ONLY a JSON object:
         {{"score": 78, "reason": "Arabic explanation of why this score was given"}}

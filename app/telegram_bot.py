@@ -67,10 +67,16 @@ def handle_callback(callback):
             prompt = f"أنت مدير توظيف. ابدأ مقابلة سريعة (سؤال واحد) لوظيفة {job_title}. {exp_context}. رحب بالمستخدم واسأله سؤالاً ذكياً عن مهاراته."
             try:
                 first_q = get_ai_response(prompt)
+                
+                # إصلاح مشكلة الـ None: إذا فشل الـ AI نضع سؤالاً افتراضياً
+                if not first_q or first_q.strip() == "" or first_q == "None":
+                    first_q = "أهلاً بك! لنبدأ المقابلة. هل يمكنك إعطائي نبذة عن خبرتك في هذا المجال وكيف قمت بتصميم حلول تقنية سابقة؟"
+
                 interview_sessions[chat_id] = {"job": job_title, "history": [f"AI: {first_q}"]}
                 send_message(chat_id, f"🏁 <b>بدأت المقابلة لـ: {job_title}</b>\n\n{first_q}")
-            except:
-                send_message(chat_id, "⚠️ المحرك مشغول حالياً، يرجى المحاولة بعد لحظات.")
+            except Exception as e:
+                print(f"Error starting interview: {e}")
+                send_message(chat_id, "⚠️ المحرك مشغول حالياً، لكن يمكنك البدء بالتعريف بنفسك وسأتابع معك.")
 
 def handle_telegram_webhook(data):
     message = data.get("message")
@@ -95,7 +101,7 @@ def handle_telegram_webhook(data):
 
         try:
             ai_reply = get_ai_response(prompt)
-            if not ai_reply:
+            if not ai_reply or ai_reply == "None":
                 ai_reply = "رائع، أخبرني المزيد عن خبرتك في هذا المجال؟"
 
             session['history'].append(f"AI: {ai_reply}")
