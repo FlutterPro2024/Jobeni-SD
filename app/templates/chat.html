@@ -57,13 +57,14 @@
 
                                 <div class="message-content small">
                                     {% if msg.sender_id == 0 %}
-                                        {# تنظيف الرد من كافة الرموز والداشات وتنسيق النقاط #}
+                                        {# استخدام striptags لإزالة أي أكواد خفية واستبدال الرموز المزعجة #}
                                         <div class="ai-response-text">
-                                            {{ msg.body | replace('**', '') 
-                                                        | replace('###', '') 
-                                                        | replace('[OUT]', '') 
-                                                        | replace('[/OUT]', '') 
-                                                        | replace('- ', '• ') 
+                                            {{ msg.body | striptags 
+                                                        | replace('**', '')
+                                                        | replace('###', '')
+                                                        | replace('[OUT]', '')
+                                                        | replace('[/OUT]', '')
+                                                        | replace('- ', '• ')
                                                         | replace('\n', '<br>') | safe }}
                                         </div>
                                     {% else %}
@@ -127,10 +128,13 @@
     .message-content {
         word-wrap: break-word;
         white-space: normal !important;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif !important;
+        text-align: right;
     }
 
     .ai-response-text {
         line-height: 1.8;
+        display: block;
     }
 
     .d-flex {
