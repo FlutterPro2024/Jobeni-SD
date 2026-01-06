@@ -8,11 +8,40 @@
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#007bff">
     <link rel="apple-touch-icon" href="/static/icon.png">
+    
     <script>
+      let deferredPrompt;
+
+      // تسجيل الـ Service Worker
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           navigator.serviceWorker.register("/static/sw.js");
         });
+      }
+
+      // التقاط حدث طلب التثبيت
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        
+        // إظهار تنبيه للمستخدم بعد 3 ثوانٍ من دخول الموقع
+        setTimeout(() => {
+          if (confirm("هل تريد تثبيت تطبيق جوبيني السودان على هاتفك ليسهل عليك الوصول للوظائف؟")) {
+            installApp();
+          }
+        }, 3000);
+      });
+
+      function installApp() {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+              console.log('User accepted the install prompt');
+            }
+            deferredPrompt = null;
+          });
+        }
       }
     </script>
 
