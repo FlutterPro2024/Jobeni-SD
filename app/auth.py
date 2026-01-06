@@ -35,7 +35,7 @@ def register():
         role = request.form.get('role', 'jobseeker')
 
         if User.query.filter((User.email == email) | (User.username == username)).first():
-            flash('المستخدم موجود مسبقاً.', 'warning')
+            flash('اسم المستخدم أو البريد الإلكتروني مسجل مسبقاً.', 'warning')
             return redirect(url_for('auth.register'))
 
         new_user = User(
@@ -68,6 +68,7 @@ def dashboard():
     user_messages = getattr(current_user, 'received_messages', [])
 
     web_jobs = []
+    # جلب آخر سيرة ذاتية مرفوعة لتحسين نتائج البحث الخارجي
     latest_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
 
     if latest_cv and latest_cv.profession:
@@ -108,20 +109,35 @@ def update_agent_settings():
 @login_required
 def profile():
     if request.method == 'POST':
-        current_user.full_name = request.form.get('full_name')
-        current_user.username = request.form.get('username')
-        current_user.email = request.form.get('email').lower().strip()
+        new_username = request.form.get('username').strip()
+        new_email = request.form.get('email').lower().strip()
+        new_full_name = request.form.get('full_name').strip()
+
+        # التحقق من أن الإيميل أو اسم المستخدم الجديد غير مستخدم من قبل شخص آخر
+        existing_user = User.query.filter((User.email == new_email) | (User.username == new_username)).first()
+        
+        if existing_user and existing_user.id != current_user.id:
+            flash('عذراً، اسم المستخدم أو البريد الإلكتروني مستخدم بالفعل من قبل مستخدم آخر.', 'danger')
+            return redirect(url_for('auth.profile'))
+
+        current_user.full_name = new_full_name
+        current_user.username = new_username
+        current_user.email = new_email
+        
         try:
             db.session.commit()
-            flash('تم تحديث الملف الشخصي بنجاح.', 'success')
-        except:
+            flash('تم تحديث بيانات ملفك الشخصي بنجاح.', 'success')
+        except Exception as e:
             db.session.rollback()
-            flash('اسم المستخدم أو البريد مستخدم بالفعل.', 'danger')
+            flash('حدث خطأ غير متوقع أثناء الحفظ. يرجى المحاولة لاحقاً.', 'danger')
+        
         return redirect(url_for('auth.profile'))
+        
     return render_template('profile.html')
 
 @auth_bp.route('/logout')
 @login_required
 def logout():
     logout_user()
+    flash('تم تسجيل الخروج بنجاح.', 'info')
     return redirect(url_for('auth.login'))
