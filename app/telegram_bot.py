@@ -45,7 +45,7 @@ def send_message(chat_id, text, reply_markup=None):
 def handle_callback(callback):
     chat_id = callback["message"]["chat"]["id"]
     data = callback["data"]
-    
+
     # التعامل مع طلب بدء المقابلة من الوكيل الذكي (كما هو مطلوب في agent_worker.py)
     if data.startswith("start_int_"):
         job_title = data.replace("start_int_", "")
@@ -55,11 +55,14 @@ def handle_callback(callback):
             # جلب آخر سي في للمستخدم لإضفاء طابع شخصي على المقابلة
             cv = CV.query.filter_by(user_id=user.id).order_by(CV.created_at.desc()).first() if user else None
             exp_context = f"خبرته: {cv.profession}" if cv else ""
-            
-            prompt = f"أنت مدير توظيف. ابدأ مقابلة سريعة (سؤال واحد) لوظيفة {job_title}. {exp_context}. رحب بالمستخدم واسأله سؤالاً ذكياً."
-            first_q = get_ai_response(prompt)
-            interview_sessions[chat_id] = {"job": job_title, "history": [f"AI: {first_q}"]}
-            send_message(chat_id, f"🏁 <b>بدأت المقابلة لـ: {job_title}</b>\n\n{first_q}")
+
+            prompt = f"أنت مدير توظيف. ابدأ مقابلة سريعة (سؤال واحد) لوظيفة {job_title}. {exp_context}. رحب بالمستخدم واسأله سؤالاً ذكياً عن مهاراته."
+            try:
+                first_q = get_ai_response(prompt)
+                interview_sessions[chat_id] = {"job": job_title, "history": [f"AI: {first_q}"]}
+                send_message(chat_id, f"🏁 <b>بدأت المقابلة لـ: {job_title}</b>\n\n{first_q}")
+            except:
+                send_message(chat_id, "⚠️ المحرك مشغول حالياً، يرجى المحاولة بعد لحظات.")
 
 def handle_telegram_webhook(data):
     message = data.get("message")
@@ -70,18 +73,32 @@ def handle_telegram_webhook(data):
     # إدارة جلسة المقابلة المستمرة
     if chat_id in interview_sessions:
         session = interview_sessions[chat_id]
+        
+        # إنهاء المقابلة
         if text.lower() in ["إنهاء", "exit", "stop", "خروج", "خلاص"]:
-            prompt = f"حلل أداء المستخدم في المقابلة لـ {session['job']}: {session['history']}. اعطِ نسبة مئوية ونصيحة."
+            prompt = f"بناءً على هذا السجل للمقابلة لـ {session['job']}: {session['history']}. قدم تحليلاً قصيراً ونسبة مئوية للقبول."
             result = get_ai_response(prompt)
             del interview_sessions[chat_id]
             send_message(chat_id, f"📊 <b>نتيجة المقابلة:</b>\n\n{result}")
             return
-            
+
+        # إضافة رد المستخدم للسجل
         session['history'].append(f"User: {text}")
-        prompt = f"المقابلة لـ {session['job']}. السجل: {session['history']}. قيم الإجابة واطرح السؤال التالي."
-        ai_reply = get_ai_response(prompt)
-        session['history'].append(f"AI: {ai_reply}")
-        send_message(chat_id, f"{ai_reply}\n\n<i>(أرسل 'إنهاء' للتقييم)</i>")
+        
+        # تحسين: إرسال آخر 5 رسائل فقط للـ AI لضمان سرعة الرد وعدم حدوث Timeout
+        recent_history = session['history'][-5:]
+        prompt = f"هذه مقابلة لوظيفة {session['job']}. السجل الأخير: {recent_history}. قيم إجابة المستخدم باختصار واطرح السؤال التالي."
+        
+        try:
+            ai_reply = get_ai_response(prompt)
+            if not ai_reply:
+                ai_reply = "رائع، أخبرني المزيد عن خبرتك في هذا المجال؟"
+            
+            session['history'].append(f"AI: {ai_reply}")
+            send_message(chat_id, f"{ai_reply}\n\n<i>(أرسل 'إنهاء' للتقييم)</i>")
+        except Exception as e:
+            print(f"Interview AI Error: {e}")
+            send_message(chat_id, "🔄 المحرك يستغرق وقتاً طويلاً، يرجى إرسال الرد مرة أخرى.")
         return
 
     # ربط الحساب (Deep Linking)

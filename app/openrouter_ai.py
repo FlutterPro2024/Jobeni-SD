@@ -8,12 +8,13 @@ class OpenRouterAI:
     def __init__(self):
         self.api_key = os.getenv("OPENROUTER_API_KEY")
         self.url = "https://openrouter.ai/api/v1/chat/completions"
+        # ترتيب النماذج: الأسرع والأفضل أولاً لضمان الرد قبل توقيت فيرسل (Timeout)
         self.models = [
             "google/gemini-2.0-flash-001",
             "mistralai/mistral-7b-instruct:free",
+            "microsoft/phi-3-mini-128k-instruct:free",
             "open-theory/gryphe-mythomax-l2-13b:free",
-            "huggingfaceh4/zephyr-7b-beta:free",
-            "microsoft/phi-3-mini-128k-instruct:free"
+            "huggingfaceh4/zephyr-7b-beta:free"
         ]
 
     def _call_ai(self, prompt, temperature=0.3):
@@ -29,13 +30,16 @@ class OpenRouterAI:
                 payload = {
                     "model": model,
                     "messages": [{"role": "user", "content": prompt}],
-                    "temperature": temperature
+                    "temperature": temperature,
+                    "max_tokens": 800  # تحديد عدد التوكنز لسرعة الاستجابة
                 }
-                res = requests.post(self.url.strip(), headers=headers, json=payload, timeout=25)
+                # تقليل التايم آوت لـ 9 ثوانٍ ليناسب قيود فيرسل (10 ثوانٍ)
+                res = requests.post(self.url.strip(), headers=headers, json=payload, timeout=9)
                 if res.status_code == 200:
                     return res.json()['choices'][0]['message']['content']
                 continue
-            except: continue
+            except: 
+                continue
         return None
 
     # --- الدالة الجديدة للربط مع الوكيل الذكي والدردشة ---
@@ -69,12 +73,13 @@ class OpenRouterAI:
         }
 
     def get_match_score(self, cv_text, job_desc):
-        """مطابقة ذكية تفهم تداخل التخصصات (مثل Telecom و IT)"""
+        """مطابقة ذكية تفهم تداخل التخصصات مع سكور متغير وحقيقي"""
         prompt = f"""
-        Act as an Expert Recruiter. Compare the Candidate CV with the Job Description.
-        Consider transferable skills and related fields.
+        Act as a Strict Expert Recruiter. Compare the Candidate CV with the Job Description.
+        Calculate a precise match percentage (0-100). 
+        Do not give a generic 85 score. Be very specific based on requirements.
         Return ONLY a JSON object:
-        {{"score": 85, "reason": "Arabic explanation of why this score was given"}}
+        {{"score": 78, "reason": "Arabic explanation of why this score was given"}}
 
         Job: {job_desc[:700]}
         CV: {cv_text[:1500]}
@@ -90,15 +95,16 @@ class OpenRouterAI:
             except Exception as e:
                 print(f"JSON Parsing Error: {e}")
 
-        # نظام الطوارئ: لو الـ AI فشل، نبحث عن كلمات مفتاحية يدوياً عشان ما ندي صفر
+        # نظام الطوارئ: لو الـ AI فشل، نبحث عن كلمات مفتاحية يدوياً
         keywords = set(job_desc.lower().split())
         cv_words = set(cv_text.lower().split())
         common = keywords.intersection(cv_words)
-        manual_score = min(len(common) * 5, 40) # حد أقصى 40% لو التحليل اليدوي
+        manual_score = min(len(common) * 5, 45)
 
         return manual_score, "تحليل تقريبي (المحرك الذكي مشغول حالياً)."
 
     def generate_improved_text(self, prompt):
+        """توليد نصوص محسنة (مثل أسئلة المقابلة)"""
         return self._call_ai(prompt, temperature=0.7)
 
 # تصدير الدوال للاستخدام المباشر في الملفات الأخرى

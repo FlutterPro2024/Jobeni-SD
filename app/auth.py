@@ -91,17 +91,17 @@ def update_agent_settings():
     """تحديث إعدادات الوكيل الذكي من الداشبورد"""
     agent_enabled = 'agent_enabled' in request.form
     agent_query = request.form.get('agent_query', '').strip()
-    
+
     current_user.agent_enabled = agent_enabled
     current_user.agent_query = agent_query
-    
+
     try:
         db.session.commit()
         flash('✅ تم تحديث إعدادات الوكيل الذكي بنجاح!', 'success')
-    except:
+    except Exception as e:
         db.session.rollback()
-        flash('❌ حدث خطأ أثناء الحفظ.', 'danger')
-        
+        flash(f'❌ حدث خطأ أثناء الحفظ: {str(e)}', 'danger')
+
     return redirect(url_for('auth.dashboard'))
 
 @auth_bp.route('/profile', methods=['GET', 'POST'])

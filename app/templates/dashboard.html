@@ -12,25 +12,33 @@
 
     <div class="row g-4">
         <div class="col-lg-8">
-            <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
-                <div class="card-header bg-white border-0 pt-4 px-4">
-                    <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-satellite-dish text-primary me-2"></i> إعدادات المراقبة الآلية (Telegram Agent)</h5>
+            <div class="card border-0 shadow-sm rounded-4 bg-white mb-4 border-start border-primary border-4">
+                <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0 text-dark">
+                        <i class="fas fa-satellite-dish text-primary me-2"></i> إعدادات المراقبة الآلية (Telegram Agent)
+                    </h5>
+                    {% if current_user.agent_enabled %}
+                        <span class="badge bg-success-soft text-success rounded-pill px-3">نشط الآن</span>
+                    {% else %}
+                        <span class="badge bg-secondary-soft text-muted rounded-pill px-3">متوقف</span>
+                    {% endif %}
                 </div>
                 <div class="card-body p-4">
                     <form action="{{ url_for('auth.update_agent_settings') }}" method="POST" class="row align-items-end g-3">
                         <div class="col-md-6">
-                            <label class="form-label small fw-bold">المسمى الوظيفي للمراقبة:</label>
-                            <input type="text" name="agent_query" class="form-control rounded-pill shadow-none"
+                            <label class="form-label small fw-bold text-muted">المسمى الوظيفي للمراقبة:</label>
+                            <input type="text" name="agent_query" class="form-control rounded-pill shadow-none border-2"
                                    placeholder="مثلاً: Petroleum Engineer" value="{{ current_user.agent_query or '' }}">
+                            <div class="form-text fs-xs opacity-75">اتركه فارغاً للاعتماد على مسمى سيرتك الذاتية.</div>
                         </div>
                         <div class="col-md-4 py-2">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" name="agent_enabled" id="agentSwitch" {% if current_user.agent_enabled %}checked{% endif %}>
-                                <label class="form-check-label small fw-bold" for="agentSwitch">تفعيل إرسال الوظائف لتلجرام</label>
+                                <label class="form-check-label small fw-bold" for="agentSwitch">إرسال الوظائف لتلجرام</label>
                             </div>
                         </div>
                         <div class="col-md-2">
-                            <button type="submit" class="btn btn-primary w-100 rounded-pill btn-sm py-2 shadow-sm">حفظ</button>
+                            <button type="submit" class="btn btn-primary w-100 rounded-pill btn-sm py-2 shadow-sm fw-bold">حفظ</button>
                         </div>
                     </form>
                 </div>
@@ -48,7 +56,7 @@
                             <h6 class="fw-bold mb-1">المسمى: <span class="text-primary">{{ latest_cv.profession }}</span></h6>
                             <div class="mb-3 mt-2">
                                 {% for skill in latest_cv.skills %}
-                                <span class="badge bg-light text-primary rounded-pill px-3 py-2 mb-1">{{ skill }}</span>
+                                <span class="badge bg-light text-primary rounded-pill px-3 py-2 mb-1 border">{{ skill }}</span>
                                 {% endfor %}
                             </div>
                             <a href="{{ url_for('search.skill_analysis') }}" class="btn btn-sm btn-dark rounded-pill px-4">فتح تفاصيل التحليل 📊</a>
@@ -69,14 +77,14 @@
             <div class="card border-0 shadow-sm rounded-4 bg-white">
                 <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
                     <h5 class="fw-bold mb-0"><i class="fas fa-history text-success me-2"></i>سجل التدريبات (AI)</h5>
-                    <span class="badge bg-light text-muted rounded-pill">{{ current_user.interview_sessions|length }} جلسة</span>
+                    <span class="badge bg-light text-muted rounded-pill">{{ sessions|length }} جلسة</span>
                 </div>
                 <div class="card-body">
-                    {% if current_user.interview_sessions %}
+                    {% if sessions %}
                     <div class="table-responsive">
                         <table class="table table-hover align-middle border-0">
                             <tbody>
-                                {% for session in current_user.interview_sessions[::-1][:5] %}
+                                {% for session in sessions[::-1][:5] %}
                                 <tr>
                                     <td>
                                         <div class="fw-bold text-dark">تدريب {{ session.skill_name }}</div>
@@ -114,15 +122,9 @@
                 </div>
 
                 <div class="col-12">
-                    <a href="{{ url_for('cv.upload_cv') }}" class="card border-0 shadow-sm rounded-4 p-4 bg-primary text-white text-decoration-none transition-hover">
+                    <a href="{{ url_for('cv.upload_cv') }}" class="card border-0 shadow-sm rounded-4 p-4 bg-primary text-white text-decoration-none transition-hover shadow">
                         <i class="fas fa-file-upload fa-2x mb-2"></i>
-                        <h6 class="fw-bold">رفع ملف جديد</h6>
-                    </a>
-                </div>
-                <div class="col-12">
-                    <a href="{{ url_for('search.jobs_list') }}" class="card border-0 shadow-sm rounded-4 p-4 bg-dark text-white text-decoration-none transition-hover">
-                        <i class="fas fa-search fa-2x mb-2 text-warning"></i>
-                        <h6 class="fw-bold">استكشاف الوظائف</h6>
+                        <h6 class="fw-bold">رفع سيرة ذاتية جديدة</h6>
                     </a>
                 </div>
 
@@ -154,42 +156,15 @@
 </div>
 
 <style>
-    /* شكل التقدم الدائري */
     .circular-progress { width: 80px; height: 80px; background: radial-gradient(closest-side, white 79%, transparent 80% 100%), conic-gradient(#0d6efd calc(var(--value) * 1%), #eef2ff 0); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-    
-    /* أنيميشن الحوام (Hover) */
     .transition-hover:hover { transform: translateY(-5px); transition: 0.3s; box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important; }
-    
-    /* كارت الذكاء الاصطناعي الخاص */
-    .ai-card {
-        background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%);
-        overflow: hidden;
-        position: relative;
-    }
-
-    .ai-icon-container {
-        position: relative;
-        z-index: 1;
-    }
-
-    /* حلقة النبض حول الأيقونة */
-    .pulse-ring {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 40px;
-        height: 40px;
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 50%;
-        animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-        0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-        100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
-    }
-
+    .ai-card { background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%); overflow: hidden; position: relative; }
+    .ai-icon-container { position: relative; z-index: 1; }
+    .pulse-ring { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; } }
+    .bg-success-soft { background-color: #d1e7dd; }
+    .bg-secondary-soft { background-color: #f8f9fa; }
     .chat-item:hover { background-color: #f1f5f9 !important; }
+    .fs-xs { font-size: 0.75rem; }
 </style>
 {% endblock %}
