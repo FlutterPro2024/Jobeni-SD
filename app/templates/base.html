@@ -32,13 +32,11 @@
         .search-nav input { background: rgba(255,255,255,0.1); border: none; color: white; border-radius: 20px; padding-right: 35px; }
         .search-nav i { position: absolute; right: 12px; top: 10px; color: rgba(255,255,255,0.5); }
         .footer { background: #1a1d20; color: rgba(255,255,255,0.6); padding: 40px 0; margin-top: 80px; }
-        .tg-badge { font-size: 10px; vertical-align: middle; }
         
-        /* PWA Banner Style */
         #install-banner {
-            display: none; position: fixed; bottom: 20px; left: 20px; right: 20px; 
-            background: white; padding: 15px; border-radius: 20px; 
-            box-shadow: 0 15px 35px rgba(0,0,0,0.3); z-index: 10000; 
+            display: none; position: fixed; bottom: 20px; left: 20px; right: 20px;
+            background: white; padding: 15px; border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3); z-index: 10000;
             border: 1px solid rgba(13, 110, 253, 0.2); animation: slideUp 0.5s ease-out;
         }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
@@ -92,6 +90,8 @@
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" aria-labelledby="userDropdown">
                                 <li><a class="dropdown-item text-end" href="{{ url_for('auth.profile') }}">الإعدادات <i class="fas fa-cog ms-2 text-muted"></i></a></li>
+                                <li><a class="dropdown-item text-end" href="{{ url_for('cv.my_cvs') }}">سيري الذاتية <i class="fas fa-file-pdf ms-2 text-muted"></i></a></li>
+                                
                                 {% if not current_user.telegram_id %}
                                 <li><a class="dropdown-item text-end text-info small" href="{{ url_for('auth.profile') }}">ربط التلجرام ⚡</a></li>
                                 {% endif %}
@@ -134,46 +134,31 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
     <script>
         let deferredPrompt;
         const installBanner = document.getElementById('install-banner');
         const btnInstall = document.getElementById('btn-install');
-
-        // تسجيل الـ Service Worker
         if ("serviceWorker" in navigator) {
             window.addEventListener("load", () => {
                 navigator.serviceWorker.register("/static/sw.js");
             });
         }
-
-        // الاستماع لحدث طلب التثبيت
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            // إظهار البانر الأنيق
-            setTimeout(() => {
-                installBanner.style.display = 'block';
-            }, 2000);
+            setTimeout(() => { installBanner.style.display = 'block'; }, 2000);
         });
-
         btnInstall.addEventListener('click', () => {
             if (deferredPrompt) {
                 deferredPrompt.prompt();
                 deferredPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === 'accepted') {
-                        console.log('User accepted');
-                    }
+                    if (choiceResult.outcome === 'accepted') console.log('User accepted');
                     installBanner.style.display = 'none';
                     deferredPrompt = null;
                 });
             }
         });
-
-        // إخفاء البانر إذا تم التثبيت مسبقاً
-        window.addEventListener('appinstalled', () => {
-            installBanner.style.display = 'none';
-        });
+        window.addEventListener('appinstalled', () => { installBanner.style.display = 'none'; });
     </script>
 </body>
 </html>
