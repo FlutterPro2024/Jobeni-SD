@@ -46,6 +46,9 @@ def create_app(config_name='default'):
             return render_template('maintenance.html'), 503
 
     with app.app_context():
+        # استيراد الموديلات لضمان تسجيلها قبل إنشاء الجداول
+        from app import models 
+        
         # استيراد كافة الـ Blueprints
         from app.auth import auth_bp
         from app.cv import cv_bp
@@ -55,7 +58,7 @@ def create_app(config_name='default'):
         from app.admin import admin_bp
         from app.chat import chat_bp
         from app.applications import apps_bp
-        from app.agent_worker import agent_bp  # الوكيل الجديد
+        from app.agent_worker import agent_bp
 
         # تسجيل الـ Blueprints
         app.register_blueprint(auth_bp)
@@ -66,12 +69,21 @@ def create_app(config_name='default'):
         app.register_blueprint(admin_bp)
         app.register_blueprint(chat_bp)
         app.register_blueprint(apps_bp)
-        app.register_blueprint(agent_bp) # تفعيل مسار الوكيل
+        app.register_blueprint(agent_bp)
 
-        # إنشاء الجداول (تلقائياً عند التشغيل الأول)
-        # ملاحظة: في Vercel مع PostgreSQL قد تحتاج لعمل Migrations 
-        # ولكن db.create_all() ستحاول إنشاء الجداول غير الموجودة.
+        # محاولة إنشاء الجداول الجديدة
         db.create_all()
+
+    # --- الرابط السري لتحديث قاعدة البيانات يدوياً في أي وقت ---
+    @app.route('/force-db-update-2026')
+    def force_db_update():
+        try:
+            with app.app_context():
+                from app import models
+                db.create_all()
+                return "✅ Database Tables (InterviewReport) Created Successfully!", 200
+        except Exception as e:
+            return f"❌ Migration Error: {str(e)}", 500
 
     @login_manager.user_loader
     def load_user(user_id):
