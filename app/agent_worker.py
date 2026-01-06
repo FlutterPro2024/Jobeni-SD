@@ -1,7 +1,7 @@
 # ~/jobeni-sD/app/agent_worker.py
 from flask import Blueprint
 from datetime import datetime
-from sqlalchemy import text 
+from sqlalchemy import text
 import os
 from app.openrouter_ai import get_ai_response # استيراد الذكاء الاصطناعي
 
@@ -9,11 +9,20 @@ agent_bp = Blueprint('agent', __name__)
 
 class JobeniAgent:
     """كلاس الوكيل الذكي للتحليل والإرشاد"""
+    
+    def __init__(self, user_cv_text=None):
+        """
+        إضافة دالة البناء لاستقبال نص السيرة الذاتية.
+        هذا التعديل يحل مشكلة (JobeniAgent() takes no arguments) في ملف chat.py
+        """
+        self.cv_text = user_cv_text
+
     @staticmethod
     def get_career_advice(query, cv_text=None):
-        prompt = f"أنت مستشار مهني خبير في سوق العمل. المستخدم يسأل: {query}."
+        # توجيه البرومبت ليكون خبيراً في سوق العمل السوداني
+        prompt = f"أنت مستشار مهني خبير في سوق العمل السوداني. المستخدم يسأل: {query}."
         if cv_text:
-            prompt += f"\nبناءً على سيرته الذاتية التالية: {cv_text}\n قدم نصيحة مخصصة وموجهة."
+            prompt += f"\nبناءً على سيرته الذاتية التالية: {cv_text}\n قدم نصيحة مخصصة وموجهة بلهجة مهنية (سودانية مبسطة أو فصحى)."
         return get_ai_response(prompt)
 
     @staticmethod
@@ -21,7 +30,7 @@ class JobeniAgent:
         prompt = f"""
         حلل السيرة الذاتية التالية بدقة واحترافية:
         {cv_text}
-        
+
         المطلوب تقرير يشمل:
         1. نقاط القوة (3 نقاط).
         2. فجوات مهنية تحتاج تطوير (3 نقاط).
@@ -37,7 +46,7 @@ def run_agent():
     from app.serper_search import serper_searcher
     from app.telegram_bot import send_message
 
-    # --- مصلح قاعدة البيانات التلقائي ---
+    # --- مصلح قاعدة البيانات التلقائي (Schema Fix) ---
     try:
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_enabled BOOLEAN DEFAULT FALSE'))
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_query VARCHAR(255)'))
@@ -60,19 +69,19 @@ def run_agent():
 
             query = user.agent_query
             cv = CV.query.filter_by(user_id=user.id).order_by(CV.created_at.desc()).first()
-            
+
             if not query:
                 query = cv.profession if cv else None
 
             if not query:
                 continue
 
-            # البحث عن وظائف
+            # البحث عن وظائف عبر Serper
             results = serper_searcher.search_jobs(query)
             jobs = results.get('jobs', [])[:3]
 
             if jobs:
-                # ميزة إضافية: تحليل الوظائف قبل إرسالها (إرشاد)
+                # ميزة إضافية: إرشاد ذكي بناءً على نتائج البحث
                 ai_advice = ""
                 if cv:
                     ai_advice = get_ai_response(f"بناءً على خبرة المرشح في {cv.profession}، قدم نصيحة قصيرة جداً للتقديم على وظيفة {query}.")

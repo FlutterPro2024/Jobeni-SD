@@ -19,7 +19,7 @@ mail = Mail()
 
 def create_app(config_name='default'):
     app = Flask(__name__)
-    
+
     # اختيار الإعدادات (Production في حال Vercel)
     if os.environ.get('VERCEL'):
         app.config.from_object(config['production'])
@@ -69,6 +69,8 @@ def create_app(config_name='default'):
         app.register_blueprint(agent_bp) # تفعيل مسار الوكيل
 
         # إنشاء الجداول (تلقائياً عند التشغيل الأول)
+        # ملاحظة: في Vercel مع PostgreSQL قد تحتاج لعمل Migrations 
+        # ولكن db.create_all() ستحاول إنشاء الجداول غير الموجودة.
         db.create_all()
 
     @login_manager.user_loader
