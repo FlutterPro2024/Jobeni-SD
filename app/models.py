@@ -25,9 +25,24 @@ class User(db.Model, UserMixin):
     applications = db.relationship('Application', backref='applicant', lazy=True)
     interview_sessions = db.relationship('InterviewSession', backref='user', lazy=True, cascade="all, delete-orphan")
     interview_reports = db.relationship('InterviewReport', backref='user', lazy=True, cascade="all, delete-orphan")
+    
+    # علاقة الإشعارات الجديدة
+    notifications = db.relationship('Notification', backref='user', lazy=True, cascade="all, delete-orphan")
 
     sent_messages = db.relationship('Message', foreign_keys='Message.sender_id', backref='author', lazy=True, primaryjoin="User.id==Message.sender_id")
     received_messages = db.relationship('Message', foreign_keys='Message.recipient_id', backref='recipient', lazy=True, primaryjoin="User.id==Message.recipient_id")
+
+class Notification(db.Model):
+    """جدول الإشعارات الجديد للوظائف والتحليلات"""
+    __tablename__ = 'notification'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    title = db.Column(db.String(150), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    category = db.Column(db.String(50), default='info') # info, success, warning, job_alert
+    is_read = db.Column(db.Boolean, default=False)
+    link = db.Column(db.String(200), nullable=True) # رابط للانتقال السريع عند الضغط على الإشعار
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class InterviewReport(db.Model):
     __tablename__ = 'interview_report'
@@ -53,7 +68,7 @@ class Job(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     employer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    applications = db.relationship('Application', backref='job', lazy=True, cascade="all, delete-orphan")             
+    applications = db.relationship('Application', backref='job', lazy=True, cascade="all, delete-orphan")
 
 class CV(db.Model):
     __tablename__ = 'cv'
@@ -67,8 +82,6 @@ class CV(db.Model):
     optimized_text = db.Column(db.Text)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # هذه العلاقة ضرورية لمنع خطأ 500 عند الحذف
     linked_applications = db.relationship('Application', backref='associated_cv', lazy=True, cascade="all, delete-orphan")
 
 class Application(db.Model):

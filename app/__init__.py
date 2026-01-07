@@ -1,9 +1,9 @@
 # ~/jobeni-sD/app/__init__.py
 import os
 import sys
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, current_user
+from flask_login import LoginManager, current_user, login_required
 from flask_migrate import Migrate
 from flask_mail import Mail
 
@@ -47,8 +47,8 @@ def create_app(config_name='default'):
 
     with app.app_context():
         # استيراد الموديلات لضمان تسجيلها قبل إنشاء الجداول
-        from app import models 
-        
+        from app import models
+
         # استيراد كافة الـ Blueprints
         from app.auth import auth_bp
         from app.cv import cv_bp
@@ -59,6 +59,7 @@ def create_app(config_name='default'):
         from app.chat import chat_bp
         from app.applications import apps_bp
         from app.agent_worker import agent_bp
+        from app.interview import interview_bp # إضافة بلوبرينت المقابلات
 
         # تسجيل الـ Blueprints
         app.register_blueprint(auth_bp)
@@ -70,9 +71,23 @@ def create_app(config_name='default'):
         app.register_blueprint(chat_bp)
         app.register_blueprint(apps_bp)
         app.register_blueprint(agent_bp)
+        app.register_blueprint(interview_bp) # تسجيل بلوبرينت المقابلات
 
-        # محاولة إنشاء الجداول الجديدة
+        # محاولة إنشاء الجداول الجديدة (بما فيها الإشعارات والمقابلات)
         db.create_all()
+
+    # --- مسار تصفير الإشعارات (Mark as Read) ---
+    @app.route('/notifications/mark-read', methods=['POST'])
+    @login_required
+    def mark_notifications_read():
+        from app.models import Notification
+        try:
+            Notification.query.filter_by(user_id=current_user.id, is_read=False).update({Notification.is_read: True})
+            db.session.commit()
+            return jsonify({'status': 'success'}), 200
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'status': 'error', 'message': str(e)}), 500
 
     # --- الرابط السري لتحديث قاعدة البيانات يدوياً في أي وقت ---
     @app.route('/force-db-update-2026')
@@ -81,7 +96,7 @@ def create_app(config_name='default'):
             with app.app_context():
                 from app import models
                 db.create_all()
-                return "✅ Database Tables (InterviewReport) Created Successfully!", 200
+                return "✅ Database Tables (Notification & Reports) Created Successfully!", 200
         except Exception as e:
             return f"❌ Migration Error: {str(e)}", 500
 
