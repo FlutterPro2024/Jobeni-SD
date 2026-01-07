@@ -60,6 +60,7 @@ def upload_cv():
                 flash('الملف فارغ أو لا يمكن قراءة النص منه.', 'danger')
                 return redirect(request.url)
 
+            # تنظيف النص وإرساله للتحليل الأولي
             clean_text = " ".join(text.split())[:2500]
             analysis = openrouter_ai.analyze_cv_complete(clean_text)
 
@@ -80,7 +81,7 @@ def upload_cv():
         except Exception as e:
             db.session.rollback()
             flash(f'خطأ أثناء المعالجة: {str(e)}', 'danger')
-            return redirect(request.url)                   
+            return redirect(request.url)
     return render_template('upload_cv.html')
 
 @cv_bp.route('/cv/view/<int:cv_id>')
@@ -95,22 +96,37 @@ def view_cv(cv_id):
 @login_required
 def optimize_cv_view(cv_id):
     cv = CV.query.get_or_404(cv_id)
-    if cv.user_id != current_user.id: abort(403)           
-    prompt = (f"Write a professional ATS-optimized resume content for a {cv.profession}. "
-              f"Based on: {cv.extracted_text[:1200]}. "
-              f"No tags like <s> or [OUT]. Candidate: {current_user.username}")
-
-    optimized_text = openrouter_ai._call_ai(prompt, temperature=0.4)
-    if optimized_text and len(optimized_text.strip()) > 100:
-        cleaned_text = optimized_text.replace("[OUT]", "").replace("[/OUT]", "").replace("<s>", "").replace("</s>", "").strip()
-        final_text = cleaned_text.replace("[Jobseeker's Name]", current_user.username)\
-                                .replace("[Your Name]", current_user.username)\
-                                .replace("[Email Address]", current_user.email or "N/A")\
-                                .replace("[Date]", datetime.date.today().strftime("%B %d, %Y"))
-        return render_template('cv_comparison.html', cv_id=cv.id, old_text=cv.extracted_text, new_text=final_text)    
+    if cv.user_id != current_user.id: abort(403)
     
-    flash('المحرك المجاني مزدحم، تم إنشاء نسخة ذكية من بياناتك المخزنة.', 'info')
-    backup_text = (f"RESUME: {current_user.username.upper()}\nPROFESSION: {cv.profession}\nSKILLS: {', '.join(cv.skills)}\n\nOBJECTIVE:\nHighly motivated {cv.profession} with expertise in {', '.join(cv.skills[:3])}.")
+    # التعديل الجوهري هنا: استدعاء المحرك الجديد بكامل قوته
+    # نرسل كامل النص المستخرج ليتم تحويله لسيرة كاملة
+    optimized_text = openrouter_ai.generate_improved_text(cv.extracted_text)
+    
+    if optimized_text and len(optimized_text.strip()) > 300:
+        # تنظيف النص من أي علامات قد يضيفها الـ AI الصغير
+        final_text = optimized_text.replace("[OUT]", "").replace("[/OUT]", "").replace("<s>", "").replace("</s>", "").strip()
+        
+        # استبدال أي متغيرات عامة ببيانات المستخدم الحقيقية
+        final_text = final_text.replace("[Jobseeker's Name]", current_user.username)\
+                               .replace("[Your Name]", current_user.username)\
+                               .replace("[Email Address]", current_user.email or "N/A")\
+                               .replace("[Date]", datetime.date.today().strftime("%B %d, %Y"))
+                               
+        return render_template('cv_comparison.html', cv_id=cv.id, old_text=cv.extracted_text, new_text=final_text)
+
+    # في حالة فشل الـ AI أو كان الرد قصيراً جداً، نستخدم قالب احتياطي احترافي
+    flash('المحرك مزدحم قليلاً، تم توليد نسخة أساسية محسنة.', 'info')
+    backup_text = (f"# RESUME: {current_user.username.upper()}\n"
+                   f"**Profession:** {cv.profession}\n"
+                   f"**Email:** {current_user.email}\n\n"
+                   f"## PROFESSIONAL SUMMARY\n"
+                   f"Highly skilled {cv.profession} with a strong background in {', '.join(cv.skills[:4])}. "
+                   f"Proven ability to deliver results and drive innovation in complex projects.\n\n"
+                   f"## KEY SKILLS\n"
+                   f"* " + "\n* ".join(cv.skills) + "\n\n"
+                   f"## EXPERIENCE HIGHLIGHTS\n"
+                   f"Reconstructed from your profile: {cv.extracted_text[:300]}...")
+    
     return render_template('cv_comparison.html', cv_id=cv.id, old_text=cv.extracted_text, new_text=backup_text)
 
 @cv_bp.route('/cv/generate-pdf/<int:cv_id>', methods=['POST'])
@@ -130,6 +146,7 @@ def generate_ats_pdf(cv_id):
         pdf.cell(0, 10, "ATS-OPTIMIZED RESUME", ln=True, align='C')
         pdf.ln(5)
         pdf.set_font("Arial", size=10)
+        # تشفير النص ليتناسب مع مكتبة FPDF
         clean_text = new_content.encode("latin-1", "ignore").decode("latin-1")
         for line in clean_text.split('\n'):
             if line.strip(): pdf.multi_cell(0, 7, txt=line.strip())
@@ -138,7 +155,7 @@ def generate_ats_pdf(cv_id):
         pdf.output(pdf_path)
         if current_user.telegram_id:
             try: send_document(current_user.telegram_id, pdf_path, caption="✅ إليك سيرتك الذاتية المحسنة!")
-            except: pass                                   
+            except: pass
         return send_file(pdf_path, as_attachment=True)
     except Exception as e:
         flash('تم حفظ التعديلات، ولكن تعذر إنشاء ملف PDF حالياً.', 'warning')
@@ -150,19 +167,17 @@ def delete_cv(cv_id):
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id:
         abort(403)
-    
+
     try:
-        # حذف الملف الفيزيائي من القرص
         file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'cvs', cv.file_path)
         if os.path.exists(file_path):
             os.remove(file_path)
-        
-        # حذف السجل من قاعدة البيانات (سيتم حذف التقديمات تلقائياً بسبب الكاسكيد)
+
         db.session.delete(cv)
         db.session.commit()
         flash('تم حذف السيرة الذاتية بنجاح.', 'info')
     except Exception as e:
         db.session.rollback()
-        flash(f'حدث خطأ أثناء الحذف من قاعدة البيانات: {str(e)}', 'danger')
+        flash(f'حدث خطأ أثناء الحذف: {str(e)}', 'danger')
 
     return redirect(url_for('cv.my_cvs'))
