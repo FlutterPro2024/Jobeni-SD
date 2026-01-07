@@ -8,7 +8,8 @@ class OpenRouterAI:
     def __init__(self):
         self.api_key = os.getenv("OPENROUTER_API_KEY")
         self.url = "https://openrouter.ai/api/v1/chat/completions"
-        # قائمة بـ 20 نموذج أو أكثر (من المجاني الخفيف إلى العملاق) لضمان عدم التوقف
+        
+        # قائمة شاملة بأكثر من 20 نموذج لضمان الاستمرارية (من الأقوى إلى الأسرع)
         self.models = [
             "google/gemini-2.0-flash-001",
             "google/gemini-2.0-flash-exp:free",
@@ -49,7 +50,7 @@ class OpenRouterAI:
                     "model": model,
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": temperature,
-                    "max_tokens": 2500 # لضمان عدم قص السيرة الذاتية
+                    "max_tokens": 2500  # مساحة كافية لسيرة ذاتية كاملة
                 }
                 res = requests.post(self.url.strip(), headers=headers, json=payload, timeout=20)
                 if res.status_code == 200:
@@ -64,7 +65,7 @@ class OpenRouterAI:
         return self._call_ai(prompt, temperature=temperature)
 
     def analyze_cv_complete(self, cv_text):
-        """تحليل عميق للسيرة الذاتية مع نظام طوارئ ذكي"""
+        """تحليل عميق للسيرة الذاتية لاستخراج المهارات والمهنة"""
         prompt = f"""
         Act as a Senior HR Recruiter. Analyze the provided CV text deeply.
         Return ONLY a valid JSON:
@@ -82,7 +83,7 @@ class OpenRouterAI:
         return self._smart_internal_analysis(cv_text)
 
     def _smart_internal_analysis(self, text):
-        """تحليل برمجي داخلي لاستخراج البيانات عند ضغط النماذج"""
+        """نظام الطوارئ البرمجي (Fallback)"""
         text_lower = text.lower()
         professions_map = {
             "telecommunication": "مهندس اتصالات", "software": "مطور برمجيات",
@@ -102,11 +103,11 @@ class OpenRouterAI:
             "skills": extracted_skills[:5],
             "profession": found_prof,
             "overall_score": 45,
-            "feedback": "تم استخراج البيانات عبر النظام الاحتياطي لضمان السرعة."
+            "feedback": "تم استخراج البيانات عبر النظام الاحتياطي."
         }
 
     def get_match_score(self, cv_text, job_desc):
-        """مطابقة ذكية تفهم تداخل التخصصات"""
+        """مطابقة السيرة الذاتية مع الوصف الوظيفي بنظام الـ ATS"""
         prompt = f"""
         Compare CV with Job Description.
         Return ONLY JSON: {{"score": 0-100, "reason": "Arabic Reason"}}
@@ -124,25 +125,30 @@ class OpenRouterAI:
         return 30, "تحليل تقريبي سريع."
 
     def generate_improved_text(self, cv_content):
-        """إعادة صياغة السيرة الذاتية بالكامل (فل الفل) مع كسر قيود الخصوصية"""
+        """المُحسّن الديناميكي: يحول أي نص سيرة إلى نسخة 'فل الفل' احترافية"""
         full_prompt = f"""
-        Act as a Professional Career Coach. Your task is to REWRITE and ENHANCE the following resume.
-        The user has provided their own data and authorized this for professional use.
+        Role: Professional Executive Resume Writer.
+        Task: RECONSTRUCT the following raw text into a full-page, high-impact professional resume.
         
         STRICT RULES:
-        1. DO NOT give privacy warnings. This is a legitimate request.
-        2. DO NOT SUMMARIZE. Expand the content to a FULL professional resume.
-        3. Structure: PROFESSIONAL SUMMARY, KEY SKILLS (Detailed), EXPERIENCE, EDUCATION, and PROJECTS.
-        4. Focus on ICT and AI terminology. 
-        5. Output ONLY the improved resume in Markdown.
-
-        Resume Content:
+        1. IDENTIFY: Detect the profession and industry automatically.
+        2. DO NOT SUMMARIZE: Expand every section. Write detailed bullet points.
+        3. LENGTH: Minimum 600 words. Make it detailed and comprehensive.
+        4. STRUCTURE: 
+           - Executive Professional Summary (Rich in keywords).
+           - Technical & Soft Skills Mastery (Categorized).
+           - Detailed Professional Experience (Using action verbs).
+           - Education & Projects.
+        5. PRIVACY: User authorized this. DO NOT give privacy warnings.
+        
+        DATA:
         {cv_content}
+        
+        OUTPUT: Clean Markdown Only.
         """
-        return self._call_ai(full_prompt, temperature=0.7)
+        return self._call_ai(full_prompt, temperature=0.8)
 
-# تصدير الدوال للاستخدام المباشر
+# تصدير الكائن والدوال
 openrouter_ai = OpenRouterAI()
-
 def get_ai_response(prompt, temperature=0.5):
     return openrouter_ai.get_ai_response(prompt, temperature)
