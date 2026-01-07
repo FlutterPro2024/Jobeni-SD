@@ -13,31 +13,31 @@
             --bg-editor: #ffffff;
         }
 
-        body { 
-            background-color: var(--primary-dark); 
-            color: #f1f5f9; 
+        body {
+            background-color: var(--primary-dark);
+            color: #f1f5f9;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             overflow-x: hidden;
         }
 
         /* رأس الصفحة المحسن */
-        .header-gradient { 
-            background: linear-gradient(135deg, #1e40af 0%, #1e293b 100%); 
-            padding: 25px; 
-            border-radius: 20px; 
+        .header-gradient {
+            background: linear-gradient(135deg, #1e40af 0%, #1e293b 100%);
+            padding: 25px;
+            border-radius: 20px;
             border: 1px solid rgba(255,255,255,0.1);
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
 
         /* منطقة المحرر */
-        .editor { 
-            height: 650px; 
-            background: var(--bg-editor); 
-            color: #1e293b; 
-            border-radius: 15px; 
-            padding: 30px; 
-            font-size: 1.1rem; 
-            line-height: 1.7; 
+        .editor {
+            height: 650px;
+            background: var(--bg-editor);
+            color: #1e293b;
+            border-radius: 15px;
+            padding: 30px;
+            font-size: 1.1rem;
+            line-height: 1.7;
             border: 5px solid var(--accent-blue);
             box-shadow: 0 20px 40px rgba(0,0,0,0.4);
             resize: none;
@@ -50,13 +50,13 @@
         }
 
         /* منطقة النص الأصلي */
-        .comparison-box { 
-            height: 650px; 
-            overflow-y: auto; 
-            background: rgba(30, 41, 59, 0.7); 
-            border-radius: 15px; 
-            padding: 25px; 
-            font-size: 0.95rem; 
+        .comparison-box {
+            height: 650px;
+            overflow-y: auto;
+            background: rgba(30, 41, 59, 0.7);
+            border-radius: 15px;
+            padding: 25px;
+            font-size: 0.95rem;
             border: 1px dashed rgba(255,255,255,0.2);
             color: #cbd5e1;
             white-space: pre-wrap;
@@ -133,9 +133,9 @@
                     <div class="label-style text-info">
                         <i class="fas fa-sparkles me-2"></i> النسخة المحسنة (قابلة للتعديل والتحرير)
                     </div>
-                    <textarea id="optimizedEditor" name="optimized_content" class="form-control editor shadow-lg" 
+                    <textarea id="optimizedEditor" name="optimized_content" class="form-control editor shadow-lg"
                               placeholder="جاري تجهيز النص..." spellcheck="false">{{ new_text }}</textarea>
-                    
+
                     <div class="d-flex justify-content-between mt-2 px-2">
                         <small class="text-muted"><i class="fas fa-info-circle me-1"></i> ملاحظة: النص أعلاه بتنسيق Markdown احترافي.</small>
                         <small id="charCount" class="text-info fw-bold">0 حرف</small>
