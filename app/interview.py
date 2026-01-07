@@ -2,8 +2,8 @@
 import json, re
 from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required, current_user
-from app.models import Job, CV, InterviewSession, db
-from app.openrouter_ai import get_ai_response # استخدام المحرك الموحد
+from app.models import Job, CV, InterviewSession, db, InterviewReport
+from app.openrouter_ai import get_ai_response
 
 interview_bp = Blueprint('interview', __name__)
 
@@ -22,12 +22,8 @@ def start_interview(job_id):
     وصف الوظيفة: {job.description[:500]}
     السيرة الذاتية للمرشح: {cv.extracted_text[:1000]}
 
-    المطلوب:
-    1. رحب بالمرشح بحرارة باللغة العربية.
-    2. اطرح أول سؤال تقني عميق بناءً على التداخل بين خبرته ومتطلبات الوظيفة.
-    3. اجعل الأسلوب مهنياً جداً.
+    المطلوب: رحب بالمرشح واطرح أول سؤال تقني عميق فوراً باللغة العربية.
     """
-
     first_question = get_ai_response(prompt)
     return render_template('interview/chat.html', job_title=job.title, first_question=first_question)
 
@@ -40,14 +36,8 @@ def chat():
     job_title = data.get('job_title')
 
     prompt = f"""
-    المناقشة الحالية لوظيفة: {job_title}. 
-    تاريخ الحوار: {history}
-    إجابة المرشح الأخيرة: "{user_answer}"
-    
-    المطلوب:
-    - قم بتقييم الإجابة سريعاً (صححها إذا أخطأ بذكاء).
-    - اطرح السؤال التالي (نوع بين الأسئلة التقنية والسلوكية).
-    - لا تخرج عن سياق المقابلة.
+    المناقشة لوظيفة: {job_title}. التاريخ: {history}. إجابة المرشح: "{user_answer}".
+    قيم الإجابة واطرح السؤال التالي (تقني أو سلوكي) باختصار ومهنية.
     """
     ai_response = get_ai_response(prompt)
     return jsonify({'response': ai_response})
@@ -60,33 +50,27 @@ def finish_interview():
     job_title = data.get('job_title')
 
     analysis_prompt = f"""
-    قم بتحليل سجل المقابلة التالي لوظيفة '{job_title}':
-    {history}
-
-    يجب أن يكون الرد JSON حصراً بهذا التنسيق:
-    {{
-        "score": "النسبة مئوية",
-        "strengths": ["نقطة قوة 1", "نقطة قوة 2"],
-        "weaknesses": ["نقطة تحتاج تطوير 1", "نقطة تحتاج تطوير 2"],
-        "overall_feedback": "ملخص عام للأداء بالعربي",
-        "recommendation": "نصيحة ذهبية للقبول"
-    }}
+    حلل المقابلة التالية لوظيفة '{job_title}' وأعطِ تقريراً احترافياً.
+    سجل المقابلة: {history}
+    يجب أن يكون الرد بصيغة JSON فقط:
+    {{"score": "XX%", "strengths": [], "weaknesses": [], "overall_feedback": "", "recommendation": ""}}
     """
     raw_result = get_ai_response(analysis_prompt)
 
     try:
         json_match = re.search(r'\{.*\}', raw_result, re.DOTALL)
         assessment = json.loads(json_match.group())
-        
-        # حفظ النتيجة في قاعدة البيانات
-        session = InterviewSession(
+
+        # حفظ التقرير في جدول التقارير لعرضه في الرسم البياني
+        new_report = InterviewReport(
             user_id=current_user.id,
-            skill_name=job_title,
-            questions_content=json.dumps(assessment, ensure_ascii=False)
+            job_title=job_title,
+            full_report=assessment.get('overall_feedback', ''),
+            score=assessment.get('score', '0%')
         )
-        db.session.add(session)
+        db.session.add(new_report)
         db.session.commit()
     except:
-        assessment = {"score": "لم يتم التقييم", "overall_feedback": "حدث خطأ في معالجة النتائج."}
+        assessment = {"score": "0%", "overall_feedback": "فشل في توليد التقرير"}
 
     return jsonify(assessment)
