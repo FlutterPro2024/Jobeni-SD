@@ -14,14 +14,47 @@
     --shadow-md: 0 10px 30px rgba(0,0,0,0.08);
 }
 
-/* تحسين الخطوط العربية */
+/* تحسين الخطوط العربية ومنع لخبطة الرموز */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
     background-color: var(--bg-light);
     color: var(--text-dark);
-    line-height: 1.7; /* زيادة المسافة قليلاً للخط العربي */
+    line-height: 1.7;
     overflow-x: hidden;
-    text-align: right; /* ضمان الاتجاه الافتراضي */
+    text-align: right;
+    direction: rtl;
+    /* الخاصية السحرية لمنع لخبطة الداشات والرموز التقنية */
+    unicode-bidi: plaintext;
+}
+
+/* حل مشكلة الداشات والرموز في المحادثة والفقرات */
+p, .card-body, .message-content {
+    unicode-bidi: plaintext;
+    text-align: right;
+    word-wrap: break-word;
+}
+
+/* تنسيق القوائم (النصائح) بدلاً من الداشات العشوائية */
+ul {
+    list-style: none;
+    padding-right: 1.2rem;
+    padding-left: 0;
+}
+
+ul li {
+    position: relative;
+    margin-bottom: 10px;
+}
+
+/* استبدال الداشة بنقطة زرقاء احترافية */
+ul li::before {
+    content: "•";
+    color: var(--primary-color);
+    font-weight: bold;
+    display: inline-block;
+    width: 1em;
+    margin-right: -1.2rem;
+    position: absolute;
 }
 
 /* --- تنسيق قسم الهيرو (Hero Section) --- */
@@ -45,7 +78,7 @@ body {
 /* --- بطاقات الوظائف (Cards) --- */
 .card {
     border: none !important;
-    border-radius: 24px !important; /* زوايا أكثر نعومة */
+    border-radius: 24px !important;
     box-shadow: var(--shadow-sm);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -59,9 +92,10 @@ body {
 .form-control, .form-select {
     padding: 14px 20px;
     border-radius: 16px !important;
-    border: 2px solid transparent; /* لجعل التركيز أجمل */
+    border: 2px solid transparent;
     background-color: #f0f3f9;
     transition: all 0.3s ease;
+    text-align: right;
 }
 
 .form-control:focus {
@@ -84,42 +118,11 @@ body {
     box-shadow: 0 4px 15px rgba(13, 110, 253, 0.25);
 }
 
-.btn-lg {
-    padding: 16px 35px;
-}
-
 /* --- الموبايل (Responsive Design) --- */
 @media (max-width: 768px) {
-    .hero {
-        padding: 60px 0;
-        border-radius: 0 0 30px 30px;
-        text-align: center;
-    }
-    .hero h1 {
-        font-size: 2rem;
-        margin-bottom: 20px;
-    }
-    .btn {
-        width: 100%; /* أزرار كاملة العرض في الموبايل لسهولة الضغط */
-        margin-bottom: 10px;
-    }
-    /* منع تداخل العناصر في الـ Dashboard */
-    .icon-box {
-        margin: 0 auto 15px auto;
-    }
-}
-
-/* --- عناصر جمالية إضافية --- */
-.glass-effect {
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.badge-ats {
-    background: var(--gradient-dark);
-    color: var(--accent-color);
-    border: 1px solid rgba(255, 193, 7, 0.3);
+    .hero { padding: 60px 0; border-radius: 0 0 30px 30px; text-align: center; }
+    .hero h1 { font-size: 2rem; margin-bottom: 20px; }
+    .btn { width: 100%; margin-bottom: 10px; }
 }
 
 /* تحسين عرض الأيقونات في RTL */
