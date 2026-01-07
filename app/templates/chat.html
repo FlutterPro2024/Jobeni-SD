@@ -7,10 +7,11 @@
 <div class="container py-4 text-end" dir="rtl">
     <div class="row justify-content-center">
         <div class="col-lg-8">
-            <div class="card border-0 shadow-lg rounded-4 overflow-hidden" style="background: #f8fafc; height: 80vh;">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden" style="background: #f8fafc; height: 80vh; display: flex; flex-direction: column;">
+                
                 <div class="card-header bg-white border-0 py-3 shadow-sm d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
-                        <div class="{% if is_ai_agent %}bg-info{% else %}bg-primary{% endif %} text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 45px; height: 45px; margin-left: 10px;">
+                        <div class="{% if is_ai_agent %}bg-info{% else %}bg-primary{% endif %} text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px; margin-left: 15px;">
                             {% if is_ai_agent %}
                                 <i class="fas fa-robot"></i>
                             {% else %}
@@ -37,11 +38,11 @@
 
                 <div class="card-body overflow-auto p-4" id="chatWindow" style="flex: 1; background: #eef2f7;">
                     {% for msg in messages %}
-                        <div class="d-flex mb-3 {% if msg.sender_id == current_user.id %}justify-content-start flex-row-reverse{% else %}justify-content-start{% endif %}">
-
+                        <div class="d-flex mb-4 {% if msg.sender_id == current_user.id %}justify-content-start flex-row-reverse{% else %}justify-content-start{% endif %}">
+                            
                             {% if msg.sender_id == 0 %}
-                                <div class="bg-info text-white rounded-circle d-flex align-items-center justify-content-center me-2 shadow-sm" style="width: 30px; height: 30px; min-width: 30px;">
-                                    <i class="fas fa-robot" style="font-size: 0.8rem;"></i>
+                                <div class="bg-info text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 35px; height: 35px; min-width: 35px; margin-left: 10px;">
+                                    <i class="fas fa-robot" style="font-size: 0.9rem;"></i>
                                 </div>
                             {% endif %}
 
@@ -53,40 +54,32 @@
                                 {% else %}
                                     bg-white text-dark me-2
                                 {% endif %}"
-                                 style="max-width: 80%; border-radius: 18px; line-height: 1.6;">
+                                 style="max-width: 85%; border-radius: 20px; position: relative;">
 
-                                <div class="message-content small">
+                                <div class="message-content">
                                     {% if msg.sender_id == 0 %}
-                                        {# استخدام striptags لإزالة أي أكواد خفية واستبدال الرموز المزعجة #}
                                         <div class="ai-response-text">
-                                            {{ msg.body | striptags 
-                                                        | replace('**', '')
-                                                        | replace('###', '')
-                                                        | replace('[OUT]', '')
-                                                        | replace('[/OUT]', '')
-                                                        | replace('- ', '• ')
-                                                        | replace('\n', '<br>') | safe }}
+                                            {# عرض النص كما هو مع تحويل الأسطر الجديدة لضمان ظهور تنسيق Markdown المترجم #}
+                                            {{ msg.body | replace('\n', '<br>') | safe }}
                                         </div>
                                     {% else %}
                                         {{ msg.body | replace('\n', '<br>') | safe }}
                                     {% endif %}
                                 </div>
 
-                                <div class="text-start mt-2" style="font-size: 0.65rem; opacity: 0.7;">
-                                    {{ msg.timestamp.strftime('%H:%M') }}
+                                <div class="text-start mt-2" style="font-size: 0.7rem; opacity: 0.6;">
+                                    {{ msg.timestamp.strftime('%I:%M %p') }}
                                 </div>
                             </div>
                         </div>
                     {% else %}
-                        <div class="text-center py-5">
-                            <div class="mb-3">
-                                <i class="fas {% if is_ai_agent %}fa-robot{% else %}fa-comments{% endif %} fa-3x text-muted opacity-25"></i>
-                            </div>
-                            <p class="text-muted small">
+                        <div class="text-center py-5 mt-5">
+                            <i class="fas {% if is_ai_agent %}fa-robot{% else %}fa-comments{% endif %} fa-4x text-muted opacity-25 mb-3"></i>
+                            <p class="text-muted">
                                 {% if is_ai_agent %}
-                                    أهلاً بك! أنا مستشارك العالمي. اسألني عن الفرص الدولية، العمل عن بعد، أو تحليل مهاراتك.
+                                    مرحباً بك يا {current_user.username}! أنا جاهز لتحليل مسارك المهني. اسألني أي سؤال.
                                 {% else %}
-                                    ابدأ المحادثة الآن..
+                                    لا توجد رسائل بعد.. ابدأ المحادثة الآن.
                                 {% endif %}
                             </p>
                         </div>
@@ -98,7 +91,7 @@
                         <input type="text" name="message" class="form-control rounded-pill border-2 bg-light px-4 shadow-none"
                                placeholder="{% if is_ai_agent %}اسأل الوكيل الذكي...{% else %}اكتب رسالتك هنا...{% endif %}"
                                required autocomplete="off">
-                        <button type="submit" class="btn {% if is_ai_agent %}btn-info{% else %}btn-primary{% endif %} rounded-circle d-flex align-items-center justify-content-center shadow" style="width: 45px; height: 45px; min-width: 45px;">
+                        <button type="submit" class="btn {% if is_ai_agent %}btn-info{% else %}btn-primary{% endif %} rounded-circle d-flex align-items-center justify-content-center shadow" style="width: 50px; height: 50px; min-width: 50px;">
                             <i class="fas fa-paper-plane text-white"></i>
                         </button>
                     </form>
@@ -109,39 +102,48 @@
 </div>
 
 <script>
+    // التمرير التلقائي لأسفل الدردشة
     var chatWindow = document.getElementById("chatWindow");
     chatWindow.scrollTop = chatWindow.scrollHeight;
 
+    // منع إعادة إرسال النموذج عند تحديث الصفحة
     if ( window.history.replaceState ) {
         window.history.replaceState( null, null, window.location.href );
     }
 </script>
 
 <style>
-    #chatWindow::-webkit-scrollbar { width: 5px; }
+    #chatWindow::-webkit-scrollbar { width: 6px; }
     #chatWindow::-webkit-scrollbar-track { background: transparent; }
     #chatWindow::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-
-    .bg-primary { background: linear-gradient(135deg, #2563eb, #1e40af) !important; }
-    .bg-info { background: linear-gradient(135deg, #0dcaf0, #0aa2bd) !important; }
+    
+    .bg-primary { background: linear-gradient(135deg, #1e40af, #2563eb) !important; }
+    .bg-info { background: linear-gradient(135deg, #0891b2, #0dcaf0) !important; }
 
     .message-content {
         word-wrap: break-word;
         white-space: normal !important;
-        font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif !important;
-        text-align: right;
+        font-size: 0.95rem;
+        line-height: 1.6;
     }
 
     .ai-response-text {
-        line-height: 1.8;
+        color: #1e293b;
+    }
+
+    /* تحسين شكل القوائم في رد الـ AI */
+    .ai-response-text br + br {
         display: block;
+        content: "";
+        margin-top: 10px;
     }
 
     .d-flex {
-        animation: fadeIn 0.3s ease-in-out;
+        animation: fadeIn 0.4s ease-out;
     }
+
     @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(5px); }
+        from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
     }
 </style>

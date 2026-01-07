@@ -3,7 +3,8 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from app.models import Message, User, Job, CV, db
 from app.telegram_bot import notify_new_message
-from app.agent_worker import JobeniAgent # استيراد الوكيل الذكي
+# استيراد محرك OpenRouter المطور مباشرة
+from app.openrouter_ai import openrouter_ai 
 
 chat_bp = Blueprint('chat', __name__)
 
@@ -14,7 +15,7 @@ def open_chat(job_id, recipient_id):
     is_ai_agent = (recipient_id == 0)
 
     if is_ai_agent:
-        recipient = User(id=0, username="ai_assistant", full_name="الوكيل الذكي 🤖")
+        recipient = User(id=0, username="ai_assistant", full_name="مساعد جوبيني الذكي 🤖")
         job = None
     else:
         job = Job.query.get(job_id) if job_id != 0 else None
@@ -32,37 +33,48 @@ def open_chat(job_id, recipient_id):
                     body=body
                 )
                 db.session.add(new_msg)
-                db.session.commit() # حفظ رسالة المستخدم أولاً
+                db.session.commit()
 
                 # 2. إذا كانت الدردشة مع الوكيل الذكي (AI)
                 if is_ai_agent:
-                    # جلب السيرة الذاتية للمستخدم
+                    # جلب السيرة الذاتية للمستخدم ليعرف المساعد مع من يتحدث
                     user_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
-                    # ملاحظة: نستخدم extracted_text كما هو في موديل CV الخاص بك
-                    cv_text = user_cv.extracted_text if user_cv else ""
+                    cv_text = user_cv.extracted_text if user_cv else "لا توجد سيرة ذاتية مرفوعة حالياً."
+                    user_profession = user_cv.profession if user_cv else "باحث عن عمل"
 
-                    # استدعاء رد الوكيل
-                    agent = JobeniAgent(user_cv_text=cv_text)
-                    ai_response = agent.get_career_advice(body, cv_text)
+                    # بناء "برومبت المستشار الخبير"
+                    system_context = (
+                        f"أنت الآن 'مساعد جوبيني الذكي'، مستشار مهني خبير في سوق العمل السوداني والعالمي. "
+                        f"تتحدث مع المستخدم: {current_user.full_name or current_user.username}. "
+                        f"تخصصه: {user_profession}. "
+                        f"سيرته الذاتية المختصرة: {cv_text[:1000]}. "
+                        "\nقواعدك الصارمة:\n"
+                        "1. ردودك يجب أن تكون ذكية، مهنية، ومبنية على بيانات حقيقية.\n"
+                        "2. ممنوع الهلوسة أو الكلام عن مواضيع خارج السياق المهني (مثل الزراعة أو المبيدات إلا لو كان المستخدم مهندس زراعي).\n"
+                        "3. قدم نصائح عن الـ Remote Work، شركات الخليج، وكيفية تطوير مهارات الـ AI والبرمجيات.\n"
+                        "4. استخدم لغة عربية بيضاء واضحة ومحفزة."
+                    )
 
-                    # محاولة حفظ رد الوكيل
-                    try:
-                        ai_msg = Message(
-                            sender_id=0,
-                            recipient_id=current_user.id,
-                            job_id=None,
-                            body=ai_response,
-                            is_read=True
-                        )
-                        db.session.add(ai_msg)
-                        db.session.commit()
-                    except Exception as e:
-                        db.session.rollback()
-                        # إذا فشل الحفظ في القاعدة بسبب القيود، نرسل الرد عبر Flash للعرض المؤقت
-                        flash(ai_response, 'ai_response')
-                
+                    # استدعاء المحرك الجديد (الـ 23 نموذج)
+                    full_prompt = f"{system_context}\n\nسؤال المستخدم: {body}"
+                    ai_response = openrouter_ai._call_ai(full_prompt, temperature=0.7)
+
+                    if not ai_response:
+                        ai_response = "عذراً يا هندسة، حصل ضغط على السيرفر. ممكن تسألني تاني؟"
+
+                    # حفظ رد الوكيل في قاعدة البيانات
+                    ai_msg = Message(
+                        sender_id=0,
+                        recipient_id=current_user.id,
+                        job_id=None,
+                        body=ai_response,
+                        is_read=True
+                    )
+                    db.session.add(ai_msg)
+                    db.session.commit()
+
                 else:
-                    # 3. دردشة عادية
+                    # 3. دردشة عادية بين أشخاص
                     if recipient.telegram_id:
                         notify_new_message(
                             recipient.telegram_id,
@@ -72,7 +84,7 @@ def open_chat(job_id, recipient_id):
                         )
             except Exception as e:
                 db.session.rollback()
-                flash(f"حدث خطأ في الإرسال: {str(e)}", "danger")
+                flash(f"حدث خطأ: {str(e)}", "danger")
 
             return redirect(url_for('chat.open_chat', job_id=job_id, recipient_id=recipient_id))
 
