@@ -8,14 +8,31 @@ class OpenRouterAI:
     def __init__(self):
         self.api_key = os.getenv("OPENROUTER_API_KEY")
         self.url = "https://openrouter.ai/api/v1/chat/completions"
-        # ترتيب النماذج: الأسرع والأفضل أولاً لضمان الرد قبل توقيت السيرفر (Timeout)
+        # قائمة شاملة بـ 20 نموذج أو أكثر (مرتبة من الأحدث والأقوى مجانياً للأسرع)
         self.models = [
-            "google/gemini-2.0-flash-001",
+            "google/gemini-2.0-flash-001", 
             "google/gemini-2.0-flash-exp:free",
+            "google/gemini-flash-1.5-8b",
             "mistralai/mistral-7b-instruct:free",
             "microsoft/phi-3-mini-128k-instruct:free",
+            "microsoft/phi-3-medium-128k-instruct:free",
             "open-theory/gryphe-mythomax-l2-13b:free",
-            "huggingfaceh4/zephyr-7b-beta:free"
+            "huggingfaceh4/zephyr-7b-beta:free",
+            "meta-llama/llama-3.1-8b-instruct:free",
+            "meta-llama/llama-3-8b-instruct:free",
+            "qwen/qwen-2-7b-instruct:free",
+            "qwen/qwen-2.5-72b-instruct",
+            "01-ai/yi-large",
+            "gryphe/mythomax-l2-13b",
+            "undi95/toppy-m-7b:free",
+            "cognitivecomputations/dolphin-mixtral-8x7b",
+            "perplexity/llama-3-sonar-small-32k-chat",
+            "nousresearch/hermes-3-llama-3.1-8b",
+            "liquid/lfm-40b:free",
+            "sophosympatheia/rogue-rose-103b-v0.2:free",
+            "nvidia/llama-3.1-nemotron-70b-instruct:free",
+            "inflection/inflection-3-pi",
+            "deepseek/deepseek-chat"
         ]
 
     def _call_ai(self, prompt, temperature=0.3):
@@ -32,9 +49,9 @@ class OpenRouterAI:
                     "model": model,
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": temperature,
-                    "max_tokens": 800
+                    "max_tokens": 2500  # رفعنا القيمة لضمان عدم قص السيرة الذاتية
                 }
-                res = requests.post(self.url.strip(), headers=headers, json=payload, timeout=15)
+                res = requests.post(self.url.strip(), headers=headers, json=payload, timeout=20)
                 if res.status_code == 200:
                     return res.json()['choices'][0]['message']['content']
                 continue
@@ -51,10 +68,10 @@ class OpenRouterAI:
         prompt = f"""
         Act as a Senior HR Recruiter. Analyze the provided CV text deeply.
         Understand the professional identity and core skills automatically.
-        
+
         Return ONLY a valid JSON:
         {{"skills": ["Skill1", "Skill2", "Skill3"], "profession": "Job Title", "overall_score": 85, "feedback": "Arabic Advice"}}
-        
+
         CV Text: {cv_text[:2500]}
         """
         content = self._call_ai(prompt, temperature=0.2)
@@ -64,7 +81,7 @@ class OpenRouterAI:
                 clean = re.search(r'\{.*\}', content.replace("```json", "").replace("```", ""), re.DOTALL)
                 if clean:
                     return json.loads(clean.group())
-            except: 
+            except:
                 pass
 
         # --- نظام الطوارئ الذكي (Fallback) في حال فشل الـ AI ---
@@ -73,7 +90,7 @@ class OpenRouterAI:
     def _smart_internal_analysis(self, text):
         """تحليل برمجي داخلي لاستخراج البيانات عند ضغط النماذج"""
         text_lower = text.lower()
-        
+
         # قاموس المهن الذكي
         professions_map = {
             "telecommunication": "مهندس اتصالات",
@@ -86,17 +103,17 @@ class OpenRouterAI:
             "marketing": "متخصص تسويق",
             "ai": "مهندس ذكاء اصطناعي"
         }
-        
+
         found_prof = "متخصص"
         for key, val in professions_map.items():
             if key in text_lower:
                 found_prof = val
                 break
-        
+
         # قائمة مهارات عامة لاستخراجها برمجياً
         potential_skills = ["python", "java", "management", "communication", "leadership", "sql", "cloud", "frontend", "backend", "analysis"]
         extracted_skills = [s.capitalize() for s in potential_skills if s in text_lower]
-        
+
         if not extracted_skills:
             extracted_skills = ["تحليل عام"]
 
@@ -122,7 +139,7 @@ class OpenRouterAI:
                 if clean:
                     data = json.loads(clean.group())
                     return int(data.get('score', 0)), data.get('reason', 'تمت المطابقة بنجاح.')
-            except: 
+            except:
                 pass
 
         # نظام طوارئ يدوي للمطابقة
@@ -132,9 +149,22 @@ class OpenRouterAI:
         manual_score = min(len(common) * 4, 50)
         return manual_score, "تحليل تقريبي (خوارزمية المطابقة السريعة)."
 
-    def generate_improved_text(self, prompt):
-        """توليد نصوص محسنة (مثل أسئلة المقابلة)"""
-        return self._call_ai(prompt, temperature=0.7)
+    def generate_improved_text(self, cv_content):
+        """توليد نصوص محسنة (إعادة صياغة السيرة الذاتية بالكامل فل الفل)"""
+        # جعل البرومبت ذكي جداً ليعيد كتابة السيرة بالكامل وليس تلخيصها
+        full_prompt = f"""
+        Act as a Professional Resume Expert. Re-write the following resume text into a HIGH-QUALITY, DETAILED, and ATS-FRIENDLY version.
+        
+        RULES:
+        1. DO NOT SUMMARIZE. Expand on the experience and skills.
+        2. Use professional headers (Summary, Experience, Skills, Education).
+        3. Make it comprehensive and long enough to fill a professional CV.
+        4. Language: English.
+        
+        Text to improve:
+        {cv_content}
+        """
+        return self._call_ai(full_prompt, temperature=0.7)
 
 # تصدير الدوال للاستخدام المباشر
 openrouter_ai = OpenRouterAI()
