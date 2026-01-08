@@ -8,8 +8,8 @@
   ],
   "routes": [
     {
-      "src": "/run-jobs-agent",
-      "dest": "run.py"
+      "src": "/static/(.*)",
+      "dest": "/app/static/$1"
     },
     {
       "src": "/(.*)",
