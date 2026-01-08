@@ -5,7 +5,7 @@ from sqlalchemy import text
 import os
 import json
 from app.openrouter_ai import openrouter_ai
-from app.notifications import add_notification # إضافة الإشعارات
+from app.notifications import add_notification 
 
 agent_bp = Blueprint('agent', __name__)
 
@@ -15,38 +15,42 @@ class JobeniAgent:
 
     @staticmethod
     def get_career_advice(query, cv_text=None):
+        """مستشار مهني ذكي يستخدم الـ Fallback System"""
         prompt = f"""
-        بصفتك 'مساعد جوبيني الذكي'، خبير الموارد البشرية (HR) العالمي:
+        بصفتك 'مساعد جوبيني الذكي'، خبير الموارد البشرية العالمي:
         المستخدم يسأل: "{query}"
         السياق (سيرة المستخدم): {cv_text if cv_text else "لا توجد سيرة حالياً."}
 
         المطلوب:
-        1. رد مهني مباشر باللهجة السودانية المهذبة أو لغة عربية بيضاء.
-        2. قدم حلولاً لـ (العمل عن بعد، السوق المحلي، والخليج).
-        3. لا تتحدث أبداً في مواضيع خارج المسار المهني.
+        1. رد مهني مباشر بلغة عربية بيضاء مفهومة.
+        2. استخدم النقاط (•) بدلاً من الداشات (-) في أي قائمة.
+        3. قدم حلولاً عملية (العمل عن بعد، الخليج، والسوق المحلي).
         """
-        return openrouter_ai._call_ai(prompt, temperature=0.7)
+        return openrouter_ai.get_ai_response(prompt, temperature=0.7)
 
     @staticmethod
     def calculate_match_percentage(cv_text, job_title, company):
+        """مطابقة ذكية للوظائف مع تجنب لخبطة الاتجاهات"""
         prompt = f"""
-        بصفتك ATS Analyzer خبير، قارن السيرة الذاتية مع الوظيفة.
-        الوظيفة: {job_title} | الشركة: {company} | السيرة: {cv_text[:2000]}
-
-        أعطني النتيجة بتنسيق JSON حصراً كالتالي:
+        Compare CV with Job.
+        Job: {job_title} | Company: {company}
+        Return ONLY a JSON object:
         {{
-            "percentage": (رقم من 0 لـ 100),
-            "missing": "أهم مهارة تقنية ناقصة فقط",
-            "action": "نصيحة مهنية قصيرة جداً"
+            "percentage": (0-100),
+            "missing": "Short missing skill with •",
+            "action": "Short advice with •"
         }}
+        CV: {cv_text[:2000]}
         """
-        raw_response = openrouter_ai._call_ai(prompt, temperature=0.3)
+        raw_response = openrouter_ai.get_ai_response(prompt, temperature=0.2)
         try:
+            # استخراج الـ JSON بدقة
             start = raw_response.find('{')
             end = raw_response.rfind('}') + 1
-            return json.loads(raw_response[start:end])
+            data = json.loads(raw_response[start:end])
+            return data
         except:
-            return {"percentage": 50, "missing": "تحليل جارٍ", "action": "حدث سيرتك لمطابقة أدق"}
+            return {"percentage": 50, "missing": "• مهارات تقنية متقدمة", "action": "• حدث سيرتك لمطابقة أدق"}
 
 @agent_bp.route('/run-jobs-agent')
 def run_agent():
@@ -54,7 +58,7 @@ def run_agent():
     from app.serper_search import serper_searcher
     from app.telegram_bot import send_message
 
-    # صيانة قاعدة البيانات
+    # صيانة وتحديث جداول قاعدة البيانات (لضمان عمل الوكيل)
     try:
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_enabled BOOLEAN DEFAULT FALSE'))
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_query VARCHAR(255)'))
@@ -64,29 +68,33 @@ def run_agent():
         db.session.rollback()
 
     try:
+        # جلب المستخدمين الذين فعلوا "قناص الوظائف"
         users = User.query.filter_by(agent_enabled=True).all()
         if not users:
             return "No active agents found", 200
 
         for user in users:
             cv = CV.query.filter_by(user_id=user.id).order_by(CV.created_at.desc()).first()
+            # استخدام استعلام المستخدم أو تخصص السي في ككلمة بحث
             query = user.agent_query or (cv.profession if cv else "وظائف تكنولوجية")
 
+            # البحث عن وظائف عبر Serper
             results = serper_searcher.search_jobs(query)
-            jobs = results.get('jobs', [])[:3]
+            jobs = results.get('jobs', [])[:3] # نأخذ أفضل 3 نتائج لضمان جودة التحليل
 
             if jobs:
-                # 1. إرسال إشعار الجرس (Dashboard Notification)
+                # 1. إشعار في لوحة تحكم المنصة
                 add_notification(
                     user.id,
-                    "قناص جوبيني لقى ليك وظيفة! 🔥",
-                    f"تم العثور على {len(jobs)} وظائف جديدة في مجال {query} تناسبك.",
+                    "🔥 قناص جوبيني وجد فرصاً جديدة!",
+                    f"لقد وجدنا {len(jobs)} وظائف في مجال {query} تطابق مهاراتك.",
                     "job_alert",
                     "/dashboard"
                 )
 
-                # 2. إرسال رسائل التلجرام
-                intro_msg = f"🎯 <b>قناص الوظائف الذكي - Jobeni</b>\nيا {user.username}، لقيت ليك فرص جديدة في مجال: <b>{query}</b>\n\n"
+                # 2. إرسال الرسائل إلى تلجرام بتنسيق RTL احترافي
+                rtl = "\u200f" # رمز إجبار الاتجاه من اليمين لليسار
+                intro_msg = f"{rtl}🎯 <b>قناص الوظائف الذكي - Jobeni</b>\n{rtl}يا {user.username}، لقيت ليك فرص جديدة في مجال: <b>{query}</b>\n\n"
                 send_message(user.telegram_id, intro_msg)
 
                 for j in jobs:
@@ -94,6 +102,7 @@ def run_agent():
                     company = j.get('company')
                     link = j.get('link')
 
+                    # تحليل المطابقة بالـ AI
                     match_data = {"percentage": 0, "missing": "غير متاح", "action": "تأكد من تحديث السي في"}
                     if cv and cv.extracted_text:
                         match_data = JobeniAgent.calculate_match_percentage(cv.extracted_text, title, company)
@@ -101,13 +110,27 @@ def run_agent():
                     p = match_data.get('percentage', 0)
                     score_emoji = "🔥" if p >= 80 else "✅" if p >= 50 else "⚠️"
 
-                    job_msg = f"📍 <b>{title}</b>\n🏢 <b>الشركة:</b> {company}\n📊 <b>المطابقة:</b> {p}% {score_emoji}\n"
+                    # بناء رسالة الوظيفة بتنسيق يمنع تداخل العربي والإنجليزي
+                    job_msg = (
+                        f"{rtl}📍 <b>{title}</b>\n"
+                        f"{rtl}🏢 <b>الشركة:</b> {company}\n"
+                        f"{rtl}📊 <b>المطابقة:</b> {p}% {score_emoji}\n"
+                    )
+                    
                     if p > 0:
-                        job_msg += f"💡 <b>ينقصك:</b> {match_data.get('missing')}\n🚀 <b>نصيحة:</b> {match_data.get('action')}\n"
+                        job_msg += f"{rtl}💡 <b>ينقصك:</b> {match_data.get('missing')}\n"
+                        job_msg += f"{rtl}🚀 <b>نصيحة:</b> {match_data.get('action')}\n"
 
-                    keyboard = {"inline_keyboard": [[{"text": "🔗 تقديم الآن", "url": link}, {"text": "🎙️ مقابلة تجريبية", "callback_data": f"start_int_{title[:20]}"}]]}
+                    # إضافة أزرار تفاعلية تحت كل وظيفة
+                    keyboard = {
+                        "inline_keyboard": [[
+                            {"text": "🔗 تقديم الآن", "url": link},
+                            {"text": "🎙️ مقابلة تجريبية", "callback_data": f"start_int_{user.id}"}
+                        ]]
+                    }
                     send_message(user.telegram_id, job_msg, reply_markup=keyboard)
 
+                # تحديث وقت آخر تشغيل للوكيل
                 user.last_agent_run = datetime.utcnow()
                 db.session.commit()
 

@@ -1,122 +1,26 @@
-/* --- الإعدادات العامة الفائقة لـ Jobeni SD --- */
-:root {
-    --primary-color: #0d6efd;
-    --primary-dark: #003399;
-    --accent-color: #ffc107;
-    --bg-light: #f4f7fe;
-    --text-dark: #212529;
-    --shadow-md: 0 10px 30px rgba(0,0,0,0.08);
-    --gradient-blue: linear-gradient(135deg, #0d6efd 0%, #003399 100%);
-}
-
-/* حل مشاكل الخطوط والاتجاهات نهائياً */
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, "Apple Color Emoji";
-    background-color: var(--bg-light);
-    color: var(--text-dark);
-    line-height: 1.8;
-    overflow-x: hidden;
-    text-align: right;
+/* حل مشكلة الداشات والرموز المقلوبة */
+.message-content, .ai-response-text {
     direction: rtl;
-    /* يمنع قلب الأرقام والداشات في النصوص المختلطة */
-    unicode-bidi: plaintext;
-    -webkit-font-smoothing: antialiased;
-}
-
-/* منع ظهور الداشات (Hyphens) العشوائية في نهاية الأسطر */
-* {
-    hyphens: none !important;
-    -webkit-hyphens: none !important;
-    -ms-hyphens: none !important;
-}
-
-/* معالجة فقرات المحادثة والنصوص */
-p, .card-body, .message-content, .feedback-text {
-    unicode-bidi: plaintext;
     text-align: right;
-    word-wrap: break-word;
+    unicode-bidi: plaintext; /* يحافظ على ترتيب الكلمات الإنجليزية داخل الجمل العربية */
 }
 
-/* تنسيق القوائم النقطية (النصائح المهنية) لمنع الداشات المقلوبة */
+/* تحويل القوائم إلى نقاط احترافية بدلاً من الداشات اللعينة */
 ul {
-    list-style: none;
-    padding-right: 1.5rem;
-    padding-left: 0;
+    list-style: none !important;
+    padding-right: 1.2rem !important;
 }
 
-ul li {
-    position: relative;
-    margin-bottom: 12px;
-    padding-right: 5px;
-}
-
-/* بديل ذكي للداشة يضمن عدم اللخبطة */
 ul li::before {
     content: "•";
-    color: var(--primary-color);
+    color: #0d6efd;
     font-weight: bold;
     display: inline-block;
     width: 1em;
-    margin-right: -1.5rem;
-    position: absolute;
-    font-size: 1.2rem;
+    margin-right: -1.2rem;
 }
 
-/* --- تحسين الهيرو وواجهة الجوال --- */
-.hero {
-    background: var(--gradient-blue);
-    color: white;
-    padding: 80px 0;
-    border-radius: 0 0 40px 40px;
-    box-shadow: 0 10px 30px rgba(13, 110, 253, 0.2);
+/* منع الـ Dash المتطايرة */
+* {
+    hyphens: none !important;
 }
-
-.card {
-    border: none !important;
-    border-radius: 20px !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-    transition: 0.3s;
-}
-
-.job-card:hover {
-    transform: translateY(-5px);
-    box-shadow: var(--shadow-md) !important;
-}
-
-/* مدخلات البيانات */
-.form-control {
-    padding: 12px 18px;
-    border-radius: 14px !important;
-    border: 2px solid #e9ecef;
-    background-color: #f8f9fa;
-    transition: 0.3s;
-}
-
-.form-control:focus {
-    border-color: var(--primary-color);
-    background-color: #fff;
-    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.1);
-}
-
-/* الأزرار */
-.btn-primary {
-    background: var(--gradient-blue);
-    border: none;
-    padding: 10px 24px;
-    font-weight: 600;
-}
-
-/* --- إعدادات الموبايل المتجاوبة --- */
-@media (max-width: 768px) {
-    body { padding-top: 70px; }
-    .hero { padding: 50px 0; border-radius: 0 0 25px 25px; }
-    .hero h1 { font-size: 1.8rem; }
-    .card-body { padding: 1.25rem !important; }
-    .btn { width: 100%; margin-bottom: 8px; }
-    .navbar-brand { font-size: 1.2rem; }
-}
-
-/* إصلاح أيقونات FontAwesome لتناسب RTL */
-.me-2 { margin-left: 0.5rem !important; margin-right: 0 !important; }
-.ms-2 { margin-right: 0.5rem !important; margin-left: 0 !important; }
-.me-1 { margin-left: 0.25rem !important; margin-right: 0 !important; }
