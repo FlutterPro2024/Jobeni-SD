@@ -7,11 +7,9 @@ from flask_login import LoginManager, current_user, login_required
 from flask_migrate import Migrate
 from flask_mail import Mail
 
-# إضافة المسار الرئيسي للمشروع لضمان وصول الاستيرادات
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import config
 
-# تعريف كائنات الإضافات
 db = SQLAlchemy()
 login_manager = LoginManager()
 migrate = Migrate()
@@ -20,7 +18,6 @@ mail = Mail()
 def create_app(config_name='default'):
     app = Flask(__name__)
 
-    # اختيار الإعدادات (Production في حال Vercel)
     if os.environ.get('VERCEL'):
         app.config.from_object(config['production'])
     else:
@@ -28,7 +25,6 @@ def create_app(config_name='default'):
 
     app.config['MAIL_DEFAULT_SENDER'] = app.config.get('MAIL_USERNAME')
 
-    # تهيئة الإضافات مع التطبيق
     db.init_app(app)
     login_manager.init_app(app)
     migrate.init_app(app, db)
@@ -46,10 +42,7 @@ def create_app(config_name='default'):
             return render_template('maintenance.html'), 503
 
     with app.app_context():
-        # استيراد الموديلات لضمان تسجيلها قبل إنشاء الجداول
         from app import models
-
-        # استيراد كافة الـ Blueprints
         from app.auth import auth_bp
         from app.cv import cv_bp
         from app.jobs import jobs_bp
@@ -59,9 +52,9 @@ def create_app(config_name='default'):
         from app.chat import chat_bp
         from app.applications import apps_bp
         from app.agent_worker import agent_bp
-        from app.interview import interview_bp # إضافة بلوبرينت المقابلات
+        from app.interview import interview_bp
+        from app.community import community_bp # استيراد الكومينتي
 
-        # تسجيل الـ Blueprints
         app.register_blueprint(auth_bp)
         app.register_blueprint(cv_bp)
         app.register_blueprint(jobs_bp)
@@ -71,12 +64,11 @@ def create_app(config_name='default'):
         app.register_blueprint(chat_bp)
         app.register_blueprint(apps_bp)
         app.register_blueprint(agent_bp)
-        app.register_blueprint(interview_bp) # تسجيل بلوبرينت المقابلات
+        app.register_blueprint(interview_bp)
+        app.register_blueprint(community_bp) # تسجيل الكومينتي
 
-        # محاولة إنشاء الجداول الجديدة (بما فيها الإشعارات والمقابلات)
         db.create_all()
 
-    # --- مسار تصفير الإشعارات (Mark as Read) ---
     @app.route('/notifications/mark-read', methods=['POST'])
     @login_required
     def mark_notifications_read():
@@ -89,14 +81,13 @@ def create_app(config_name='default'):
             db.session.rollback()
             return jsonify({'status': 'error', 'message': str(e)}), 500
 
-    # --- الرابط السري لتحديث قاعدة البيانات يدوياً في أي وقت ---
     @app.route('/force-db-update-2026')
     def force_db_update():
         try:
             with app.app_context():
                 from app import models
                 db.create_all()
-                return "✅ Database Tables (Notification & Reports) Created Successfully!", 200
+                return "✅ Database Updated Successfully!", 200
         except Exception as e:
             return f"❌ Migration Error: {str(e)}", 500
 
