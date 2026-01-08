@@ -1,130 +1,122 @@
-/* --- الإعدادات العامة للمنصة --- */
+/* --- الإعدادات العامة الفائقة لـ Jobeni SD --- */
 :root {
     --primary-color: #0d6efd;
     --primary-dark: #003399;
     --accent-color: #ffc107;
     --bg-light: #f4f7fe;
-    --text-dark: #2d3436;
-    --soft-blue: #eef4ff;
-    --soft-red: #ffe5e5;
-    --soft-success: #e6f9ed;
-    --gradient-blue: linear-gradient(135deg, #0d6efd 0%, #003399 100%);
-    --gradient-dark: linear-gradient(135deg, #2d3436 0%, #000000 100%);
-    --shadow-sm: 0 5px 15px rgba(0,0,0,0.05);
+    --text-dark: #212529;
     --shadow-md: 0 10px 30px rgba(0,0,0,0.08);
+    --gradient-blue: linear-gradient(135deg, #0d6efd 0%, #003399 100%);
 }
 
-/* تحسين الخطوط العربية ومنع لخبطة الرموز */
+/* حل مشاكل الخطوط والاتجاهات نهائياً */
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, "Apple Color Emoji";
     background-color: var(--bg-light);
     color: var(--text-dark);
-    line-height: 1.7;
+    line-height: 1.8;
     overflow-x: hidden;
     text-align: right;
     direction: rtl;
-    /* الخاصية السحرية لمنع لخبطة الداشات والرموز التقنية */
+    /* يمنع قلب الأرقام والداشات في النصوص المختلطة */
     unicode-bidi: plaintext;
+    -webkit-font-smoothing: antialiased;
 }
 
-/* حل مشكلة الداشات والرموز في المحادثة والفقرات */
-p, .card-body, .message-content {
+/* منع ظهور الداشات (Hyphens) العشوائية في نهاية الأسطر */
+* {
+    hyphens: none !important;
+    -webkit-hyphens: none !important;
+    -ms-hyphens: none !important;
+}
+
+/* معالجة فقرات المحادثة والنصوص */
+p, .card-body, .message-content, .feedback-text {
     unicode-bidi: plaintext;
     text-align: right;
     word-wrap: break-word;
 }
 
-/* تنسيق القوائم (النصائح) بدلاً من الداشات العشوائية */
+/* تنسيق القوائم النقطية (النصائح المهنية) لمنع الداشات المقلوبة */
 ul {
     list-style: none;
-    padding-right: 1.2rem;
+    padding-right: 1.5rem;
     padding-left: 0;
 }
 
 ul li {
     position: relative;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
+    padding-right: 5px;
 }
 
-/* استبدال الداشة بنقطة زرقاء احترافية */
+/* بديل ذكي للداشة يضمن عدم اللخبطة */
 ul li::before {
     content: "•";
     color: var(--primary-color);
     font-weight: bold;
     display: inline-block;
     width: 1em;
-    margin-right: -1.2rem;
+    margin-right: -1.5rem;
     position: absolute;
+    font-size: 1.2rem;
 }
 
-/* --- تنسيق قسم الهيرو (Hero Section) --- */
+/* --- تحسين الهيرو وواجهة الجوال --- */
 .hero {
     background: var(--gradient-blue);
     color: white;
-    padding: 100px 0;
-    border-radius: 0 0 50px 50px;
-    margin-bottom: 40px;
-    position: relative;
-    box-shadow: 0 10px 30px rgba(13, 110, 253, 0.15);
+    padding: 80px 0;
+    border-radius: 0 0 40px 40px;
+    box-shadow: 0 10px 30px rgba(13, 110, 253, 0.2);
 }
 
-.hero h1 {
-    font-size: 3rem;
-    font-weight: 800;
-    line-height: 1.3;
-    text-shadow: 0 4px 10px rgba(0,0,0,0.1);
-}
-
-/* --- بطاقات الوظائف (Cards) --- */
 .card {
     border: none !important;
-    border-radius: 24px !important;
-    box-shadow: var(--shadow-sm);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 20px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    transition: 0.3s;
 }
 
 .job-card:hover {
-    transform: translateY(-10px);
+    transform: translateY(-5px);
     box-shadow: var(--shadow-md) !important;
 }
 
-/* --- الحقول والنماذج (Forms) --- */
-.form-control, .form-select {
-    padding: 14px 20px;
-    border-radius: 16px !important;
-    border: 2px solid transparent;
-    background-color: #f0f3f9;
-    transition: all 0.3s ease;
-    text-align: right;
+/* مدخلات البيانات */
+.form-control {
+    padding: 12px 18px;
+    border-radius: 14px !important;
+    border: 2px solid #e9ecef;
+    background-color: #f8f9fa;
+    transition: 0.3s;
 }
 
 .form-control:focus {
-    background-color: #fff !important;
-    border-color: var(--primary-color) !important;
-    box-shadow: 0 8px 20px rgba(13, 110, 253, 0.1) !important;
+    border-color: var(--primary-color);
+    background-color: #fff;
+    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.1);
 }
 
-/* --- الأزرار (Buttons) --- */
-.btn {
-    padding: 12px 28px;
-    border-radius: 18px;
-    font-weight: 600;
-    transition: all 0.3s ease;
-}
-
+/* الأزرار */
 .btn-primary {
     background: var(--gradient-blue);
     border: none;
-    box-shadow: 0 4px 15px rgba(13, 110, 253, 0.25);
+    padding: 10px 24px;
+    font-weight: 600;
 }
 
-/* --- الموبايل (Responsive Design) --- */
+/* --- إعدادات الموبايل المتجاوبة --- */
 @media (max-width: 768px) {
-    .hero { padding: 60px 0; border-radius: 0 0 30px 30px; text-align: center; }
-    .hero h1 { font-size: 2rem; margin-bottom: 20px; }
-    .btn { width: 100%; margin-bottom: 10px; }
+    body { padding-top: 70px; }
+    .hero { padding: 50px 0; border-radius: 0 0 25px 25px; }
+    .hero h1 { font-size: 1.8rem; }
+    .card-body { padding: 1.25rem !important; }
+    .btn { width: 100%; margin-bottom: 8px; }
+    .navbar-brand { font-size: 1.2rem; }
 }
 
-/* تحسين عرض الأيقونات في RTL */
-[dir="rtl"] .me-2 { margin-left: 0.5rem !important; margin-right: 0 !important; }
-[dir="rtl"] .ms-2 { margin-right: 0.5rem !important; margin-left: 0 !important; }
+/* إصلاح أيقونات FontAwesome لتناسب RTL */
+.me-2 { margin-left: 0.5rem !important; margin-right: 0 !important; }
+.ms-2 { margin-right: 0.5rem !important; margin-left: 0 !important; }
+.me-1 { margin-left: 0.25rem !important; margin-right: 0 !important; }

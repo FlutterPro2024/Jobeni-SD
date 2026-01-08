@@ -15,7 +15,7 @@
 
     <style>
         :root { --gradient-blue: linear-gradient(135deg, #0d6efd 0%, #0dcaf0 100%); }
-        body { padding-top: 85px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; }
+        body { padding-top: 85px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; unicode-bidi: plaintext; }
         .logo-container { display: flex; align-items: center; text-decoration: none !important; }
         .logo-icon {
             background: var(--gradient-blue); color: white; width: 40px; height: 40px;
@@ -30,11 +30,10 @@
         .nav-link { font-weight: 500; color: rgba(255,255,255,0.85) !important; }
         .nav-link:hover { color: #0dcaf0 !important; }
         .footer { background: #1a1d20; color: rgba(255,255,255,0.6); padding: 40px 0; margin-top: 80px; }
-
-        .notification-badge { padding: 4px 6px; font-size: 0.65rem; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { transform: translate(-50%, -50%) scale(1); } 50% { transform: translate(-50%, -50%) scale(1.2); } 100% { transform: translate(-50%, -50%) scale(1); } }
+        
+        .notification-badge { padding: 4px 6px; font-size: 0.65rem; animation: pulse 2s infinite; top: 5px !important; right: 5px !important; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
         .bg-unread { background-color: #f0f7ff !important; }
-        .notif-icon-circle { width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         
         #install-banner {
             display: none; position: fixed; bottom: 20px; left: 20px; right: 20px;
@@ -43,6 +42,9 @@
             border: 1px solid rgba(13, 110, 253, 0.2); animation: slideUp 0.5s ease-out;
         }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        
+        /* معالجة العلم السوداني لمنع الداشات */
+        .flag-icon { display: inline-block; direction: ltr; unicode-bidi: isolate; }
     </style>
 </head>
 <body>
@@ -62,61 +64,59 @@
         </div>
     </div>
 
-    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top shadow-sm">
         <div class="container">
             <a class="logo-container" href="{{ url_for('auth.index') }}">
                 <div class="logo-icon">J</div>
                 <span class="logo-text">Jobeni SD</span>
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto align-items-center text-end">
-                    <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('jobs.jobs_list') }}"><i class="fas fa-briefcase me-1"></i> الوظائف</a></li>
+                <ul class="navbar-nav ms-auto align-items-center text-end mt-3 mt-lg-0">
+                    <li class="nav-item w-100 w-lg-auto"><a class="nav-link px-3" href="{{ url_for('jobs.jobs_list') }}"><i class="fas fa-briefcase me-1"></i> الوظائف</a></li>
                     {% if current_user.is_authenticated %}
-                        <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('auth.dashboard') }}"><i class="fas fa-columns me-1"></i> لوحة التحكم</a></li>
+                        <li class="nav-item w-100 w-lg-auto"><a class="nav-link px-3" href="{{ url_for('auth.dashboard') }}"><i class="fas fa-columns me-1"></i> لوحة التحكم</a></li>
 
-                        <li class="nav-item dropdown px-2">
-                            <a class="nav-link position-relative" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown">
+                        <li class="nav-item dropdown px-2 w-100 w-lg-auto">
+                            <a class="nav-link position-relative d-inline-block" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown">
                                 <i class="fas fa-bell fs-5"></i>
                                 {% set unread_count = current_user.notifications|selectattr('is_read', 'equalto', False)|list|length %}
                                 {% if unread_count > 0 %}
-                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-circle bg-danger border border-light notification-badge">
+                                    <span class="position-absolute badge rounded-circle bg-danger border border-light notification-badge">
                                         {{ unread_count }}
                                     </span>
                                 {% endif %}
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 py-0 overflow-hidden text-end" style="width: 300px; max-height: 400px; overflow-y: auto;">
-                                <li class="p-3 border-bottom bg-light d-flex justify-content-between">
-                                    <span class="badge bg-primary">{{ unread_count }} جديدة</span>
-                                    <h6 class="mb-0 fw-bold">الإشعارات</h6>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 py-0 overflow-hidden text-end mt-2" style="min-width: 280px; max-height: 400px; overflow-y: auto;">
+                                <li class="p-3 border-bottom bg-light d-flex justify-content-between align-items-center">
+                                    <span class="badge bg-primary rounded-pill">{{ unread_count }} جديدة</span>
+                                    <h6 class="mb-0 fw-bold small">مركز التنبيهات</h6>
                                 </li>
-                                {% for notif in (current_user.notifications|sort(attribute='created_at', reverse=True)) %}
+                                {% for notif in (current_user.notifications|sort(attribute='created_at', reverse=True))[:10] %}
                                     <li>
                                         <a class="dropdown-item p-3 border-bottom {% if not notif.is_read %}bg-unread{% endif %}" href="{{ notif.link or '#' }}">
-                                            <div class="d-flex align-items-start">
-                                                <div class="flex-grow-1 me-2 text-wrap">
-                                                    <p class="small mb-0 fw-bold">{{ notif.title }}</p>
-                                                    <p class="x-small mb-0 text-muted" style="font-size: 0.75rem;">{{ notif.message[:60] }}...</p>
-                                                </div>
+                                            <div class="text-wrap">
+                                                <p class="small mb-1 fw-bold text-dark">{{ notif.title }}</p>
+                                                <p class="mb-0 text-muted x-small" style="font-size: 0.75rem; line-height: 1.4;">{{ notif.message[:80] }}</p>
                                             </div>
                                         </a>
                                     </li>
                                 {% else %}
-                                    <li class="p-4 text-center text-muted">لا توجد تنبيهات</li>
+                                    <li class="p-4 text-center text-muted small">لا توجد تنبيهات حالياً</li>
                                 {% endfor %}
                             </ul>
                         </li>
 
-                        <li class="nav-item dropdown ms-lg-2">
-                            <a class="nav-link dropdown-toggle btn btn-outline-info btn-sm rounded-pill px-3 text-white" href="#" id="userDropdown" data-bs-toggle="dropdown">
-                                <i class="fas fa-user-circle me-1"></i> {{ current_user.username }}
+                        <li class="nav-item dropdown ms-lg-2 w-100 w-lg-auto mt-2 mt-lg-0">
+                            <a class="nav-link dropdown-toggle btn btn-outline-info btn-sm rounded-pill px-3 text-white d-flex align-items-center justify-content-center" href="#" id="userDropdown" data-bs-toggle="dropdown">
+                                <i class="fas fa-user-circle me-1"></i> <span class="mx-1">{{ current_user.username }}</span>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2">
-                                <li><a class="dropdown-item text-end" href="{{ url_for('auth.profile') }}">الإعدادات <i class="fas fa-cog ms-2"></i></a></li>
+                                <li><a class="dropdown-item text-end small" href="{{ url_for('auth.profile') }}">الإعدادات <i class="fas fa-cog ms-2"></i></a></li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item text-end text-danger" href="{{ url_for('auth.logout') }}">خروج <i class="fas fa-sign-out-alt ms-2"></i></a></li>
+                                <li><a class="dropdown-item text-end text-danger small" href="{{ url_for('auth.logout') }}">خروج <i class="fas fa-sign-out-alt ms-2"></i></a></li>
                             </ul>
                         </li>
                     {% else %}
@@ -132,8 +132,8 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show shadow-sm border-0 rounded-4 text-end">
-                        {{ message }}
+                    <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show shadow-sm border-0 rounded-4 text-end small">
+                        <i class="fas fa-info-circle me-2"></i> {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 {% endfor %}
@@ -145,12 +145,16 @@
 
     <footer class="footer text-center">
         <div class="container">
-            <p class="mb-0 small opacity-50">© 2026 Jobeni SD. منصة التوظيف الذكية الأولى في السودان 🇸🇩</p>
+            <p class="mb-0 small opacity-75">
+                © 2026 Jobeni SD. منصة التوظيف الذكية الأولى في السودان 
+                <span class="flag-icon">🇸🇩</span>
+            </p>
         </div>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // إخفاء الشارة عند فتح القائمة وتحديث حالة القراءة
         const dropToggle = document.getElementById('notificationDropdown');
         if (dropToggle) {
             dropToggle.addEventListener('show.bs.dropdown', function () {
