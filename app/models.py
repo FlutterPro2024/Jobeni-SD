@@ -3,112 +3,122 @@ from app import db
 from flask_login import UserMixin
 from datetime import datetime
 
+followers = db.Table('followers',
+    db.Column('follower_id', db.Integer, db.ForeignKey('user.id')),
+    db.Column('followed_id', db.Integer, db.ForeignKey('user.id'))
+)
+
 class User(db.Model, UserMixin):
-    __tablename__ = 'user'
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(50), unique=True, nullable=False)
+    username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
-    role = db.Column(db.String(20), default='jobseeker')
     full_name = db.Column(db.String(100))
-    telegram_id = db.Column(db.String(100), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    # حقول الوكيل الذكي
+    role = db.Column(db.String(20), default='jobseeker')
+    phone = db.Column(db.String(20))
+    avatar = db.Column(db.String(200), default='default_avatar.png')
+    headline = db.Column(db.String(200))
+    bio = db.Column(db.Text)
+    location_name = db.Column(db.String(100))
+    telegram_id = db.Column(db.String(50))
     agent_enabled = db.Column(db.Boolean, default=False)
-    agent_query = db.Column(db.String(100))
-    last_agent_run = db.Column(db.DateTime)
+    agent_query = db.Column(db.String(200))
 
-    # العلاقات
-    cvs = db.relationship('CV', backref='owner', lazy=True, cascade="all, delete-orphan")
+    cvs = db.relationship('CV', backref='owner', lazy=True)
     jobs = db.relationship('Job', backref='employer_ref', lazy=True)
     applications = db.relationship('Application', backref='applicant', lazy=True)
-    interview_sessions = db.relationship('InterviewSession', backref='user', lazy=True, cascade="all, delete-orphan")
-    interview_reports = db.relationship('InterviewReport', backref='user', lazy=True, cascade="all, delete-orphan")
-    
-    # علاقة الإشعارات الجديدة
-    notifications = db.relationship('Notification', backref='user', lazy=True, cascade="all, delete-orphan")
+    posts = db.relationship('Post', backref='author', lazy='dynamic')
+    notifications = db.relationship('Notification', backref='recipient', lazy='dynamic')
 
-    sent_messages = db.relationship('Message', foreign_keys='Message.sender_id', backref='author', lazy=True, primaryjoin="User.id==Message.sender_id")
-    received_messages = db.relationship('Message', foreign_keys='Message.recipient_id', backref='recipient', lazy=True, primaryjoin="User.id==Message.recipient_id")
+    followed = db.relationship(
+        'User', secondary=followers,
+        primaryjoin=(followers.c.follower_id == id),
+        secondaryjoin=(followers.c.followed_id == id),
+        backref=db.backref('followers', lazy='dynamic'), lazy='dynamic'
+    )
 
-class Notification(db.Model):
-    """جدول الإشعارات الجديد للوظائف والتحليلات"""
-    __tablename__ = 'notification'
+class Job(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    title = db.Column(db.String(150), nullable=False)
-    message = db.Column(db.Text, nullable=False)
-    category = db.Column(db.String(50), default='info') # info, success, warning, job_alert
-    is_read = db.Column(db.Boolean, default=False)
-    link = db.Column(db.String(200), nullable=True) # رابط للانتقال السريع عند الضغط على الإشعار
+    title = db.Column(db.String(100), nullable=False)
+    company_name = db.Column(db.String(100))
+    description = db.Column(db.Text, nullable=False)
+    location = db.Column(db.String(100))
+    salary = db.Column(db.String(50))
+    job_type = db.Column(db.String(50))
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    applications = db.relationship('Application', backref='job', lazy=True)
+
+class CV(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(200))
+    extracted_text = db.Column(db.Text)
+    profession = db.Column(db.String(100))
+    score = db.Column(db.Integer, default=0)
+    skills = db.Column(db.JSON) 
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+
+class Application(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    job_id = db.Column(db.Integer, db.ForeignKey('job.id'))
+    status = db.Column(db.String(20), default='pending')
+    match_score = db.Column(db.Integer)
+    match_explanation = db.Column(db.Text)
+    applied_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class InterviewSession(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    skill_name = db.Column(db.String(100))
+    questions_content = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class InterviewReport(db.Model):
-    __tablename__ = 'interview_report'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    job_title = db.Column(db.String(200))
-    full_report = db.Column(db.Text)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    job_title = db.Column(db.String(100))
     score = db.Column(db.String(20))
+    full_report = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-class Job(db.Model):
-    __tablename__ = 'job'
+class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(100), nullable=False)
-    company_name = db.Column(db.String(100), nullable=False)
-    location = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text, nullable=False)
-    category = db.Column(db.String(50), default='عام')
-    salary = db.Column(db.String(50))
-    job_type = db.Column(db.String(50), default='دوام كامل')
-    latitude = db.Column(db.Float, nullable=True)
-    longitude = db.Column(db.Float, nullable=True)
-    is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    employer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    applications = db.relationship('Application', backref='job', lazy=True, cascade="all, delete-orphan")
+    body = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    likes = db.relationship('PostLike', backref='post', lazy='dynamic')
+    comments = db.relationship('Comment', backref='post', lazy='dynamic')
 
-class CV(db.Model):
-    __tablename__ = 'cv'
+class PostLike(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    file_path = db.Column(db.String(200), nullable=False)
-    extracted_text = db.Column(db.Text)
-    profession = db.Column(db.String(100))
-    skills = db.Column(db.JSON)
-    feedback = db.Column(db.Text)
-    score = db.Column(db.Integer, default=0)
-    optimized_text = db.Column(db.Text)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    linked_applications = db.relationship('Application', backref='associated_cv', lazy=True, cascade="all, delete-orphan")
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id'))
 
-class Application(db.Model):
-    __tablename__ = 'application'
+class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    job_id = db.Column(db.Integer, db.ForeignKey('job.id'), nullable=False)
-    cv_id = db.Column(db.Integer, db.ForeignKey('cv.id'))
-    match_score = db.Column(db.Integer, default=0)
-    match_explanation = db.Column(db.Text)
-    status = db.Column(db.String(20), default='pending')
-    applied_at = db.Column(db.DateTime, default=datetime.utcnow)
+    body = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id'))
+    user = db.relationship('User', backref='comments')
 
 class Message(db.Model):
-    __tablename__ = 'message'
     id = db.Column(db.Integer, primary_key=True)
-    sender_id = db.Column(db.Integer, nullable=False)
-    recipient_id = db.Column(db.Integer, nullable=False)
-    job_id = db.Column(db.Integer, db.ForeignKey('job.id'), nullable=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    recipient_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     body = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     is_read = db.Column(db.Boolean, default=False)
 
-class InterviewSession(db.Model):
-    __tablename__ = 'interview_session'
+class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    skill_name = db.Column(db.String(100), nullable=False)
-    questions_content = db.Column(db.Text, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    title = db.Column(db.String(100))
+    message = db.Column(db.Text)
+    link = db.Column(db.String(200))
+    category = db.Column(db.String(20), default='info')
+    is_read = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

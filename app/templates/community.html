@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}مجتمع جوبيني المهني - Jobeni Community{% endblock %}
+
+{% block content %}
+<style>
+    body { background-color: #f0f2f5 !important; }
+    .community-container { margin-top: 20px; }
+    .post-card { border-radius: 12px; border: none; transition: 0.3s; margin-bottom: 20px; }
+    .post-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .user-avatar { width: 48px; height: 48px; object-fit: cover; border-radius: 50%; }
+    .ai-suggestion-alert {
+        background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%);
+        border: none; border-right: 4px solid #0284c7; border-radius: 10px;
+    }
+    .interact-btn { color: #65676b; font-weight: 600; border: none; background: none; transition: 0.2s; padding: 8px 0; width: 100%; border-radius: 6px; }
+    .interact-btn:hover { background-color: #f2f2f2; color: #0d6efd; }
+    .interact-btn.liked { color: #dc3545; }
+    .comment-box { background-color: #f0f2f5; border-radius: 15px; padding: 8px 12px; }
+</style>
+
+<div class="container community-container" dir="rtl">
+    <div class="row">
+        <div class="col-lg-3 d-none d-lg-block">
+            <div class="card post-card p-3 text-center shadow-sm">
+                <img src="{{ url_for('static', filename='uploads/' + current_user.avatar) }}" class="user-avatar mx-auto mb-2" style="width: 70px; height: 70px;">
+                <h6 class="fw-bold mb-0">{{ current_user.full_name }}</h6>
+                <small class="text-muted d-block mb-3">{{ current_user.headline or 'عضو في جوبيني' }}</small>
+                <div class="d-flex justify-content-around border-top pt-3">
+                    <div><small class="text-muted d-block">متابَعين</small><b>{{ current_user.followed.count() }}</b></div>
+                    <div class="border-start"></div>
+                    <div><small class="text-muted d-block">متابِعين</small><b>{{ current_user.followers.count() }}</b></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6 col-md-12">
+            <div class="card post-card p-3 shadow-sm mb-4">
+                <div class="d-flex gap-2">
+                    <img src="{{ url_for('static', filename='uploads/' + current_user.avatar) }}" class="user-avatar">
+                    <button class="form-control rounded-pill bg-light text-end text-muted border-0 px-4" data-bs-toggle="modal" data-bs-target="#newPostModal">
+                        بماذا تفكر يا {{ current_user.username }}؟
+                    </button>
+                </div>
+                <div class="ai-suggestion-alert p-2 mt-3 d-flex align-items-center">
+                    <i class="fas fa-robot text-primary ms-2 me-2"></i>
+                    <small class="text-dark"><b>اقتراح جوبيني:</b> {{ ai_suggestion }}</small>
+                </div>
+            </div>
+
+            <div id="feed">
+                {% for post in posts %}
+                <div class="card post-card shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <img src="{{ url_for('static', filename='uploads/' + post.author.avatar) }}" class="user-avatar ms-2">
+                            <div>
+                                <h6 class="mb-0 fw-bold">{{ post.author.full_name }}</h6>
+                                <small class="text-muted">{{ post.author.headline or 'مهني سوداني' }} • {{ post.timestamp.strftime('%Y-%m-%d') }}</small>
+                            </div>
+                            {% if current_user != post.author %}
+                            <a href="{{ url_for('chat.follow', user_id=post.author.id) }}" class="btn btn-sm btn-outline-primary rounded-pill me-auto">متابعة</a>
+                            {% endif %}
+                        </div>
+                        <p class="card-text text-dark fs-6">{{ post.body | safe }}</p>
+                        
+                        <div class="d-flex justify-content-between text-muted small mb-2 px-1">
+                            <span><i class="fas fa-heart text-danger"></i> <span id="like-count-{{ post.id }}">{{ post.likes.count() }}</span></span>
+                            <span>{{ post.comments.count() }} تعليق</span>
+                        </div>
+                        <hr class="my-1">
+                        <div class="row g-0">
+                            <div class="col-6">
+                                {% set user_liked = post.likes.filter_by(user_id=current_user.id).first() %}
+                                <button class="interact-btn {% if user_liked %}liked{% endif %}" onclick="handleLike({{ post.id }}, this)">
+                                    <i class="{% if user_liked %}fas{% else %}far{% endif %} fa-heart me-1"></i> إعجاب
+                                </button>
+                            </div>
+                            <div class="col-6">
+                                <button class="interact-btn" onclick="document.getElementById('comment-input-{{ post.id }}').focus()">
+                                    <i class="far fa-comment me-1"></i> تعليق
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3 border-top pt-3">
+                            {% for comment in post.comments.order_by(Comment.timestamp.desc()).limit(3).all() %}
+                            <div class="d-flex gap-2 mb-2">
+                                <img src="{{ url_for('static', filename='uploads/' + comment.user.avatar) }}" class="rounded-circle" width="30" height="30">
+                                <div class="comment-box flex-grow-1">
+                                    <h6 class="mb-0 x-small fw-bold">{{ comment.user.username }}</h6>
+                                    <p class="mb-0 x-small">{{ comment.body }}</p>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            
+                            <form action="{{ url_for('chat.add_comment', post_id=post.id) }}" method="POST" class="mt-2">
+                                <div class="input-group input-group-sm">
+                                    <input type="text" name="comment_body" id="comment-input-{{ post.id }}" class="form-control rounded-pill-start border-0 bg-light px-3" placeholder="اكتب تعليقاً..." required>
+                                    <button class="btn btn-primary rounded-pill-end" type="submit"><i class="fas fa-paper-plane"></i></button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="newPostModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4">
+            <div class="modal-header border-0 pb-0"><h5 class="fw-bold">إنشاء منشور</h5><button type="button" class="btn-close ms-0 me-auto" data-bs-dismiss="modal"></button></div>
+            <form action="{{ url_for('chat.community') }}" method="POST">
+                <div class="modal-body"><textarea name="content" class="form-control border-0 fs-5" rows="5" placeholder="عن ماذا تود التحدث؟" required></textarea></div>
+                <div class="modal-footer border-0 pt-0"><button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold">نشر الآن</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function handleLike(postId, btn) {
+    fetch(`/like_post/${postId}`, { method: 'POST' })
+    .then(res => res.json())
+    .then(data => {
+        const countSpan = document.getElementById(`like-count-${postId}`);
+        countSpan.innerText = data.likes_count;
+        const icon = btn.querySelector('i');
+        if (data.action === 'liked') {
+            btn.classList.add('liked');
+            icon.classList.replace('far', 'fas');
+        } else {
+            btn.classList.remove('liked');
+            icon.classList.replace('fas', 'far');
+        }
+    });
+}
+</script>
+{% endblock %}

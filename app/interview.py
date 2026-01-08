@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required, current_user
 from app.models import Job, CV, InterviewSession, db, InterviewReport
 from app.openrouter_ai import openrouter_ai
-from app.notifications import add_notification  # استدعاء نظام الإشعارات
+from app.notifications import add_notification
 
 interview_bp = Blueprint('interview', __name__)
 
@@ -12,11 +12,11 @@ interview_bp = Blueprint('interview', __name__)
 @login_required
 def start_interview(job_id):
     job = Job.query.get_or_404(job_id)
-    cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()                           
-    
+    cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
+
     if not cv:
-        return "⚠️ يرجى رفع وتحليل السيرة الذاتية أولاً لبدء المحاكاة المهنية.", 400                                    
-    
+        return "⚠️ يرجى رفع وتحليل السيرة الذاتية أولاً لبدء المحاكاة المهنية.", 400
+
     prompt = f"""
     تقمص شخصية 'Senior Technical Interviewer' في شركة عالمية.
     ستقوم بإجراء مقابلة مع المهندس: {current_user.full_name or current_user.username}.
@@ -29,7 +29,6 @@ def start_interview(job_id):
     2. اطرح سؤالاً تقنياً عميقاً يختبر مهاراته المذكورة في الـ CV وعلاقتها بالوظيفة.
     3. لغة الحوار: العربية الفصحى البسيطة والمهنية.
     """
-
     first_question = openrouter_ai._call_ai(prompt, temperature=0.7)
     return render_template('interview/chat.html', job_title=job.title, first_question=first_question)
 
@@ -45,13 +44,8 @@ def chat():
     أنت في منتصف مقابلة تقنية لوظيفة: {job_title}.
     سجل الحوار السابق: {history}
     إجابة المرشح الأخيرة: "{user_answer}"
-
-    المطلوب:
-    1. قيم إجابة المرشح داخلياً (إذا كانت ناقصة أو خاطئة، وجهه أو اطلب منه توضيحاً).
-    2. اطرح سؤالاً تالياً (تقني أو سلوكي) بناءً على إجابته الأخيرة.
-    3. كن حازماً ومهنياً، ولا تخرج عن سياق الوظيفة.
+    المطلوب: طرح سؤال تالي تقني أو سلوكي بناءً على الإجابة.
     """
-
     ai_response = openrouter_ai._call_ai(prompt, temperature=0.8)
     return jsonify({'response': ai_response})
 
@@ -63,28 +57,13 @@ def finish_interview():
     job_title = data.get('job_title')
 
     analysis_prompt = f"""
-    بصفتك لجنة تقييم خبراء، حلل هذه المقابلة لوظيفة '{job_title}'.
-    سجل المقابلة الكامل: {history}
-
-    المطلوب رد بصيغة JSON فقط بهذا التنسيق:
-    {{
-        "score": "رقم من 0-100 فقط متبوع بـ %",
-        "strengths": ["نقطة قوة 1", "نقطة قوة 2"],
-        "weaknesses": ["نقطة ضعف 1", "نقطة ضعف 2"],
-        "overall_feedback": "تقييم شامل لأدائه المهني",
-        "recommendation": "نصيحة محددة لتطوير نفسه"
-    }}
+    حلل المقابلة لوظيفة '{job_title}'. السجل: {history}
+    رد بصيغة JSON: {{"score": "XX%", "strengths": [], "weaknesses": [], "overall_feedback": "", "recommendation": ""}}
     """
-
     raw_result = openrouter_ai._call_ai(analysis_prompt, temperature=0.3)
-
     try:
         json_match = re.search(r'\{.*\}', raw_result, re.DOTALL)
-        if json_match:
-            assessment = json.loads(json_match.group())
-        else:
-            raise ValueError("No JSON found")
-
+        assessment = json.loads(json_match.group()) if json_match else {}
         new_report = InterviewReport(
             user_id=current_user.id,
             job_title=job_title,
@@ -93,25 +72,8 @@ def finish_interview():
         )
         db.session.add(new_report)
         db.session.commit()
-
-        # إرسال إشعار الجرس للمستخدم
-        add_notification(
-            current_user.id,
-            "اكتمل تقرير المقابلة 📊",
-            f"تقرير أدائك في مقابلة {job_title} جاهز الآن. نسبتك: {assessment.get('score')}",
-            "success",
-            "/dashboard"
-        )
-
+        add_notification(current_user.id, "اكتمل تقرير المقابلة 📊", f"تقرير {job_title} جاهز. النسبة: {assessment.get('score')}", "success", "/dashboard")
     except Exception as e:
         db.session.rollback()
-        print(f"Error parsing assessment: {e}")
-        assessment = {
-            "score": "50%",
-            "overall_feedback": "نعتذر، حدث خطأ في تحليل التقرير ولكن أدائك كان جيداً.",
-            "strengths": ["محاولة جيدة"],
-            "weaknesses": ["خطأ تقني في التحليل"],
-            "recommendation": "أعد المحاولة لاحقاً"
-        }
-
+        assessment = {"score": "50%", "overall_feedback": "خطأ في التحليل"}
     return jsonify(assessment)

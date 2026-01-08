@@ -1,22 +1,52 @@
 {% extends "base.html" %}
+{% block title %}الملف المهني لـ {{ user.username }} - جوبيني{% endblock %}
 
 {% block content %}
 <div class="container py-5" dir="rtl">
     <div class="row justify-content-center">
-        <div class="col-lg-9">
+        <div class="col-lg-10">
             <div class="card border-0 shadow-lg rounded-5 overflow-hidden mb-4">
-                <div class="card-header border-0 p-0" style="height: 150px; background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);"></div>
-                <div class="card-body text-center position-relative pt-0">
+                <div class="card-header border-0 p-0" style="height: 160px; background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);"></div>
+                <div class="card-body text-center position-relative pt-0 px-4">
                     <div class="avatar-container position-absolute top-0 start-50 translate-middle">
-                        <img src="https://ui-avatars.com/api/?name={{ user.username }}&background=random&size=128"
-                             class="rounded-circle border border-4 border-white shadow" width="120">
+                        <img src="{{ url_for('static', filename='uploads/' + (user.avatar or 'default_avatar.png')) }}" 
+                             class="rounded-circle border border-5 border-white shadow-lg bg-white" width="130" height="130" style="object-fit: cover;">
                     </div>
                     <div class="mt-5 pt-4">
-                        <h2 class="fw-bold text-dark mb-1">{{ user.username }}</h2>
-                        <p class="text-primary fw-bold mb-3">{{ cv.profession if cv else 'باحث عن عمل' }}</p>
-                        <div class="d-flex justify-content-center gap-2 mb-4">
-                            <span class="badge bg-light text-dark border rounded-pill px-3"><i class="fas fa-map-marker-alt text-danger me-1"></i> السودان</span>
-                            <span class="badge bg-light text-dark border rounded-pill px-3"><i class="fas fa-envelope text-primary me-1"></i> {{ user.email }}</span>
+                        <h2 class="fw-bold text-dark mb-1">{{ user.full_name or user.username }}</h2>
+                        <p class="text-primary fw-bold mb-2">{{ user.headline or (cv.profession if cv else 'باحث عن عمل مهني') }}</p>
+                        
+                        <div class="d-flex justify-content-center gap-3 mb-4 text-muted small">
+                            <span><i class="fas fa-map-marker-alt text-danger ms-1"></i> {{ user.location_name or 'السودان' }}</span>
+                            <span class="border-start ps-3"><i class="fas fa-phone-alt text-success ms-1" dir="ltr"></i> {{ user.phone or 'غير متوفر' }}</span>
+                        </div>
+
+                        <div class="d-flex justify-content-center gap-2 mb-3">
+                            {% if current_user.is_authenticated and current_user.id != user.id %}
+                                {% if current_user.is_following(user) %}
+                                    <a href="{{ url_for('chat.follow', user_id=user.id) }}" class="btn btn-light rounded-pill px-4 border">إلغاء المتابعة</a>
+                                {% else %}
+                                    <a href="{{ url_for('chat.follow', user_id=user.id) }}" class="btn btn-primary rounded-pill px-4 shadow-sm">متابعة</a>
+                                {% endif %}
+                                <a href="{{ url_for('chat.open_chat', job_id=0, recipient_id=user.id) }}" class="btn btn-outline-primary rounded-pill px-4">مراسلة</a>
+                            {% elif not current_user.is_authenticated %}
+                                <a href="{{ url_for('auth.login') }}" class="btn btn-primary rounded-pill px-4">سجل لمتابعة {{ user.username }}</a>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex justify-content-center gap-4 py-3 border-top mt-2">
+                            <div class="text-center">
+                                <h6 class="fw-bold mb-0">{{ user.followers.count() }}</h6>
+                                <small class="text-muted">متابِع</small>
+                            </div>
+                            <div class="text-center border-start ps-4">
+                                <h6 class="fw-bold mb-0">{{ user.followed.count() }}</h6>
+                                <small class="text-muted">متابَع</small>
+                            </div>
+                            <div class="text-center border-start ps-4">
+                                <h6 class="fw-bold mb-0">{{ user.posts.count() }}</h6>
+                                <small class="text-muted">منشور</small>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -24,75 +54,56 @@
 
             <div class="row g-4">
                 <div class="col-md-5">
-                    
-                    {% if current_user.id == user.id %}
-                    <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-info bg-opacity-10 border-start border-info border-4">
-                        <div class="d-flex align-items-center">
-                            <div class="icon-box bg-info text-white rounded-circle p-2 me-3 shadow-sm">
-                                <i class="fab fa-telegram-plane fa-lg"></i>
-                            </div>
-                            <div class="flex-grow-1">
-                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.9rem;">تنبيهات الوظائف الذكية</h6>
-                                <p class="text-muted mb-0" style="font-size: 0.75rem;">استلم الوظائف على تليجرام فوراً</p>
-                            </div>
-                            <a href="https://t.me/Jobeni_SD_Bot?start={{ user.id }}" target="_blank" class="btn btn-info btn-sm rounded-pill px-3 fw-bold text-white shadow-sm">
-                                ربط الآن
-                            </a>
-                        </div>
+                    <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 text-start">
+                        <h5 class="fw-bold mb-3 border-bottom pb-2 text-primary">النبذة التعريفية</h5>
+                        <p class="text-muted small lh-lg">
+                            {{ user.bio or 'هذا العضو لم يضف نبذة تعريفية بعد، ولكن مهاراته وخبراته المهنية تظهر جديته في العمل.' }}
+                        </p>
                     </div>
-                    {% endif %}
 
-                    <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
-                        <h5 class="fw-bold mb-4 border-bottom pb-2"><i class="fas fa-bolt text-warning me-2"></i>مهارات محللة بـ AI</h5>
+                    <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 text-start">
+                        <h5 class="fw-bold mb-3 border-bottom pb-2"><i class="fas fa-bolt text-warning ms-2"></i>مهارات محللة بـ AI</h5>
                         <div class="d-flex flex-wrap gap-2">
-                            {% if analysis and analysis.skills and analysis.skills.technical %}
-                                {% for skill in analysis.skills.technical %}
+                            {% if cv and cv.skills %}
+                                {% for skill in cv.skills %}
                                 <span class="badge bg-soft-primary text-primary rounded-pill px-3 py-2">{{ skill }}</span>
                                 {% endfor %}
                             {% else %}
-                                <p class="text-muted small">لم يتم تحليل مهارات تقنية بعد.</p>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <div class="card border-0 shadow-sm rounded-4 p-4">
-                        <h5 class="fw-bold mb-4 border-bottom pb-2"><i class="fas fa-star text-info me-2"></i>المهارات الناعمة</h5>
-                        <div class="d-flex flex-wrap gap-1">
-                            {% if analysis and analysis.skills and analysis.skills.soft %}
-                                {% for skill in analysis.skills.soft %}
-                                <span class="badge bg-light text-secondary border rounded-pill px-3 py-2">{{ skill }}</span>
-                                {% endfor %}
-                            {% else %}
-                                <p class="text-muted small">بانتظار تحليل المهارات الشخصية.</p>
+                                <p class="text-muted small">بانتظار تحليل السيرة الذاتية.</p>
                             {% endif %}
                         </div>
                     </div>
                 </div>
 
-                <div class="col-md-7">
-                    <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
-                        <h5 class="fw-bold mb-4 border-bottom pb-2"><i class="fas fa-user-tie text-primary me-2"></i>الخلاصة المهنية (AI Insight)</h5>
-                        <div class="p-3 bg-light rounded-4 mb-4">
-                            <p class="lh-lg text-dark mb-0 italic">
-                                {% if analysis.feedback %}
-                                    {{ analysis.feedback }}
-                                {% else %}
-                                    مرحباً! قم برفع سيرتك الذاتية في لوحة التحكم ليقوم الذكاء الاصطناعي بكتابة نبذة مهنية احترافية عنك هنا.
-                                {% endif %}
-                            </p>
-                        </div>
-                        
-                        {% if cv %}
-                        <div class="mt-auto">
-                            <div class="alert alert-secondary border-0 rounded-4 small mb-3">
-                                <i class="fas fa-info-circle me-1"></i> تم تحليل هذا الملف بواسطة جوبيني AI في {{ cv.created_at.strftime('%Y-%m-%d') }}
-                            </div>
-                            <a href="{{ url_for('cv.download_optimized_cv', cv_id=cv.id) }}" class="btn btn-primary w-100 rounded-pill fw-bold py-2 shadow-sm">
-                                <i class="fas fa-download me-2"></i> تحميل السيرة الذاتية (نسخة ATS)
-                            </a>
-                        </div>
-                        {% endif %}
+                <div class="col-md-7 text-start">
+                    <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-light border-start border-primary border-4">
+                        <h5 class="fw-bold mb-3"><i class="fas fa-robot text-primary ms-2"></i>رؤية جوبيني الذكية (AI)</h5>
+                        <p class="text-dark small lh-lg mb-0 italic">
+                            {% if cv and cv.feedback %}
+                                {{ cv.feedback }}
+                            {% else %}
+                                العضو لم يقم بتشغيل محرك التحليل حتى الآن.
+                            {% endif %}
+                        </p>
                     </div>
+
+                    <h5 class="fw-bold mb-3 mt-4 px-2">آخر المنشورات</h5>
+                    {% for post in user.posts.order_by(Post.timestamp.desc()).limit(5).all() %}
+                    <div class="card border-0 shadow-sm rounded-4 p-3 mb-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <img src="{{ url_for('static', filename='uploads/' + (user.avatar or 'default_avatar.png')) }}" class="rounded-circle ms-2" width="30" height="30">
+                            <small class="text-muted">{{ post.timestamp.strftime('%Y-%m-%d') }}</small>
+                        </div>
+                        <p class="small mb-0">{{ post.body[:200] }}...</p>
+                        <div class="mt-2">
+                            <a href="{{ url_for('chat.community') }}" class="text-primary x-small text-decoration-none">تفاعل مع المنشور <i class="fas fa-arrow-left ms-1"></i></a>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-light border rounded-4 text-center py-4">
+                        <small class="text-muted">لا توجد منشورات عامة لهذا العضو بعد.</small>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
@@ -101,9 +112,10 @@
 
 <style>
     .bg-soft-primary { background-color: #eef2ff; color: #4338ca; }
-    .avatar-container img { margin-top: -60px; }
-    .icon-box { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
-    .card { transition: transform 0.2s; }
-    .card:hover { transform: translateY(-3px); }
+    .avatar-container img { margin-top: -65px; transition: transform 0.3s; }
+    .avatar-container img:hover { transform: scale(1.05); }
+    .card { transition: all 0.2s; }
+    .x-small { font-size: 0.75rem; }
+    body { background-color: #f8fafc; }
 </style>
 {% endblock %}

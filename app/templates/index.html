@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Jobeni SD - مستقبل التوظيف الذكي{% endblock %}
+{% block title %}Jobeni SD - مستقبل التوظيف الذكي والمجتمع المهني{% endblock %}
 
 {% block content %}
 <style>
     .hero-custom {
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        min-height: 70vh;
+        min-height: 75vh;
         display: flex;
         align-items: center;
         position: relative;
@@ -41,42 +41,46 @@
         color: #0dcaf0;
         border: 1px solid rgba(13, 202, 240, 0.2);
     }
+    .community-preview-card {
+        border-right: 4px solid #0d6efd;
+        background: #f8fafc;
+    }
+    .shadow-inner { box-shadow: inset 0 2px 10px rgba(0,0,0,0.05); }
+    .x-small { font-size: 0.85rem; line-height: 1.5; }
 </style>
 
 <div class="hero-custom position-relative" dir="rtl">
     <div class="container position-relative" style="z-index: 2;">
         <div class="row align-items-center py-5">
             <div class="col-lg-7 text-center text-lg-end">
-                <span class="badge ai-badge rounded-pill mb-3 px-3 py-2">مدعوم بالذكاء الاصطناعي (Gemini AI) 🤖</span>
+                <span class="badge ai-badge rounded-pill mb-3 px-3 py-2">مدعوم بالذكاء الاصطناعي والمجتمع 🤖🤝</span>
                 <h1 class="display-3 fw-bold mb-3 lh-sm text-white">
-                    مستقبل التوظيف مع <br>
+                    ابنِ مسارك المهني مع <br>
                     <span class="text-gradient">جوبيناي - Jobeni SD</span>
                 </h1>
                 <p class="lead mb-4 text-white-50 fs-4">
-                    أول منصة سودانية تستخدم تقنيات الـ <span class="text-info fw-bold">ATS</span> لمطابقة خبراتك بدقة، تحسين سيرتك الذاتية، وتجهيزك للمقابلات آلياً.
+                    أول منصة سودانية تجمع بين <span class="text-info fw-bold">التوظيف الذكي</span> و <span class="text-white">التواصل المهني</span>. طور سيرتك، جِد وظيفتك، وتواصل مع الخبراء.
                 </p>
                 <div class="d-flex flex-wrap gap-3 justify-content-center justify-content-lg-start mt-4">
                     {% if not current_user.is_authenticated %}
-                        <a href="{{ url_for('auth.register') }}" class="btn btn-info btn-lg px-5 fw-bold rounded-pill text-white shadow-lg">ابدأ مجاناً</a>
+                        <a href="{{ url_for('auth.register') }}" class="btn btn-info btn-lg px-5 fw-bold rounded-pill text-white shadow-lg">انضم للمجتمع الآن</a>
                         <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light btn-lg px-5 rounded-pill">تسجيل الدخول</a>
                     {% else %}
                         <a href="{{ url_for('auth.dashboard') }}" class="btn btn-info btn-lg px-5 fw-bold rounded-pill text-white shadow-lg">لوحة التحكم</a>
+                        <a href="{{ url_for('chat.community') }}" class="btn btn-outline-light btn-lg px-5 rounded-pill">ساحة المجتمع</a>
                     {% endif %}
-                    <a href="{{ url_for('jobs.jobs_list') }}" class="btn btn-link text-white text-decoration-none btn-lg px-3">
-                        تصفح الوظائف <i class="fas fa-chevron-left ms-2 small"></i>
-                    </a>
                 </div>
             </div>
-            <div class="col-lg-5 d-none d-lg-block">
+            <div class="col-lg-5 d-none d-lg-block text-start">
                 <div class="card bg-white bg-opacity-10 border-0 p-4 rounded-5 text-white shadow-lg" style="backdrop-filter: blur(10px);">
                     <div class="d-flex align-items-center mb-3">
-                        <i class="fas fa-check-circle text-success me-2"></i>
-                        <span>تحليل الـ CV بنسبة 98%</span>
+                        <i class="fas fa-users text-info me-2"></i>
+                        <span class="ms-2">أكثر من 5,000 مهني سوداني</span>
                     </div>
                     <div class="progress mb-3" style="height: 8px; background: rgba(255,255,255,0.1);">
-                        <div class="progress-bar bg-info" style="width: 85%"></div>
+                        <div class="progress-bar bg-info" style="width: 75%"></div>
                     </div>
-                    <div class="small opacity-75 mt-2">تم مطابقة مهاراتك مع 5 وظائف هندسية جديدة في الخرطوم.</div>
+                    <div class="small opacity-75 mt-2">انضم إلينا اليوم وشارك تجاربك المهنية في أول مجتمع سوداني متخصص.</div>
                 </div>
             </div>
         </div>
@@ -86,24 +90,24 @@
 <div class="container py-5 mt-n5 position-relative" style="z-index: 3;" dir="rtl">
     <div class="row g-4 justify-content-center">
         <div class="col-md-4">
-            <div class="card feature-card h-100 p-4 shadow-sm border-0 rounded-4 bg-white">
+            <div class="card feature-card h-100 p-4 shadow-sm border-0 rounded-4 bg-white text-center">
                 <div class="icon-box mb-3 text-primary"><i class="fas fa-magic fa-2x"></i></div>
-                <h5 class="fw-bold">تحسين الـ CV</h5>
-                <p class="text-muted small">يقوم الذكاء الاصطناعي بإعادة صياغة سيرتك الذاتية لتتجاوز أنظمة الفرز (ATS) بنجاح.</p>
+                <h5 class="fw-bold">تحسين الـ CV بـ AI</h5>
+                <p class="text-muted small">نساعدك في صياغة سيرة ذاتية تتخطى أنظمة الـ ATS العالمية والمحلية بنجاح.</p>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card feature-card h-100 p-4 shadow-sm border-0 rounded-4 bg-white">
-                <div class="icon-box mb-3 text-success"><i class="fas fa-chart-line fa-2x"></i></div>
-                <h5 class="fw-bold">مطابقة ذكية</h5>
-                <p class="text-muted small">نحلل الوصف الوظيفي ونعطيك نسبة مطابقة دقيقة بناءً على مهاراتك الفعلية.</p>
+            <div class="card feature-card h-100 p-4 shadow-sm border-0 rounded-4 bg-white text-center">
+                <div class="icon-box mb-3 text-success"><i class="fas fa-users fa-2x"></i></div>
+                <h5 class="fw-bold">مجتمع مهني</h5>
+                <p class="text-muted small">تواصل مع الزملاء في تخصصك، شارك نصائحك، وابنِ شبكة علاقات قوية.</p>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card feature-card h-100 p-4 shadow-sm border-0 rounded-4 bg-white">
-                <div class="icon-box mb-3 text-warning"><i class="fas fa-microphone-alt fa-2x"></i></div>
-                <h5 class="fw-bold">تدريب المقابلات</h5>
-                <p class="text-muted small">جلسات محاكاة للمقابلات الشخصية مع أسئلة تقنية مخصصة لكل وظيفة تقدم عليها.</p>
+            <div class="card feature-card h-100 p-4 shadow-sm border-0 rounded-4 bg-white text-center">
+                <div class="icon-box mb-3 text-warning"><i class="fas fa-robot fa-2x"></i></div>
+                <h5 class="fw-bold">مستشار مهني ذكي</h5>
+                <p class="text-muted small">دردشة فورية مع الذكاء الاصطناعي لتجهيزك للمقابلات الوظيفية مجاناً.</p>
             </div>
         </div>
     </div>
@@ -123,11 +127,14 @@
             {% for job in jobs %}
             <div class="col-md-4">
                 <div class="card h-100 p-4 shadow-sm border-0 feature-card rounded-4">
-                    <div class="d-flex justify-content-between mb-2">
-                        <h5 class="fw-bold mb-0">{{ job.title }}</h5>
-                        <span class="badge bg-light text-dark rounded-pill small">{{ job.job_type or 'دوام كامل' }}</span>
+                    <div class="d-flex justify-content-between mb-2 text-start">
+                        <h5 class="fw-bold mb-0 text-dark">{{ job.title }}</h5>
+                        <span class="badge bg-light text-primary rounded-pill small">{{ job.job_type or 'دوام كامل' }}</span>
                     </div>
-                    <p class="text-muted small mb-3"><i class="fas fa-building me-1"></i> {{ job.company_name }} | <i class="fas fa-map-marker-alt me-1"></i> {{ job.location }}</p>
+                    <p class="text-muted small mb-3 text-start">
+                        <i class="fas fa-building me-1"></i> {{ job.company_name }} | 
+                        <i class="fas fa-map-marker-alt me-1"></i> {{ job.location }}
+                    </p>
                     <div class="mt-auto d-flex justify-content-between align-items-center">
                         <span class="text-primary fw-bold small">{{ job.salary or 'راتب تنافسي' }}</span>
                         <a href="{{ url_for('jobs.job_detail', job_id=job.id) }}" class="btn btn-dark btn-sm rounded-pill px-3">التفاصيل</a>
@@ -137,16 +144,49 @@
             {% endfor %}
         {% else %}
             <div class="col-12 text-center py-5 border rounded-5 bg-white shadow-sm" style="border-style: dashed !important;">
-                <div class="mb-3 text-muted opacity-25">
-                    <i class="fas fa-briefcase fa-4x"></i>
-                </div>
                 <h4 class="text-muted">لا توجد وظائف حالياً</h4>
-                <p class="text-muted small">جرب العودة لاحقاً أو اشترك في تنبيهات التلجرام.</p>
-                {% if current_user.is_authenticated and current_user.role == 'employer' %}
-                    <a href="{{ url_for('jobs.add_job') }}" class="btn btn-success rounded-pill mt-3 px-4">نشر وظيفة الآن</a>
-                {% endif %}
+                <p class="text-muted small">اشترك في تنبيهات التلجرام لتصلك الفرص فور توفرها.</p>
             </div>
         {% endif %}
+    </div>
+</div>
+
+<div class="container-fluid py-5 bg-light shadow-inner mt-4" dir="rtl">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-5 mb-4 mb-lg-0 text-start">
+                <h2 class="fw-bold mb-3">أكثر من مجرد وظائف.. <br><span class="text-primary">هذا هو مجتمعك المهني.</span></h2>
+                <p class="text-muted mb-4">انضم لنقاشات الخبراء السودانيين، تابع المبدعين في مجالك، وشارك نجاحاتك المهنية. جوبيني يوفر لك الساحة لتظهر مهاراتك للعالم.</p>
+                <ul class="list-unstyled mb-4">
+                    <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i> متابعة الخبراء والشركات السودانية.</li>
+                    <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i> الحصول على "تفاعلات" و "تعليقات" مهنية.</li>
+                    <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i> بناء بروفايل احترافي يراه أصحاب العمل.</li>
+                </ul>
+                <a href="{{ url_for('chat.community') }}" class="btn btn-primary rounded-pill px-5 py-2 fw-bold shadow">استكشف المجتمع</a>
+            </div>
+            <div class="col-lg-7">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card border-0 shadow-sm rounded-4 p-3 community-preview-card">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="bg-primary text-white rounded-circle p-2 ms-2" style="width:30px; height:30px; font-size: 10px; display:flex; align-items:center; justify-content:center;">أ.م</div>
+                                <h6 class="mb-0 small fw-bold">أحمد محمد - مبرمج</h6>
+                            </div>
+                            <p class="x-small text-dark mb-0">"نصيحة اليوم: ركزوا على الـ Problem Solving قبل تعلم أي لغة برمجية جديدة.."</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mt-md-5">
+                        <div class="card border-0 shadow-sm rounded-4 p-3 community-preview-card">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="bg-info text-white rounded-circle p-2 ms-2" style="width:30px; height:30px; font-size: 10px; display:flex; align-items:center; justify-content:center;">س.ع</div>
+                                <h6 class="mb-0 small fw-bold">سارة علي - HR</h6>
+                            </div>
+                            <p class="x-small text-dark mb-0">"لاحظت أن السير الذاتية المحدثة عبر جوبيني لديها فرصة قبول أعلى بـ 3 أضعاف!"</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
