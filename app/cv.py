@@ -6,6 +6,8 @@ from werkzeug.utils import secure_filename
 from app.models import CV, db
 from app.openrouter_ai import openrouter_ai
 from fpdf import FPDF
+from arabic_reshaper import reshape
+from bidi.algorithm import get_display
 from app.telegram_bot import send_document
 
 cv_bp = Blueprint('cv', __name__)
@@ -61,7 +63,7 @@ def upload_cv():
                 flash('الملف فارغ أو لا يمكن قراءة النص منه.', 'danger')
                 return redirect(request.url)
 
-            # تنظيف النص وإرساله للتحليل الأولي - زيادة الحجم لـ 4000 حرف لدقة أعلى
+            # تنظيف النص وإرساله للتحليل بذكاء - زيادة الحجم لـ 4000 حرف لدقة أعلى
             clean_text = " ".join(text.split())[:4000]
             analysis = openrouter_ai.analyze_cv_complete(clean_text)
 
@@ -84,7 +86,7 @@ def upload_cv():
             current_app.logger.error(f"CV Upload Error: {str(e)}")
             flash('حدث خطأ أثناء معالجة الملف، يرجى المحاولة مرة أخرى.', 'danger')
             return redirect(request.url)
-            
+
     return render_template('upload_cv.html')
 
 @cv_bp.route('/cv/view/<int:cv_id>')
@@ -101,26 +103,26 @@ def optimize_cv_view(cv_id):
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id: abort(403)
 
-    # طلب التحسين مع توجيه صارم للذكاء الاصطناعي
-    prompt_instruction = "REWRITE this resume to be ATS-friendly. Focus on accomplishments, keywords for AI/Cloud, and a professional tone. Keep it in English."
+    # طلب التحسين مع توجيه صارم للذكاء الاصطناعي لاستخدام الإنجليزية في المحتوى والاحترافية
+    prompt_instruction = "Act as a professional CV writer. REWRITE the following resume content to be ATS-friendly. Focus on professional keywords, accomplishments, and clarity. Maintain English for the main body."
     optimized_text = openrouter_ai.generate_improved_text(f"{prompt_instruction}\n\nCONTENT:\n{cv.extracted_text}")
 
     if optimized_text and len(optimized_text.strip()) > 200:
         # تنظيف شامل للمخرجات
-        final_text = optimized_text.replace("[OUT]", "").replace("[/OUT]", "").replace("<s>", "").replace("</s>", "").strip()
-        
-        # استبدال البيانات الناقصة
+        final_text = optimized_text.replace("```markdown", "").replace("```", "").replace("[OUT]", "").strip()
+
+        # استبدال البيانات الناقصة ببيانات المستخدم الحالية
         final_text = final_text.replace("[Name]", current_user.username)\
                                .replace("[Email]", current_user.email or "contact@jobeni.sd")\
                                .replace("[Date]", datetime.date.today().strftime("%Y-%m-%d"))
 
         return render_template('cv_comparison.html', cv_id=cv.id, old_text=cv.extracted_text, new_text=final_text)
 
-    flash('المحركات مشغولة، تم استخدام القالب الذكي الاحترافي.', 'info')
+    flash('المحركات مشغولة حالياً، تم استخدام القالب الذكي السريع.', 'info')
     backup_text = (f"# RESUME: {current_user.username.upper()}\n"
                    f"**Profession:** {cv.profession}\n\n"
-                   f"## SUMMARY\nExpert {cv.profession} specialized in {', '.join(cv.skills[:3])}.\n\n"
-                   f"## EXPERIENCE\n{cv.extracted_text[:500]}...")
+                   f"## SUMMARY\nProfessional {cv.profession} with expertise in {', '.join(cv.skills[:4])}.\n\n"
+                   f"## EXPERIENCE\n{cv.extracted_text[:600]}...")
     return render_template('cv_comparison.html', cv_id=cv.id, old_text=cv.extracted_text, new_text=backup_text)
 
 @cv_bp.route('/cv/generate-pdf/<int:cv_id>', methods=['POST'])
@@ -128,43 +130,69 @@ def optimize_cv_view(cv_id):
 def generate_ats_pdf(cv_id):
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id: abort(403)
-    
+
     new_content = request.form.get('optimized_content', '')
     cv.optimized_text = new_content
-    cv.score = max((cv.score or 0), 90) # رفع السكور عند التحسين
+    cv.score = max((cv.score or 0), 95) 
     db.session.commit()
-    
+
     try:
-        # تحسين توليد الـ PDF ليتجنب رموز latin-1 القاتلة
+        # استخدام fpdf2 المتقدمة
         pdf = FPDF()
         pdf.set_auto_page_break(auto=True, margin=15)
         pdf.add_page()
+        
+        # إضافة الخطوط لدعم العربية (تأكد من وجود ملف الخط في هذا المسار)
+        # إذا لم يتوفر الخط، سيستخدم Arial الافتراضي للإنجليزي
+        try:
+            font_path = os.path.join(current_app.root_path, 'static', 'fonts', 'DejaVuSans.ttf')
+            pdf.add_font('DejaVu', '', font_path)
+            pdf.set_font('DejaVu', size=11)
+            use_unicode = True
+        except:
+            pdf.set_font("Arial", size=11)
+            use_unicode = False
+
+        # عنوان الملف
         pdf.set_font("Arial", 'B', 16)
         pdf.cell(0, 10, "ATS-OPTIMIZED RESUME", ln=True, align='C')
         pdf.ln(10)
-        pdf.set_font("Arial", size=11)
         
-        # معالجة النص سطر بسطر لمنع الانهيار
+        if use_unicode:
+            pdf.set_font('DejaVu', size=11)
+        else:
+            pdf.set_font("Arial", size=11)
+
+        # معالجة النص سطر بسطر مع دعم اللغة العربية (Bidi)
         lines = new_content.split('\n')
         for line in lines:
-            line_data = line.encode('ascii', 'ignore').decode('ascii') # تجاهل أي رموز غير متوافقة حالياً
-            if line_data.strip():
-                pdf.multi_cell(0, 8, txt=line_data)
+            if line.strip():
+                # إعادة تشكيل النص العربي ليدعم الاتجاه الصحيح
+                reshaped_text = reshape(line)
+                bidi_text = get_display(reshaped_text)
+                
+                # إذا كان النص يحتوي على عربي، نجعله من اليمين، غير ذلك من اليسار
+                is_arabic = any("\u0600" <= char <= "\u06FF" for char in line)
+                align = 'R' if is_arabic else 'L'
+                
+                pdf.multi_cell(0, 8, txt=bidi_text, align=align)
             else:
                 pdf.ln(4)
-        
+
         pdf_filename = f"Jobeni_Optimized_{cv.id}.pdf"
         pdf_path = os.path.join(current_app.config['UPLOAD_FOLDER'], pdf_filename)
         pdf.output(pdf_path)
-        
+
         if current_user.telegram_id:
-            try: send_document(current_user.telegram_id, pdf_path, caption=f"🚀 جاهز يا {current_user.username}! إليك سيرتك الذاتية المحدثة.")
-            except: pass
-            
+            try:
+                send_document(current_user.telegram_id, pdf_path, caption=f"🚀 مبروك يا {current_user.username}! سيرتك الذاتية أصبحت جاهزة.")
+            except:
+                pass
+
         return send_file(pdf_path, as_attachment=True)
     except Exception as e:
         current_app.logger.error(f"PDF Gen Error: {str(e)}")
-        flash('تم حفظ النص، ولكن تعذر إنشاء PDF بسبب رموز غير مدعومة. يمكنك نسخ النص يدوياً.', 'warning')
+        flash('تم حفظ التعديلات، ولكن حدث خطأ في إنشاء PDF. يمكنك نسخ النص يدوياً.', 'warning')
         return redirect(url_for('cv.view_cv', cv_id=cv.id))
 
 @cv_bp.route('/cv/delete/<int:cv_id>', methods=['POST'])
@@ -175,6 +203,7 @@ def delete_cv(cv_id):
     try:
         db.session.delete(cv)
         db.session.commit()
-        flash('تم الحذف بنجاح.', 'info')
-    except: db.session.rollback()
+        flash('تم حذف السيرة الذاتية بنجاح.', 'info')
+    except:
+        db.session.rollback()
     return redirect(url_for('cv.my_cvs'))
