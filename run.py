@@ -1,5 +1,5 @@
 # ~/jobeni-sD/run.py
-import os, sys, threading, time, requests
+import os, sys, threading, time
 from sqlalchemy import text
 from dotenv import load_dotenv
 from app import create_app, db
@@ -11,12 +11,12 @@ load_dotenv()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
 
-# تحديد البيئة (فرسيل أو محلي)
+# تحديد البيئة
 env = 'production' if os.environ.get('VERCEL') else 'development'
 app = create_app(env)
 
 def telegram_worker(flask_app):
-    """وظيفة لتشغيل بوت التليجرام في خلفية التطبيق (للمحلي فقط)"""
+    """وظيفة لتشغيل بوت التليجرام (للمحلي فقط)"""
     with flask_app.app_context():
         time.sleep(5)
         try:
@@ -30,21 +30,22 @@ def telegram_worker(flask_app):
 with app.app_context():
     try:
         db.create_all()
+        # محاولة معالجة القيود للمسائل المتعلقة بقاعدة البيانات
         try:
             db.session.execute(text('ALTER TABLE message DROP CONSTRAINT IF EXISTS message_sender_id_fkey'))
             db.session.execute(text('ALTER TABLE message DROP CONSTRAINT IF EXISTS message_recipient_id_fkey'))
             db.session.commit()
-        except Exception as constraint_e:
+        except Exception:
             db.session.rollback()
     except Exception as e:
         print(f"⚠️ [DB Warning]: {e}")
 
     try:
         os.makedirs(os.path.join(BASE_DIR, 'app', 'static', 'uploads', 'cvs'), exist_ok=True)
-    except Exception as e:
-        print(f"⚠️ [Folder Warning]: {e}")
+    except Exception:
+        pass
 
-# لكي يرى Vercel التطبيق
+# التصدير لـ Vercel
 app = app
 
 if __name__ == '__main__':

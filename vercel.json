@@ -12,6 +12,10 @@
       "dest": "app/static/$1"
     },
     {
+      "src": "/community/(.*)",
+      "dest": "run.py"
+    },
+    {
       "src": "/(.*)",
       "dest": "run.py"
     }
