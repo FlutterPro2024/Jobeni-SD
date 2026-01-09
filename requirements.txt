@@ -1,4 +1,4 @@
-echo "Flask==3.1.2
+Flask==3.1.2
 Flask-Login==0.6.3
 Flask-Mail==0.10.0
 Flask-Migrate==4.1.0
@@ -14,4 +14,5 @@ cryptography==42.0.5
 numpy==1.26.4
 pandas==2.2.1
 pdfplumber==0.11.8
-python-docx==1.2.0" > requirements.txt
+python-docx==1.2.0
+
