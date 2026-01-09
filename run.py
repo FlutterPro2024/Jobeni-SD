@@ -1,7 +1,7 @@
 import os
 from app import create_app
 
-# Vercel يحتاج فقط لرؤية الـ app بأقل قدر من الأخطاء الجانبية
+# هذا هو الكائن الذي يبحث عنه Vercel
 app = create_app('production' if os.environ.get('VERCEL') else 'default')
 
 if __name__ == "__main__":

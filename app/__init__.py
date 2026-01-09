@@ -1,7 +1,5 @@
 import os
 import sys
-import threading
-import time
 from flask import Flask, request, render_template, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, current_user, login_required
@@ -19,22 +17,23 @@ mail = Mail()
 
 def create_app(config_name='default'):
     app = Flask(__name__)
-    
-    # تحميل الإعدادات
+
     if os.environ.get('VERCEL'):
         app.config.from_object(config['production'])
     else:
         app.config.from_object(config[config_name])
 
-    # تهيئة الإضافات
     db.init_app(app)
     login_manager.init_app(app)
     migrate.init_app(app, db)
     mail.init_app(app)
 
     login_manager.login_view = 'auth.login'
-    
+
     with app.app_context():
+        # استيراد الموديلات أولاً
+        from app import models
+        
         # استيراد الـ Blueprints
         from app.community import community_bp
         from app.auth import auth_bp
@@ -48,9 +47,9 @@ def create_app(config_name='default'):
         from app.agent_worker import agent_bp
         from app.interview import interview_bp
 
-        # تسجيل الكومينتي مع البريفكس
+        # تسجيل الكومينتي (تأكد من وجود url_prefix)
         app.register_blueprint(community_bp, url_prefix='/community')
-        
+
         # تسجيل البقية
         app.register_blueprint(auth_bp)
         app.register_blueprint(cv_bp)
@@ -63,20 +62,8 @@ def create_app(config_name='default'):
         app.register_blueprint(agent_bp)
         app.register_blueprint(interview_bp)
 
-        # تهيئة قاعدة البيانات (فقط لو مش في Vercel أو كـ خيار أخير)
-        try:
-            db.create_all()
-            # إصلاح القيود (اختياري)
-            if not os.environ.get('VERCEL'):
-                try:
-                    db.session.execute(text('ALTER TABLE message DROP CONSTRAINT IF EXISTS message_sender_id_fkey'))
-                    db.session.commit()
-                except:
-                    db.session.rollback()
-        except Exception as e:
-            print(f"DB Error: {e}")
+        db.create_all()
 
-    # تعريف المسارات العامة
     @app.route('/force-db-update-2026')
     def force_db_update():
         from app import models
