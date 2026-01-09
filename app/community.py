@@ -11,8 +11,7 @@ community_bp = Blueprint('community', __name__)
 def index():
     posts = Post.query.order_by(Post.timestamp.desc()).all()
     ai_suggestion = "شاركنا مهارة جديدة تعلمتها اليوم لتلهم زملاءك في السودان!"
-    # استيراد الموديل لضمان استخدامه في التمبلت إذا لزم الأمر
-    from app.models import Comment
+    # تم إبقاء التمرير كما هو لضمان عمل الـ Jinja مع العلاقات
     return render_template('community.html', posts=posts, ai_suggestion=ai_suggestion, Comment=Comment)
 
 @community_bp.route('/post/new', methods=['POST'])

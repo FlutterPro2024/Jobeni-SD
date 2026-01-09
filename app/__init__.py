@@ -31,9 +31,9 @@ def create_app(config_name='default'):
     login_manager.login_view = 'auth.login'
 
     with app.app_context():
-        # استيراد الموديلات أولاً
+        # استيراد الموديلات
         from app import models
-        
+
         # استيراد الـ Blueprints
         from app.community import community_bp
         from app.auth import auth_bp
@@ -47,7 +47,7 @@ def create_app(config_name='default'):
         from app.agent_worker import agent_bp
         from app.interview import interview_bp
 
-        # تسجيل الكومينتي (تأكد من وجود url_prefix)
+        # تسجيل الكومينتي أولاً بالـ prefix الصحيح
         app.register_blueprint(community_bp, url_prefix='/community')
 
         # تسجيل البقية

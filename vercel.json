@@ -1,19 +1,10 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "run.py",
-      "use": "@vercel/python"
-    }
-  ],
+  "builds": [ { "src": "run.py", "use": "@vercel/python" } ],
   "routes": [
-    {
-      "src": "/static/(.*)",
-      "dest": "app/static/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "run.py"
-    }
+    { "src": "/static/(.*)", "dest": "app/static/$1" },
+    { "src": "/community/(.*)", "dest": "run.py" },
+    { "src": "/community", "dest": "run.py" },
+    { "src": "/(.*)", "dest": "run.py" }
   ]
 }
