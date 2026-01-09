@@ -9,11 +9,7 @@
   "routes": [
     {
       "src": "/static/(.*)",
-      "dest": "app/static/$1"
-    },
-    {
-      "src": "/community/(.*)",
-      "dest": "run.py"
+      "dest": "/app/static/$1"
     },
     {
       "src": "/(.*)",

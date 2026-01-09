@@ -1,11 +1,13 @@
-# ~/jobeni-sD/app/__init__.py
 import os
 import sys
+import threading
+import time
 from flask import Flask, request, render_template, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, current_user, login_required
 from flask_migrate import Migrate
 from flask_mail import Mail
+from sqlalchemy import text
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import config
@@ -17,33 +19,22 @@ mail = Mail()
 
 def create_app(config_name='default'):
     app = Flask(__name__)
-
+    
+    # تحميل الإعدادات
     if os.environ.get('VERCEL'):
         app.config.from_object(config['production'])
     else:
         app.config.from_object(config[config_name])
 
-    app.config['MAIL_DEFAULT_SENDER'] = app.config.get('MAIL_USERNAME')
-
+    # تهيئة الإضافات
     db.init_app(app)
     login_manager.init_app(app)
     migrate.init_app(app, db)
     mail.init_app(app)
 
     login_manager.login_view = 'auth.login'
-    login_manager.login_message = "يرجى تسجيل الدخول للوصول إلى هذه الصفحة."
-    login_manager.login_message_category = "info"
-
-    @app.before_request
-    def check_for_maintenance():
-        if os.path.exists("maintenance.flag") and \
-           request.endpoint not in ['auth.login', 'static', 'admin.toggle_maintenance'] and \
-           (not current_user.is_authenticated or current_user.role != 'admin'):
-            return render_template('maintenance.html'), 503
-
+    
     with app.app_context():
-        from app import models
-        
         # استيراد الـ Blueprints
         from app.community import community_bp
         from app.auth import auth_bp
@@ -57,7 +48,7 @@ def create_app(config_name='default'):
         from app.agent_worker import agent_bp
         from app.interview import interview_bp
 
-        # تسجيل الكومينتي أولاً لضمان الأولوية في المسارات
+        # تسجيل الكومينتي مع البريفكس
         app.register_blueprint(community_bp, url_prefix='/community')
         
         # تسجيل البقية
@@ -72,29 +63,25 @@ def create_app(config_name='default'):
         app.register_blueprint(agent_bp)
         app.register_blueprint(interview_bp)
 
-        db.create_all()
-
-    @app.route('/notifications/mark-read', methods=['POST'])
-    @login_required
-    def mark_notifications_read():
-        from app.models import Notification
+        # تهيئة قاعدة البيانات (فقط لو مش في Vercel أو كـ خيار أخير)
         try:
-            Notification.query.filter_by(user_id=current_user.id, is_read=False).update({Notification.is_read: True})
-            db.session.commit()
-            return jsonify({'status': 'success'}), 200
+            db.create_all()
+            # إصلاح القيود (اختياري)
+            if not os.environ.get('VERCEL'):
+                try:
+                    db.session.execute(text('ALTER TABLE message DROP CONSTRAINT IF EXISTS message_sender_id_fkey'))
+                    db.session.commit()
+                except:
+                    db.session.rollback()
         except Exception as e:
-            db.session.rollback()
-            return jsonify({'status': 'error', 'message': str(e)}), 500
+            print(f"DB Error: {e}")
 
+    # تعريف المسارات العامة
     @app.route('/force-db-update-2026')
     def force_db_update():
-        try:
-            with app.app_context():
-                from app import models
-                db.create_all()
-                return "✅ Database Updated Successfully!", 200
-        except Exception as e:
-            return f"❌ Migration Error: {str(e)}", 500
+        from app import models
+        db.create_all()
+        return "✅ Database Updated Successfully!", 200
 
     @login_manager.user_loader
     def load_user(user_id):
