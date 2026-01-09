@@ -53,7 +53,7 @@ def create_app(config_name='default'):
         from app.applications import apps_bp
         from app.agent_worker import agent_bp
         from app.interview import interview_bp
-        from app.community import community_bp # استيراد الكومينتي
+        from app.community import community_bp 
 
         app.register_blueprint(auth_bp)
         app.register_blueprint(cv_bp)
@@ -65,7 +65,8 @@ def create_app(config_name='default'):
         app.register_blueprint(apps_bp)
         app.register_blueprint(agent_bp)
         app.register_blueprint(interview_bp)
-        app.register_blueprint(community_bp) # تسجيل الكومينتي
+        # تم ضبط الـ prefix هنا لضمان عمل المسارات بشكل صحيح
+        app.register_blueprint(community_bp, url_prefix='/community') 
 
         db.create_all()
 
