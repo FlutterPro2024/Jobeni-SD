@@ -4,7 +4,6 @@ from flask_login import login_required, current_user
 from app.models import Job, Application, CV, User, Message, db
 from app.openrouter_ai import openrouter_ai
 from app.notifications import send_new_application_email, send_application_status_email, add_notification
-from app.telegram_bot import send_message # تم تعديل الاستدعاء لضمان العمل
 
 jobs_bp = Blueprint('jobs', __name__)
 
@@ -36,7 +35,7 @@ def add_job():
         title = request.form.get('title')
         company = request.form.get('company_name')
         location = request.form.get('location')
-        
+
         new_job = Job(
             title=title,
             company_name=company,
@@ -44,14 +43,12 @@ def add_job():
             description=request.form.get('description'),
             salary=request.form.get('salary'),
             job_type=request.form.get('job_type'),
-            user_id=current_user.id # ربط الوظيفة بصاحب العمل
+            user_id=current_user.id
         )
         db.session.add(new_job)
         db.session.commit()
 
-        # إشعار الجرس لصاحب العمل
         add_notification(current_user.id, "تم نشر الوظيفة 🚀", f"وظيفتك '{title}' متاحة الآن للتقديم.", "success")
-
         flash('تم نشر الوظيفة بنجاح!', 'success')
         return redirect(url_for('auth.dashboard'))
 
@@ -72,9 +69,8 @@ def apply_to_job(job_id):
         return redirect(url_for('jobs.job_detail', job_id=job_id))
 
     user_cv = CV.query.filter_by(id=cv_id, user_id=current_user.id).first()
-    
-    # تحليل المطابقة بالذكاء الاصطناعي
-    match_score = 50 # افتراضي
+
+    match_score = 50
     if user_cv:
         try:
             prompt = f"قارن بين السيرة الذاتية: {user_cv.extracted_text[:1000]} ووصف الوظيفة: {job.description[:1000]}. أعطني نسبة مطابقة كرقم فقط من 100."
@@ -92,13 +88,14 @@ def apply_to_job(job_id):
     db.session.add(new_app)
     db.session.commit()
 
-    # إشعارات لصاحب العمل
     employer = User.query.get(job.user_id)
     if employer:
-        send_new_application_email(employer, job, current_user, match_score)
+        try:
+            send_new_application_email(employer, job, current_user, match_score)
+        except:
+            pass
 
     add_notification(current_user.id, "تم التقديم بنجاح ✅", f"قدمت على '{job.title}' بنسبة مطابقة {match_score}%", "info")
-
     flash(f'تم التقديم بنجاح! نسبة مطابقتك الذكية: {match_score}%', 'success')
     return redirect(url_for('jobs.job_detail', job_id=job_id))
 
@@ -107,7 +104,7 @@ def apply_to_job(job_id):
 def update_application_status(app_id):
     application = Application.query.get_or_404(app_id)
     job = Job.query.get(application.job_id)
-    
+
     if job.user_id != current_user.id:
         abort(403)
 
@@ -115,10 +112,12 @@ def update_application_status(app_id):
     application.status = new_status
     db.session.commit()
 
-    # إخطار المتقدم
     applicant = User.query.get(application.user_id)
     if applicant:
-        send_application_status_email(applicant, job.title, new_status)
+        try:
+            send_application_status_email(applicant, job.title, new_status)
+        except:
+            pass
 
     flash(f'تم تحديث الحالة إلى {new_status} وإشعار المتقدم.', 'success')
     return redirect(url_for('jobs.view_candidates', job_id=job.id))
@@ -131,3 +130,19 @@ def view_candidates(job_id):
         abort(403)
     apps = Application.query.filter_by(job_id=job_id).order_by(Application.match_score.desc()).all()
     return render_template('view_candidates.html', job=job, applications=apps)
+
+@jobs_bp.route('/job/delete/<int:job_id>', methods=['POST'])
+@login_required
+def delete_job(job_id):
+    """حذف الوظيفة وجميع الطلبات المرتبطة بها"""
+    job = Job.query.get_or_404(job_id)
+    if job.user_id != current_user.id:
+        abort(403)
+    
+    # حذف التقديمات أولاً
+    Application.query.filter_by(job_id=job_id).delete()
+    db.session.delete(job)
+    db.session.commit()
+    
+    flash('تم حذف الوظيفة بنجاح.', 'info')
+    return redirect(url_for('auth.dashboard'))

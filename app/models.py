@@ -56,7 +56,7 @@ class CV(db.Model):
     extracted_text = db.Column(db.Text)
     profession = db.Column(db.String(100))
     score = db.Column(db.Integer, default=0)
-    skills = db.Column(db.JSON) 
+    skills = db.Column(db.JSON)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
@@ -103,7 +103,7 @@ class Comment(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     post_id = db.Column(db.Integer, db.ForeignKey('post.id'))
-    user = db.relationship('User', backref='comments')
+    user = db.relationship('User', backref='comments_ref') # تم تغيير backref لتجنب التكرار
 
 class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)

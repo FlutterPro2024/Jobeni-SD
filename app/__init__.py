@@ -76,3 +76,4 @@ def create_app(config_name='default'):
         return db.session.get(User, int(user_id))
 
     return app
+	

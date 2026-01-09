@@ -30,38 +30,13 @@
         .nav-link { font-weight: 500; color: rgba(255,255,255,0.85) !important; transition: 0.3s; }
         .nav-link:hover { color: #0dcaf0 !important; transform: translateY(-1px); }
         .footer { background: #1a1d20; color: rgba(255,255,255,0.6); padding: 40px 0; margin-top: 80px; }
-
         .notification-badge { padding: 4px 6px; font-size: 0.65rem; animation: pulse 2s infinite; top: 5px !important; right: 5px !important; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
         .bg-unread { background-color: #f0f7ff !important; }
-
-        #install-banner {
-            display: none; position: fixed; bottom: 20px; left: 20px; right: 20px;
-            background: white; padding: 15px; border-radius: 20px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.3); z-index: 10000;
-            border: 1px solid rgba(13, 110, 253, 0.2); animation: slideUp 0.5s ease-out;
-        }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
         .flag-icon { display: inline-block; direction: ltr; unicode-bidi: isolate; }
     </style>
 </head>
 <body>
-    <div id="install-banner">
-        <div class="d-flex align-items-center justify-content-between">
-            <div class="d-flex align-items-center">
-                <img src="/static/icon.png" width="45" height="45" class="rounded-3 shadow-sm me-3" style="margin-left: 10px;">
-                <div>
-                    <h6 class="mb-0 fw-bold" style="color: #212529;">جوبيني السودان</h6>
-                    <small class="text-muted">ثبت التطبيق لتجربة أسرع</small>
-                </div>
-            </div>
-            <div class="d-flex gap-2">
-                <button id="btn-install" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">تثبيت</button>
-                <button onclick="document.getElementById('install-banner').style.display='none'" class="btn btn-light btn-sm rounded-circle"><i class="fas fa-times"></i></button>
-            </div>
-        </div>
-    </div>
-
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top shadow-sm">
         <div class="container">
             <a class="logo-container" href="{{ url_for('auth.index') }}">
@@ -72,57 +47,50 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto align-items-center text-end mt-3 mt-lg-0">
-                    <li class="nav-item w-100 w-lg-auto"><a class="nav-link px-3" href="{{ url_for('jobs.jobs_list') }}"><i class="fas fa-briefcase me-1"></i> الوظائف</a></li>
-                    
-                    <li class="nav-item w-100 w-lg-auto"><a class="nav-link px-3" href="{{ url_for('community.index') }}"><i class="fas fa-users me-1"></i> المجتمع</a></li>
+                <ul class="navbar-nav ms-auto align-items-center text-end">
+                    <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('jobs.jobs_list') }}"><i class="fas fa-briefcase ms-1"></i> الوظائف</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('community.index') }}"><i class="fas fa-users ms-1"></i> المجتمع</a></li>
 
                     {% if current_user.is_authenticated %}
-                        <li class="nav-item w-100 w-lg-auto"><a class="nav-link px-3" href="{{ url_for('auth.dashboard') }}"><i class="fas fa-columns me-1"></i> لوحة التحكم</a></li>
+                        <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('auth.dashboard') }}"><i class="fas fa-columns ms-1"></i> لوحة التحكم</a></li>
 
-                        <li class="nav-item dropdown px-2 w-100 w-lg-auto">
+                        <li class="nav-item dropdown px-2">
                             <a class="nav-link position-relative d-inline-block" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown">
                                 <i class="fas fa-bell fs-5"></i>
-                                {% set unread_count = current_user.notifications|selectattr('is_read', 'equalto', False)|list|length %}
+                                {% set unread_count = current_user.notifications.filter_by(is_read=False).count() %}
                                 {% if unread_count > 0 %}
                                     <span class="position-absolute badge rounded-circle bg-danger border border-light notification-badge">
                                         {{ unread_count }}
                                     </span>
                                 {% endif %}
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 py-0 overflow-hidden text-end mt-2" style="min-width: 280px; max-height: 400px; overflow-y: auto;">
-                                <li class="p-3 border-bottom bg-light d-flex justify-content-between align-items-center">
-                                    <span class="badge bg-primary rounded-pill">{{ unread_count }} جديدة</span>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 py-0 text-end mt-2" style="min-width: 280px; max-height: 400px; overflow-y: auto;">
+                                <li class="p-3 border-bottom bg-light d-flex justify-content-between">
+                                    <span class="badge bg-primary rounded-pill unread-label">{{ unread_count }} جديدة</span>
                                     <h6 class="mb-0 fw-bold small">مركز التنبيهات</h6>
                                 </li>
-                                {% for notif in (current_user.notifications|sort(attribute='created_at', reverse=True))[:10] %}
-                                    <li>
-                                        <a class="dropdown-item p-3 border-bottom {% if not notif.is_read %}bg-unread{% endif %}" href="{{ notif.link or '#' }}">
-                                            <div class="text-wrap">
-                                                <p class="small mb-1 fw-bold text-dark">{{ notif.title }}</p>
-                                                <p class="mb-0 text-muted x-small" style="font-size: 0.75rem; line-height: 1.4;">{{ notif.message[:80] }}</p>
-                                            </div>
-                                        </a>
-                                    </li>
-                                {% else %}
-                                    <li class="p-4 text-center text-muted small">لا توجد تنبيهات حالياً</li>
-                                {% endfor %}
+                                <div id="notification-list">
+                                    {% for notif in current_user.notifications.order_by(Notification.created_at.desc()).limit(10) %}
+                                        <li><a class="dropdown-item p-3 border-bottom {% if not notif.is_read %}bg-unread{% endif %}" href="{{ notif.link or '#' }}"><p class="small mb-0 text-dark">{{ notif.title }}</p></a></li>
+                                    {% else %}
+                                        <li class="p-4 text-center text-muted small">لا توجد تنبيهات</li>
+                                    {% endfor %}
+                                </div>
                             </ul>
                         </li>
 
-                        <li class="nav-item dropdown ms-lg-2 w-100 w-lg-auto mt-2 mt-lg-0">
-                            <a class="nav-link dropdown-toggle btn btn-outline-info btn-sm rounded-pill px-3 text-white d-flex align-items-center justify-content-center" href="#" id="userDropdown" data-bs-toggle="dropdown">
-                                <i class="fas fa-user-circle me-1"></i> <span class="mx-1">{{ current_user.username }}</span>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle btn btn-outline-info btn-sm rounded-pill px-3 text-white" href="#" id="userDropdown" data-bs-toggle="dropdown">
+                                {{ current_user.username }}
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2">
-                                <li><a class="dropdown-item text-end small" href="{{ url_for('auth.profile') }}">الإعدادات <i class="fas fa-cog ms-2"></i></a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item text-end text-danger small" href="{{ url_for('auth.logout') }}">خروج <i class="fas fa-sign-out-alt ms-2"></i></a></li>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                                <li><a class="dropdown-item text-end small" href="{{ url_for('auth.profile') }}">الإعدادات</a></li>
+                                <li><a class="dropdown-item text-end text-danger small" href="{{ url_for('auth.logout') }}">خروج</a></li>
                             </ul>
                         </li>
                     {% else %}
                         <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('auth.login') }}">دخول</a></li>
-                        <li class="nav-item ms-lg-2"><a class="btn btn-primary btn-sm rounded-pill px-4" href="{{ url_for('auth.register') }}">انضم الآن</a></li>
+                        <li class="nav-item"><a class="btn btn-primary btn-sm rounded-pill px-4" href="{{ url_for('auth.register') }}">انضم الآن</a></li>
                     {% endif %}
                 </ul>
             </div>
@@ -133,8 +101,8 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show shadow-sm border-0 rounded-4 text-end small">
-                        <i class="fas fa-info-circle me-2"></i> {{ message }}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm text-end small">
+                        {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 {% endfor %}
@@ -145,22 +113,31 @@
     <main>{% block content %}{% endblock %}</main>
 
     <footer class="footer text-center">
-        <div class="container">
-            <p class="mb-0 small opacity-75">
-                © 2026 Jobeni SD. منصة التوظيف الذكية الأولى في السودان
-                <span class="flag-icon">🇸🇩</span>
-            </p>
-        </div>
+        <p class="mb-0 small opacity-75">© 2026 Jobeni SD. <span class="flag-icon">🇸🇩</span></p>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        function checkNotifications() {
+            fetch("{{ url_for('auth.unread_count') }}")
+                .then(res => res.json())
+                .then(data => {
+                    const badge = document.querySelector('.notification-badge');
+                    const label = document.querySelector('.unread-label');
+                    if (data.count > 0) {
+                        if (badge) { badge.textContent = data.count; badge.style.display = 'block'; }
+                        if (label) { label.textContent = data.count + ' جديدة'; }
+                    }
+                });
+        }
+        setInterval(checkNotifications, 30000);
+
         const dropToggle = document.getElementById('notificationDropdown');
         if (dropToggle) {
-            dropToggle.addEventListener('show.bs.dropdown', function () {
+            dropToggle.addEventListener('show.bs.dropdown', () => {
+                fetch("{{ url_for('auth.mark_notifications_read') }}", { method: 'POST' });
                 const badge = document.querySelector('.notification-badge');
                 if (badge) badge.style.display = 'none';
-                fetch('/notifications/mark-read', { method: 'POST' });
             });
         }
     </script>
