@@ -12,6 +12,10 @@
       "dest": "app/static/$1"
     },
     {
+      "src": "/force-db-update-2026",
+      "dest": "run.py"
+    },
+    {
       "src": "/(.*)",
       "dest": "run.py"
     }

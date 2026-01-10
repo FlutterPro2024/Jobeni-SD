@@ -23,14 +23,17 @@ class User(db.Model, UserMixin):
     lat = db.Column(db.Float)
     lng = db.Column(db.Float)
     telegram_id = db.Column(db.String(50))
-    
+
     # أعمدة الوكيل الذكي
     agent_enabled = db.Column(db.Boolean, default=False)
     agent_query = db.Column(db.String(200))
     last_agent_run = db.Column(db.DateTime)
 
     cvs = db.relationship('CV', backref='owner', lazy=True, cascade="all, delete-orphan")
-    jobs = db.relationship('Job', backref='employer', lazy=True)
+    
+    # إصلاح العلاقة: تحديد العمود الأجنبي بشكل صريح لفك الارتباط بـ employer_id
+    jobs = db.relationship('Job', backref='employer', lazy=True, foreign_keys='Job.user_id')
+    
     applications = db.relationship('Application', backref='applicant', lazy=True)
     posts = db.relationship('Post', backref='author', lazy='dynamic')
     notifications = db.relationship('Notification', backref='recipient', lazy='dynamic')
@@ -55,10 +58,10 @@ class Job(db.Model):
     category = db.Column(db.String(50), default='عام')
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # استخدام user_id حصراً لربط صاحب العمل
+
+    # العمود الموحد لربط صاحب العمل
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    
+
     applications = db.relationship('Application', backref='job', lazy=True, cascade="all, delete-orphan")
 
 class CV(db.Model):

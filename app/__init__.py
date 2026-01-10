@@ -7,11 +7,10 @@ from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_mail import Mail
 
-# تأمين مسارات النظام للوصول إلى config
+# تأمين مسارات النظام
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import config
 
-# تعريف الإضافات
 db = SQLAlchemy()
 login_manager = LoginManager()
 migrate = Migrate()
@@ -20,12 +19,10 @@ mail = Mail()
 def create_app(config_name='default'):
     app = Flask(__name__)
 
-    # اختيار الإعدادات
     env_config = 'production' if os.environ.get('VERCEL') else config_name
     app.config.from_object(config[env_config])
     config[env_config].init_app(app)
 
-    # تهيئة الإضافات
     db.init_app(app)
     login_manager.init_app(app)
     migrate.init_app(app, db)
@@ -35,31 +32,34 @@ def create_app(config_name='default'):
     login_manager.login_message = "يرجى تسجيل الدخول للوصول إلى هذه الصفحة"
 
     with app.app_context():
-        # استيراد الموديلات
         from app.models import User, Notification, Job
         
-        # --- [بداية كود الإصلاح التلقائي للأعمدة] ---
+        # --- [كود الإصلاح الذكي والجذري للقاعدة] ---
         from sqlalchemy import text
         try:
-            # محاولة تغيير اسم العمود المتعطل فوراً
-            db.session.execute(text('ALTER TABLE job RENAME COLUMN employer_id TO user_id;'))
-            db.session.commit()
-            print("✅ Auto-Fix: employer_id renamed to user_id")
-        except Exception:
-            db.session.rollback() # العمود مصلح بالفعل أو غير موجود
-
-        try:
-            # إضافة أعمدة الوكيل الذكي إذا لم تكن موجودة
+            # استخدام SQL ذكي يفحص العمود قبل المحاولة لتجنب الـ Error 500
+            db.session.execute(text("""
+                DO $$ 
+                BEGIN 
+                    IF EXISTS (SELECT 1 FROM information_schema.columns 
+                               WHERE table_name='job' AND column_name='employer_id') THEN
+                        ALTER TABLE job RENAME COLUMN employer_id TO user_id;
+                    END IF;
+                END $$;
+            """))
+            
+            # التأكد من أعمدة الوكيل الذكي
             db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_enabled BOOLEAN DEFAULT FALSE;'))
             db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_query VARCHAR(255);'))
             db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_agent_run TIMESTAMP;'))
+            
             db.session.commit()
-            print("✅ Auto-Fix: User agent columns verified")
-        except Exception:
+            print("✅ Database Schema Verified & Synced!")
+        except Exception as e:
             db.session.rollback()
-        # --- [نهاية كود الإصلاح التلقائي] ---
+            print(f"⚠️ DB Sync Warning: {e}")
 
-        # تسجيل الـ Blueprints
+        # تسجيل جميع Blueprints
         from app.auth import auth_bp
         from app.community import community_bp
         from app.cv import cv_bp
@@ -77,7 +77,7 @@ def create_app(config_name='default'):
         app.register_blueprint(cv_bp, url_prefix='/cv')
         app.register_blueprint(jobs_bp, url_prefix='/jobs')
         app.register_blueprint(search_bp, url_prefix='/search')
-        app.register_blueprint(telegram_bp, url_prefix='/telegram')
+        app.register_blueprint(telegram_bot.telegram_bp, url_prefix='/telegram') # تصحيح استيراد
         app.register_blueprint(admin_bp, url_prefix='/admin')
         app.register_blueprint(chat_bp, url_prefix='/chat')
         app.register_blueprint(apps_bp, url_prefix='/apps')
@@ -93,17 +93,5 @@ def create_app(config_name='default'):
     @app.context_processor
     def inject_vars():
         return dict(Notification=Notification)
-
-    # مسار الطوارئ المطور (احتياطي)
-    @app.route('/force-db-update-2026')
-    def force_db_update():
-        from sqlalchemy import text
-        try:
-            db.session.execute(text('ALTER TABLE job RENAME COLUMN employer_id TO user_id;'))
-            db.session.commit()
-            return "✅ Database Synchronized!", 200
-        except Exception as e:
-            db.session.rollback()
-            return f"❌ Fix Failed: {str(e)}", 500
 
     return app
