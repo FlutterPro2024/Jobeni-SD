@@ -33,26 +33,26 @@ def create_app(config_name='default'):
 
     with app.app_context():
         from app.models import User, Notification, Job
-        
+
         # --- [كود الإصلاح الذكي والجذري للقاعدة] ---
         from sqlalchemy import text
         try:
             # استخدام SQL ذكي يفحص العمود قبل المحاولة لتجنب الـ Error 500
             db.session.execute(text("""
-                DO $$ 
-                BEGIN 
-                    IF EXISTS (SELECT 1 FROM information_schema.columns 
+                DO $$
+                BEGIN
+                    IF EXISTS (SELECT 1 FROM information_schema.columns
                                WHERE table_name='job' AND column_name='employer_id') THEN
                         ALTER TABLE job RENAME COLUMN employer_id TO user_id;
                     END IF;
                 END $$;
             """))
-            
+
             # التأكد من أعمدة الوكيل الذكي
             db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_enabled BOOLEAN DEFAULT FALSE;'))
             db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_query VARCHAR(255);'))
             db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_agent_run TIMESTAMP;'))
-            
+
             db.session.commit()
             print("✅ Database Schema Verified & Synced!")
         except Exception as e:
@@ -77,7 +77,10 @@ def create_app(config_name='default'):
         app.register_blueprint(cv_bp, url_prefix='/cv')
         app.register_blueprint(jobs_bp, url_prefix='/jobs')
         app.register_blueprint(search_bp, url_prefix='/search')
-        app.register_blueprint(telegram_bot.telegram_bp, url_prefix='/telegram') # تصحيح استيراد
+        
+        # --- [تم التصحيح هنا ليعمل في Vercel] ---
+        app.register_blueprint(telegram_bp, url_prefix='/telegram') 
+        
         app.register_blueprint(admin_bp, url_prefix='/admin')
         app.register_blueprint(chat_bp, url_prefix='/chat')
         app.register_blueprint(apps_bp, url_prefix='/apps')
