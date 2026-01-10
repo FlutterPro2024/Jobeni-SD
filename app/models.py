@@ -30,10 +30,10 @@ class User(db.Model, UserMixin):
     last_agent_run = db.Column(db.DateTime)
 
     cvs = db.relationship('CV', backref='owner', lazy=True, cascade="all, delete-orphan")
-    
-    # إصلاح العلاقة: تحديد العمود الأجنبي بشكل صريح لفك الارتباط بـ employer_id
-    jobs = db.relationship('Job', backref='employer', lazy=True, foreign_keys='Job.user_id')
-    
+
+    # تعديل العلاقة لتكون صريحة تماماً (Manual Backref)
+    jobs = db.relationship('Job', back_populates='employer_user', lazy=True, foreign_keys='Job.user_id')
+
     applications = db.relationship('Application', backref='applicant', lazy=True)
     posts = db.relationship('Post', backref='author', lazy='dynamic')
     notifications = db.relationship('Notification', backref='recipient', lazy='dynamic')
@@ -46,6 +46,7 @@ class User(db.Model, UserMixin):
     )
 
 class Job(db.Model):
+    __tablename__ = 'job'
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
     company_name = db.Column(db.String(100))
@@ -59,10 +60,13 @@ class Job(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # العمود الموحد لربط صاحب العمل
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    # العمود الموحد
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    
+    # تعريف العلاقة المقابلة
+    employer_user = db.relationship('User', back_populates='jobs')
 
-    applications = db.relationship('Application', backref='job', lazy=True, cascade="all, delete-orphan")
+    applications = db.relationship('Application', backref='job_ref', lazy=True, cascade="all, delete-orphan")
 
 class CV(db.Model):
     id = db.Column(db.Integer, primary_key=True)

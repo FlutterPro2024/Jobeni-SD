@@ -14,8 +14,8 @@ auth_bp = Blueprint('auth', __name__)
 @auth_bp.route('/')
 def index():
     try:
-        # حماية الصفحة الرئيسية من أخطاء قاعدة البيانات
-        latest_jobs = Job.query.filter_by(is_active=True).order_by(Job.created_at.desc()).limit(6).all()
+        # استخدام استعلام محدد لتجنب أي Cache قديم للأعمدة
+        latest_jobs = db.session.query(Job).filter(Job.is_active == True).order_by(Job.created_at.desc()).limit(6).all()
     except Exception as e:
         print(f"❌ Database Error in Index: {e}")
         db.session.rollback()
@@ -73,6 +73,7 @@ def register():
 @login_required
 def dashboard():
     if current_user.role == 'employer':
+        # استخدام العلاقة المعدلة
         return render_template('dashboard_employer.html', jobs=current_user.jobs)
 
     recent_apps = Application.query.filter_by(user_id=current_user.id).order_by(Application.applied_at.desc()).limit(5).all()
@@ -109,17 +110,21 @@ def update_agent_settings():
 def fix_db_now():
     from sqlalchemy import text
     try:
-        # 1. إصلاح تضارب اسم العمود (user_id بدل employer_id)
-        try:
-            db.session.execute(text('ALTER TABLE job RENAME COLUMN employer_id TO user_id;'))
-        except: pass 
-        
-        # 2. إضافة أعمدة الوكيل الذكي
+        # إصلاح جذري بـ SQL
+        db.session.execute(text("""
+            DO $$ 
+            BEGIN 
+                IF EXISTS (SELECT 1 FROM information_schema.columns 
+                           WHERE table_name='job' AND column_name='employer_id') THEN
+                    ALTER TABLE job RENAME COLUMN employer_id TO user_id;
+                END IF;
+            END $$;
+        """))
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_enabled BOOLEAN DEFAULT FALSE;'))
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_query VARCHAR(255);'))
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_agent_run TIMESTAMP;'))
         db.session.commit()
-        return "✅ تم تحديث قاعدة بيانات Vercel/Neon بنجاح!"
+        return "✅ تم تحديث قاعدة البيانات بنجاح!"
     except Exception as e:
         db.session.rollback()
         return f"❌ حدث خطأ: {str(e)}"
