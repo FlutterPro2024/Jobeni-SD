@@ -1,5 +1,7 @@
 # ~/jobeni-sD/app/cv.py
-import os, pdfplumber, datetime
+import os
+import pdfplumber
+import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, abort, send_file
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
@@ -31,60 +33,65 @@ def upload_cv():
             flash('يرجى اختيار ملف (PDF أو TXT).', 'warning')
             return redirect(request.url)
 
+        # تسمية الملف بشكل فريد وآمن
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = secure_filename(f"user_{current_user.id}_{timestamp}_{file.filename}")
-        ext = filename.split('.')[-1].lower()
+        original_ext = file.filename.split('.')[-1].lower()
+        filename = secure_filename(f"user_{current_user.id}_{timestamp}.{original_ext}")
 
-        if ext not in ['pdf', 'txt']:
+        if original_ext not in ['pdf', 'txt']:
             flash('عذراً، النظام يدعم ملفات PDF و TXT فقط.', 'danger')
             return redirect(request.url)
 
-        path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'cvs')
+        # ضمان وجود مجلد الرفع
+        path = os.path.join(current_app.config['UPLOAD_FOLDER'])
         os.makedirs(path, exist_ok=True)
         file_full_path = os.path.join(path, filename)
         file.save(file_full_path)
 
-        text = ""
+        extracted_text = ""
         try:
-            if ext == 'pdf':
+            if original_ext == 'pdf':
                 with pdfplumber.open(file_full_path) as pdf:
                     for page in pdf.pages:
-                        extracted = page.extract_text()
-                        if extracted: text += extracted + "\n"
-            elif ext == 'txt':
+                        page_content = page.extract_text()
+                        if page_content:
+                            extracted_text += page_content + "\n"
+            elif original_ext == 'txt':
                 for encoding in ['utf-8', 'windows-1256', 'iso-8859-1']:
                     try:
                         with open(file_full_path, 'r', encoding=encoding) as f:
-                            text = f.read()
+                            extracted_text = f.read()
                         break
-                    except UnicodeDecodeError: continue
+                    except UnicodeDecodeError:
+                        continue
 
-            if not text.strip():
-                flash('الملف فارغ أو لا يمكن قراءة النص منه.', 'danger')
+            if not extracted_text.strip():
+                flash('الملف فارغ أو تعذر استخراج النص منه.', 'danger')
                 return redirect(request.url)
 
-            # تنظيف النص وإرساله للتحليل بذكاء - زيادة الحجم لـ 4000 حرف لدقة أعلى
-            clean_text = " ".join(text.split())[:4000]
-            analysis = openrouter_ai.analyze_cv_complete(clean_text)
+            # تحليل السيرة الذاتية باستخدام الذكاء الاصطناعي
+            clean_sample = " ".join(extracted_text.split())[:4000]
+            analysis = openrouter_ai.analyze_cv_complete(clean_sample)
 
             new_cv = CV(
                 user_id=current_user.id,
-                file_path=filename,
-                extracted_text=text,
+                filename=filename, # تم التعديل ليتوافق مع الموديل
+                extracted_text=extracted_text,
                 skills=analysis.get('skills', []),
                 profession=analysis.get('profession', 'متخصص تقني'),
                 score=analysis.get('overall_score', 50),
-                feedback=analysis.get('feedback', 'تم تحليل بياناتك بنجاح.')
+                created_at=datetime.datetime.utcnow()
             )
             db.session.add(new_cv)
             db.session.commit()
-            flash('تم رفع وتحليل السيرة الذاتية بنجاح! يمكنك الآن تحسينها.', 'success')
+            
+            flash('تم تحليل سيرتك الذاتية بنجاح! جرب أداة التحسين الآن.', 'success')
             return redirect(url_for('cv.my_cvs'))
 
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"CV Upload Error: {str(e)}")
-            flash('حدث خطأ أثناء معالجة الملف، يرجى المحاولة مرة أخرى.', 'danger')
+            current_app.logger.error(f"CV Error: {str(e)}")
+            flash('حدث خطأ أثناء معالجة الملف، حاول مرة أخرى.', 'danger')
             return redirect(request.url)
 
     return render_template('upload_cv.html')
@@ -101,29 +108,21 @@ def view_cv(cv_id):
 @login_required
 def optimize_cv_view(cv_id):
     cv = CV.query.get_or_404(cv_id)
-    if cv.user_id != current_user.id: abort(403)
+    if cv.user_id != current_user.id:
+        abort(403)
 
-    # طلب التحسين مع توجيه صارم للذكاء الاصطناعي لاستخدام الإنجليزية في المحتوى والاحترافية
-    prompt_instruction = "Act as a professional CV writer. REWRITE the following resume content to be ATS-friendly. Focus on professional keywords, accomplishments, and clarity. Maintain English for the main body."
-    optimized_text = openrouter_ai.generate_improved_text(f"{prompt_instruction}\n\nCONTENT:\n{cv.extracted_text}")
+    prompt = f"REWRITE the following resume to be ATS-friendly. Focus on accomplishments. Content:\n{cv.extracted_text}"
+    optimized_text = openrouter_ai.generate_improved_text(prompt)
 
-    if optimized_text and len(optimized_text.strip()) > 200:
-        # تنظيف شامل للمخرجات
-        final_text = optimized_text.replace("```markdown", "").replace("```", "").replace("[OUT]", "").strip()
-
-        # استبدال البيانات الناقصة ببيانات المستخدم الحالية
-        final_text = final_text.replace("[Name]", current_user.username)\
-                               .replace("[Email]", current_user.email or "contact@jobeni.sd")\
-                               .replace("[Date]", datetime.date.today().strftime("%Y-%m-%d"))
-
+    if optimized_text and len(optimized_text.strip()) > 100:
+        final_text = optimized_text.replace("```markdown", "").replace("```", "").strip()
+        # تعويض البيانات التلقائية
+        final_text = final_text.replace("[Name]", current_user.full_name or current_user.username)\
+                               .replace("[Email]", current_user.email)
         return render_template('cv_comparison.html', cv_id=cv.id, old_text=cv.extracted_text, new_text=final_text)
 
-    flash('المحركات مشغولة حالياً، تم استخدام القالب الذكي السريع.', 'info')
-    backup_text = (f"# RESUME: {current_user.username.upper()}\n"
-                   f"**Profession:** {cv.profession}\n\n"
-                   f"## SUMMARY\nProfessional {cv.profession} with expertise in {', '.join(cv.skills[:4])}.\n\n"
-                   f"## EXPERIENCE\n{cv.extracted_text[:600]}...")
-    return render_template('cv_comparison.html', cv_id=cv.id, old_text=cv.extracted_text, new_text=backup_text)
+    flash('المحرك مشغول حالياً، يرجى المحاولة بعد قليل.', 'info')
+    return redirect(url_for('cv.my_cvs'))
 
 @cv_bp.route('/cv/generate-pdf/<int:cv_id>', methods=['POST'])
 @login_required
@@ -132,67 +131,52 @@ def generate_ats_pdf(cv_id):
     if cv.user_id != current_user.id: abort(403)
 
     new_content = request.form.get('optimized_content', '')
-    cv.optimized_text = new_content
-    cv.score = max((cv.score or 0), 95) 
-    db.session.commit()
-
+    
     try:
-        # استخدام fpdf2 المتقدمة
         pdf = FPDF()
         pdf.set_auto_page_break(auto=True, margin=15)
         pdf.add_page()
-        
-        # إضافة الخطوط لدعم العربية (تأكد من وجود ملف الخط في هذا المسار)
-        # إذا لم يتوفر الخط، سيستخدم Arial الافتراضي للإنجليزي
-        try:
-            font_path = os.path.join(current_app.root_path, 'static', 'fonts', 'DejaVuSans.ttf')
+
+        # محاولة تحميل الخط العربي
+        font_path = os.path.join(current_app.root_path, 'static', 'fonts', 'DejaVuSans.ttf')
+        if os.path.exists(font_path):
             pdf.add_font('DejaVu', '', font_path)
             pdf.set_font('DejaVu', size=11)
             use_unicode = True
-        except:
+        else:
             pdf.set_font("Arial", size=11)
             use_unicode = False
 
-        # عنوان الملف
         pdf.set_font("Arial", 'B', 16)
         pdf.cell(0, 10, "ATS-OPTIMIZED RESUME", ln=True, align='C')
         pdf.ln(10)
-        
-        if use_unicode:
-            pdf.set_font('DejaVu', size=11)
-        else:
-            pdf.set_font("Arial", size=11)
 
-        # معالجة النص سطر بسطر مع دعم اللغة العربية (Bidi)
-        lines = new_content.split('\n')
-        for line in lines:
+        for line in new_content.split('\n'):
             if line.strip():
-                # إعادة تشكيل النص العربي ليدعم الاتجاه الصحيح
-                reshaped_text = reshape(line)
-                bidi_text = get_display(reshaped_text)
-                
-                # إذا كان النص يحتوي على عربي، نجعله من اليمين، غير ذلك من اليسار
-                is_arabic = any("\u0600" <= char <= "\u06FF" for char in line)
-                align = 'R' if is_arabic else 'L'
-                
-                pdf.multi_cell(0, 8, txt=bidi_text, align=align)
+                if use_unicode:
+                    reshaped = reshape(line)
+                    bidi_text = get_display(reshaped)
+                    is_arabic = any("\u0600" <= char <= "\u06FF" for char in line)
+                    pdf.multi_cell(0, 8, txt=bidi_text, align='R' if is_arabic else 'L')
+                else:
+                    pdf.multi_cell(0, 8, txt=line, align='L')
             else:
                 pdf.ln(4)
 
-        pdf_filename = f"Jobeni_Optimized_{cv.id}.pdf"
+        pdf_filename = f"Optimized_CV_{cv.id}.pdf"
         pdf_path = os.path.join(current_app.config['UPLOAD_FOLDER'], pdf_filename)
         pdf.output(pdf_path)
 
+        # إرسال عبر تلغرام إذا كان مرتبطاً
         if current_user.telegram_id:
             try:
-                send_document(current_user.telegram_id, pdf_path, caption=f"🚀 مبروك يا {current_user.username}! سيرتك الذاتية أصبحت جاهزة.")
-            except:
-                pass
+                send_document(current_user.telegram_id, pdf_path, caption="🚀 سيرتك الذاتية المحسنة جاهزة!")
+            except: pass
 
         return send_file(pdf_path, as_attachment=True)
     except Exception as e:
-        current_app.logger.error(f"PDF Gen Error: {str(e)}")
-        flash('تم حفظ التعديلات، ولكن حدث خطأ في إنشاء PDF. يمكنك نسخ النص يدوياً.', 'warning')
+        current_app.logger.error(f"PDF Error: {str(e)}")
+        flash('حدث خطأ أثناء إنشاء PDF، يمكنك نسخ النص يدوياً.', 'warning')
         return redirect(url_for('cv.view_cv', cv_id=cv.id))
 
 @cv_bp.route('/cv/delete/<int:cv_id>', methods=['POST'])
@@ -200,10 +184,7 @@ def generate_ats_pdf(cv_id):
 def delete_cv(cv_id):
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id: abort(403)
-    try:
-        db.session.delete(cv)
-        db.session.commit()
-        flash('تم حذف السيرة الذاتية بنجاح.', 'info')
-    except:
-        db.session.rollback()
+    db.session.delete(cv)
+    db.session.commit()
+    flash('تم حذف السيرة الذاتية.', 'info')
     return redirect(url_for('cv.my_cvs'))
