@@ -164,3 +164,26 @@ def update_agent_settings():
     db.session.commit()
     flash('تم تحديث إعدادات البحث الآلي بنجاح.', 'success')
     return redirect(url_for('auth.dashboard'))
+@auth_bp.route('/fix-db-now')
+def fix_db_now():
+    from sqlalchemy import text
+    try:
+        # تنفيذ التعديلات يدوياً على السيرفر السحابي
+        db.session.execute(text('ALTER TABLE job RENAME COLUMN employer_id TO user_id;'))
+    except: pass # إذا كان الاسم متغيراً بالفعل تخطى
+    
+    try:
+        db.session.execute(text('ALTER TABLE job ADD COLUMN IF NOT EXISTS latitude FLOAT;'))
+        db.session.execute(text('ALTER TABLE job ADD COLUMN IF NOT EXISTS longitude FLOAT;'))
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS lat FLOAT;'))
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS lng FLOAT;'))
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS location_name VARCHAR(100);'))
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS phone VARCHAR(20);'))
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS avatar VARCHAR(200);'))
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS headline VARCHAR(200);'))
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS bio TEXT;'))
+        db.session.execute(text('DROP TABLE IF EXISTS alembic_version;'))
+        db.session.commit()
+        return "✅ تم تحديث قاعدة بيانات Vercel بنجاح!"
+    except Exception as e:
+        return f"❌ حدث خطأ: {str(e)}"
