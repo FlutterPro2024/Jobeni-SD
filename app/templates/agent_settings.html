@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-lg border-0 rounded-4">
+                <div class="card-header bg-primary text-white p-4">
+                    <h3 class="mb-0"><i class="fas fa-robot me-2"></i> إعدادات قناص الوظائف الذكي</h3>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted">الوكيل الذكي يقوم بالبحث عن وظائف في الإنترنت مطابقة لاهتمامك ويرسلها لك عبر تلجرام فور العثور عليها.</p>
+                    
+                    <form action="{{ url_for('auth.update_agent_settings') }}" method="POST">
+                        <div class="form-check form-switch mb-4">
+                            <input class="form-check-input" type="checkbox" id="agentEnabled" name="agent_enabled" {% if current_user.agent_enabled %}checked{% endif %}>
+                            <label class="form-check-label h5" for="agentEnabled">تفعيل البحث التلقائي (الوكيل النشط)</label>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">الكلمات المفتاحية للبحث:</label>
+                            <input type="text" name="agent_query" class="form-control form-control-lg" 
+                                   placeholder="مثلاً: مهندس مدني، محاسب في دبي، مبرمج ريأكت..." 
+                                   value="{{ current_user.agent_query or '' }}">
+                            <small class="text-primary mt-2 d-block"><i class="fas fa-info-circle"></i> إذا تركتها فارغة، سيبحث الوكيل بناءً على تخصصك في الـ CV.</small>
+                        </div>
+
+                        <div class="alert alert-info border-0 rounded-3">
+                            <strong><i class="fab fa-telegram me-2"></i> تأكد من ربط حسابك:</strong>
+                            <p class="mb-0 small">يجب أن تكون قد قمت بتفعيل بوت التلجرام لتصلك الإشعارات فوراً.</p>
+                        </div>
+
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg rounded-pill">حفظ الإعدادات وبدء القنص 🚀</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
