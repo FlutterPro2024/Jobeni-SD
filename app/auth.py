@@ -7,15 +7,24 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from app.models import User, Job, CV, Application, db, InterviewReport, Notification
 from app.serper_search import serper_searcher
 from app.notifications import send_welcome_email
+from sqlalchemy import text  # ضروري جداً للاستعلام المباشر
 
 auth_bp = Blueprint('auth', __name__)
 
-# --- الصفحة الرئيسية ---
+# --- الصفحة الرئيسية (إصلاح جذري باستخدام SQL خام) ---
 @auth_bp.route('/')
 def index():
     try:
-        # استخدام استعلام محدد لتجنب أي Cache قديم للأعمدة
-        latest_jobs = db.session.query(Job).filter(Job.is_active == True).order_by(Job.created_at.desc()).limit(6).all()
+        # استعلام يدوي يطلب أعمدة محددة فقط لتفادي طلب employer_id المختفي
+        query = text("""
+            SELECT id, title, company_name, location, description, category, salary, job_type, created_at 
+            FROM job 
+            WHERE is_active = true 
+            ORDER BY created_at DESC 
+            LIMIT 6
+        """)
+        result = db.session.execute(query)
+        latest_jobs = result.fetchall()
     except Exception as e:
         print(f"❌ Database Error in Index: {e}")
         db.session.rollback()
@@ -73,8 +82,10 @@ def register():
 @login_required
 def dashboard():
     if current_user.role == 'employer':
-        # استخدام العلاقة المعدلة
-        return render_template('dashboard_employer.html', jobs=current_user.jobs)
+        # استخدام استعلام مباشر لتفادي مشاكل العلاقات القديمة في الـ Dashboard
+        query = text("SELECT * FROM job WHERE user_id = :uid")
+        jobs = db.session.execute(query, {"uid": current_user.id}).fetchall()
+        return render_template('dashboard_employer.html', jobs=jobs)
 
     recent_apps = Application.query.filter_by(user_id=current_user.id).order_by(Application.applied_at.desc()).limit(5).all()
     reports = InterviewReport.query.filter_by(user_id=current_user.id).order_by(InterviewReport.created_at.asc()).all()
@@ -105,12 +116,11 @@ def update_agent_settings():
         return redirect(url_for('auth.dashboard'))
     return render_template('agent_settings.html')
 
-# --- إصلاح قاعدة البيانات ---
+# --- إصلاح قاعدة البيانات (رابط الطوارئ) ---
 @auth_bp.route('/fix-db-now')
 def fix_db_now():
-    from sqlalchemy import text
     try:
-        # إصلاح جذري بـ SQL
+        # محاولة إصلاح اسم العمود وتعديل الجدول
         db.session.execute(text("""
             DO $$ 
             BEGIN 
@@ -124,10 +134,10 @@ def fix_db_now():
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_query VARCHAR(255);'))
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_agent_run TIMESTAMP;'))
         db.session.commit()
-        return "✅ تم تحديث قاعدة البيانات بنجاح!"
+        return "✅ تم تحديث وصيانة قاعدة البيانات بنجاح!"
     except Exception as e:
         db.session.rollback()
-        return f"❌ حدث خطأ: {str(e)}"
+        return f"❌ خطأ أثناء الصيانة: {str(e)}"
 
 @auth_bp.route('/logout')
 @login_required
