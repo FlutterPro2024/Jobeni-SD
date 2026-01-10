@@ -2,7 +2,7 @@
 import json, re
 from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required, current_user
-from app.models import Job, CV, InterviewSession, db, InterviewReport
+from app.models import Job, CV, db, InterviewReport
 from app.openrouter_ai import openrouter_ai
 from app.notifications import add_notification
 
@@ -18,16 +18,13 @@ def start_interview(job_id):
         return "⚠️ يرجى رفع وتحليل السيرة الذاتية أولاً لبدء المحاكاة المهنية.", 400
 
     prompt = f"""
-    تقمص شخصية 'Senior Technical Interviewer' في شركة عالمية.
-    ستقوم بإجراء مقابلة مع المهندس: {current_user.full_name or current_user.username}.
-    الوظيفة المستهدفة: {job.title} في شركة {job.company_name}.
+    تقمص شخصية 'Senior Technical Interviewer'.
+    ستقوم بإجراء مقابلة مع: {current_user.full_name or current_user.username}.
+    الوظيفة: {job.title} في {job.company_name}.
     وصف الوظيفة: {job.description[:500]}
     السيرة الذاتية للمرشح: {cv.extracted_text[:1200]}
 
-    المطلوب منك:
-    1. رحب بالمرشح بوقار مهني.
-    2. اطرح سؤالاً تقنياً عميقاً يختبر مهاراته المذكورة في الـ CV وعلاقتها بالوظيفة.
-    3. لغة الحوار: العربية الفصحى البسيطة والمهنية.
+    المطلوب: رحب بالمرشح واطرح أول سؤال تقني عميق بناءً على خبراته. لغة الحوار: العربية المهنية.
     """
     first_question = openrouter_ai._call_ai(prompt, temperature=0.7)
     return render_template('interview/chat.html', job_title=job.title, first_question=first_question)
@@ -41,10 +38,9 @@ def chat():
     job_title = data.get('job_title')
 
     prompt = f"""
-    أنت في منتصف مقابلة تقنية لوظيفة: {job_title}.
-    سجل الحوار السابق: {history}
+    سجل الحوار: {history}
     إجابة المرشح الأخيرة: "{user_answer}"
-    المطلوب: طرح سؤال تالي تقني أو سلوكي بناءً على الإجابة.
+    أنت المحاور، قيم الإجابة واطرح السؤال التالي لوظيفة {job_title}.
     """
     ai_response = openrouter_ai._call_ai(prompt, temperature=0.8)
     return jsonify({'response': ai_response})
@@ -58,12 +54,13 @@ def finish_interview():
 
     analysis_prompt = f"""
     حلل المقابلة لوظيفة '{job_title}'. السجل: {history}
-    رد بصيغة JSON: {{"score": "XX%", "strengths": [], "weaknesses": [], "overall_feedback": "", "recommendation": ""}}
+    رد بصيغة JSON حصراً: {{"score": "XX%", "overall_feedback": ""}}
     """
     raw_result = openrouter_ai._call_ai(analysis_prompt, temperature=0.3)
     try:
         json_match = re.search(r'\{.*\}', raw_result, re.DOTALL)
-        assessment = json.loads(json_match.group()) if json_match else {}
+        assessment = json.loads(json_match.group()) if json_match else {"score": "50%", "overall_feedback": "تحليل عام"}
+        
         new_report = InterviewReport(
             user_id=current_user.id,
             job_title=job_title,
@@ -72,8 +69,10 @@ def finish_interview():
         )
         db.session.add(new_report)
         db.session.commit()
-        add_notification(current_user.id, "اكتمل تقرير المقابلة 📊", f"تقرير {job_title} جاهز. النسبة: {assessment.get('score')}", "success", "/dashboard")
-    except Exception as e:
+        
+        add_notification(current_user.id, "اكتمل تقرير المقابلة 📊", f"تقرير {job_title} جاهز بنسبة {assessment.get('score')}", "success", "/dashboard")
+    except:
         db.session.rollback()
-        assessment = {"score": "50%", "overall_feedback": "خطأ في التحليل"}
+        assessment = {"score": "50%", "overall_feedback": "حدث خطأ أثناء التحليل"}
+    
     return jsonify(assessment)

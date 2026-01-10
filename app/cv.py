@@ -33,7 +33,6 @@ def upload_cv():
             flash('يرجى اختيار ملف (PDF أو TXT).', 'warning')
             return redirect(request.url)
 
-        # تسمية الملف بشكل فريد وآمن
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         original_ext = file.filename.split('.')[-1].lower()
         filename = secure_filename(f"user_{current_user.id}_{timestamp}.{original_ext}")
@@ -42,7 +41,6 @@ def upload_cv():
             flash('عذراً، النظام يدعم ملفات PDF و TXT فقط.', 'danger')
             return redirect(request.url)
 
-        # ضمان وجود مجلد الرفع
         path = os.path.join(current_app.config['UPLOAD_FOLDER'])
         os.makedirs(path, exist_ok=True)
         file_full_path = os.path.join(path, filename)
@@ -69,59 +67,41 @@ def upload_cv():
                 flash('الملف فارغ أو تعذر استخراج النص منه.', 'danger')
                 return redirect(request.url)
 
-            # تحليل السيرة الذاتية باستخدام الذكاء الاصطناعي
             clean_sample = " ".join(extracted_text.split())[:4000]
             analysis = openrouter_ai.analyze_cv_complete(clean_sample)
 
             new_cv = CV(
                 user_id=current_user.id,
-                filename=filename, # تم التعديل ليتوافق مع الموديل
+                filename=filename,
                 extracted_text=extracted_text,
                 skills=analysis.get('skills', []),
                 profession=analysis.get('profession', 'متخصص تقني'),
-                score=analysis.get('overall_score', 50),
-                created_at=datetime.datetime.utcnow()
+                score=analysis.get('overall_score', 50)
             )
             db.session.add(new_cv)
             db.session.commit()
-            
-            flash('تم تحليل سيرتك الذاتية بنجاح! جرب أداة التحسين الآن.', 'success')
-            return redirect(url_for('cv.my_cvs'))
 
+            flash('تم تحليل سيرتك الذاتية بنجاح!', 'success')
+            return redirect(url_for('cv.my_cvs'))
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"CV Error: {str(e)}")
-            flash('حدث خطأ أثناء معالجة الملف، حاول مرة أخرى.', 'danger')
+            flash(f'خطأ: {str(e)}', 'danger')
             return redirect(request.url)
 
     return render_template('upload_cv.html')
-
-@cv_bp.route('/cv/view/<int:cv_id>')
-@login_required
-def view_cv(cv_id):
-    cv = CV.query.get_or_404(cv_id)
-    if cv.user_id != current_user.id and current_user.role != 'employer':
-        abort(403)
-    return render_template('view_cv.html', cv=cv)
 
 @cv_bp.route('/cv/optimize/<int:cv_id>')
 @login_required
 def optimize_cv_view(cv_id):
     cv = CV.query.get_or_404(cv_id)
-    if cv.user_id != current_user.id:
-        abort(403)
-
+    if cv.user_id != current_user.id: abort(403)
     prompt = f"REWRITE the following resume to be ATS-friendly. Focus on accomplishments. Content:\n{cv.extracted_text}"
     optimized_text = openrouter_ai.generate_improved_text(prompt)
-
-    if optimized_text and len(optimized_text.strip()) > 100:
+    if optimized_text:
         final_text = optimized_text.replace("```markdown", "").replace("```", "").strip()
-        # تعويض البيانات التلقائية
-        final_text = final_text.replace("[Name]", current_user.full_name or current_user.username)\
-                               .replace("[Email]", current_user.email)
+        final_text = final_text.replace("[Name]", current_user.full_name or current_user.username).replace("[Email]", current_user.email)
         return render_template('cv_comparison.html', cv_id=cv.id, old_text=cv.extracted_text, new_text=final_text)
-
-    flash('المحرك مشغول حالياً، يرجى المحاولة بعد قليل.', 'info')
+    flash('المحرك مشغول حالياً.', 'info')
     return redirect(url_for('cv.my_cvs'))
 
 @cv_bp.route('/cv/generate-pdf/<int:cv_id>', methods=['POST'])
@@ -129,25 +109,22 @@ def optimize_cv_view(cv_id):
 def generate_ats_pdf(cv_id):
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id: abort(403)
-
     new_content = request.form.get('optimized_content', '')
-    
+
     try:
         pdf = FPDF()
-        pdf.set_auto_page_break(auto=True, margin=15)
         pdf.add_page()
-
-        # محاولة تحميل الخط العربي
-        font_path = os.path.join(current_app.root_path, 'static', 'fonts', 'DejaVuSans.ttf')
+        
+        # ربط خط الأميري الموجود في مجلدك
+        font_path = os.path.join(current_app.root_path, 'static', 'fonts', 'Amiri-Regular.ttf')
         if os.path.exists(font_path):
-            pdf.add_font('DejaVu', '', font_path)
-            pdf.set_font('DejaVu', size=11)
+            pdf.add_font('Amiri', '', font_path)
+            pdf.set_font('Amiri', size=12)
             use_unicode = True
         else:
             pdf.set_font("Arial", size=11)
             use_unicode = False
 
-        pdf.set_font("Arial", 'B', 16)
         pdf.cell(0, 10, "ATS-OPTIMIZED RESUME", ln=True, align='C')
         pdf.ln(10)
 
@@ -160,24 +137,15 @@ def generate_ats_pdf(cv_id):
                     pdf.multi_cell(0, 8, txt=bidi_text, align='R' if is_arabic else 'L')
                 else:
                     pdf.multi_cell(0, 8, txt=line, align='L')
-            else:
-                pdf.ln(4)
+            else: pdf.ln(4)
 
         pdf_filename = f"Optimized_CV_{cv.id}.pdf"
         pdf_path = os.path.join(current_app.config['UPLOAD_FOLDER'], pdf_filename)
         pdf.output(pdf_path)
-
-        # إرسال عبر تلغرام إذا كان مرتبطاً
-        if current_user.telegram_id:
-            try:
-                send_document(current_user.telegram_id, pdf_path, caption="🚀 سيرتك الذاتية المحسنة جاهزة!")
-            except: pass
-
         return send_file(pdf_path, as_attachment=True)
     except Exception as e:
-        current_app.logger.error(f"PDF Error: {str(e)}")
-        flash('حدث خطأ أثناء إنشاء PDF، يمكنك نسخ النص يدوياً.', 'warning')
-        return redirect(url_for('cv.view_cv', cv_id=cv.id))
+        flash('حدث خطأ أثناء إنشاء الـ PDF.', 'warning')
+        return redirect(url_for('cv.my_cvs'))
 
 @cv_bp.route('/cv/delete/<int:cv_id>', methods=['POST'])
 @login_required

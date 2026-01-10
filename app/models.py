@@ -20,17 +20,15 @@ class User(db.Model, UserMixin):
     headline = db.Column(db.String(200))
     bio = db.Column(db.Text)
     location_name = db.Column(db.String(100))
-    # حقول الخرائط المضافة
     lat = db.Column(db.Float)
     lng = db.Column(db.Float)
-    
     telegram_id = db.Column(db.String(50))
     agent_enabled = db.Column(db.Boolean, default=False)
     agent_query = db.Column(db.String(200))
     last_agent_run = db.Column(db.DateTime)
 
-    cvs = db.relationship('CV', backref='owner', lazy=True)
-    jobs = db.relationship('Job', backref='employer_ref', lazy=True)
+    cvs = db.relationship('CV', backref='owner', lazy=True, cascade="all, delete-orphan")
+    jobs = db.relationship('Job', backref='employer', lazy=True)
     applications = db.relationship('Application', backref='applicant', lazy=True)
     posts = db.relationship('Post', backref='author', lazy='dynamic')
     notifications = db.relationship('Notification', backref='recipient', lazy='dynamic')
@@ -48,17 +46,15 @@ class Job(db.Model):
     company_name = db.Column(db.String(100))
     description = db.Column(db.Text, nullable=False)
     location = db.Column(db.String(100))
-    # حقول الموقع للخرائط
     latitude = db.Column(db.Float)
     longitude = db.Column(db.Float)
-    
     salary = db.Column(db.String(50))
     job_type = db.Column(db.String(50))
     category = db.Column(db.String(50), default='عام')
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    applications = db.relationship('Application', backref='job', lazy=True)
+    applications = db.relationship('Application', backref='job', lazy=True, cascade="all, delete-orphan")
 
 class CV(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -99,8 +95,8 @@ class Post(db.Model):
     body = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    likes = db.relationship('PostLike', backref='post', lazy='dynamic')
-    comments = db.relationship('Comment', backref='post', lazy='dynamic')
+    likes = db.relationship('PostLike', backref='post', lazy='dynamic', cascade="all, delete-orphan")
+    comments = db.relationship('Comment', backref='post', lazy='dynamic', cascade="all, delete-orphan")
 
 class PostLike(db.Model):
     id = db.Column(db.Integer, primary_key=True)
