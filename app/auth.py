@@ -4,10 +4,10 @@ import re
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from app.models import User, Job, CV, Application, db, InterviewReport, Notification
+from app.models import User, Job, CV, Application, db, InterviewReport, Notification, Message
 from app.serper_search import serper_searcher
 from app.notifications import send_welcome_email
-from sqlalchemy import text  
+from sqlalchemy import text
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -23,7 +23,6 @@ def index():
             LIMIT 6
         """)
         result = db.session.execute(query)
-        # تحويل النتيجة إلى قائمة من القواميس لتعمل مع القالب (Template)
         latest_jobs = result.fetchall()
     except Exception as e:
         print(f"❌ Database Error in Index: {e}")
@@ -79,7 +78,6 @@ def register():
 @login_required
 def dashboard():
     if current_user.role == 'employer':
-        # استخدام SQL خام هنا أيضاً لضمان الاستقرار
         query = text("SELECT id, title, company_name, location, created_at FROM job WHERE user_id = :uid")
         jobs = db.session.execute(query, {"uid": current_user.id}).fetchall()
         return render_template('dashboard_employer.html', jobs=jobs)
@@ -101,6 +99,24 @@ def dashboard():
     return render_template('dashboard.html', cvs=current_user.cvs, recent_applications=recent_apps,
                            web_jobs=web_jobs, chart_labels=chart_labels, chart_scores=chart_scores)
 
+@auth_bp.route('/profile')
+@login_required
+def profile():
+    return render_template('profile.html')
+
+@auth_bp.route('/unread_count')
+@login_required
+def unread_count():
+    count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
+    return jsonify({'count': count})
+
+@auth_bp.route('/mark_notifications_read', methods=['POST'])
+@login_required
+def mark_notifications_read():
+    Notification.query.filter_by(user_id=current_user.id, is_read=False).update({Notification.is_read: True})
+    db.session.commit()
+    return jsonify({'status': 'success'})
+
 @auth_bp.route('/fix-db-now')
 def fix_db_now():
     try:
@@ -117,7 +133,6 @@ def fix_db_now():
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_query VARCHAR(255);'))
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_agent_run TIMESTAMP;'))
         db.session.commit()
-        # مسح الكاش يدوياً لـ SQLAlchemy
         db.session.expire_all()
         return "✅ تم تحديث وصيانة قاعدة البيانات بنجاح!"
     except Exception as e:
