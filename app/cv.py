@@ -20,6 +20,16 @@ def my_cvs():
     cvs = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).all()
     return render_template('my_cvs.html', cvs=cvs)
 
+@cv_bp.route('/view/<int:cv_id>')
+@login_required
+def view_cv(cv_id):
+    """الدالة التي كانت مفقودة وتسببت في انهيار الـ Dashboard"""
+    cv = CV.query.get_or_404(cv_id)
+    if cv.user_id != current_user.id:
+        abort(403)
+    # ملاحظة: تأكد من وجود قالب باسم view_cv.html أو سيعرض النص الخام
+    return render_template('view_cv.html', cv=cv)
+
 @cv_bp.route('/upload-cv', methods=['GET', 'POST'])
 @login_required
 def upload_cv():
@@ -114,8 +124,7 @@ def generate_ats_pdf(cv_id):
     try:
         pdf = FPDF()
         pdf.add_page()
-        
-        # ربط خط الأميري الموجود في مجلدك
+
         font_path = os.path.join(current_app.root_path, 'static', 'fonts', 'Amiri-Regular.ttf')
         if os.path.exists(font_path):
             pdf.add_font('Amiri', '', font_path)
