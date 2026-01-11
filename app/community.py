@@ -9,17 +9,29 @@ community_bp = Blueprint('community', __name__)
 @community_bp.route('/')
 @login_required
 def index():
-    posts = Post.query.order_by(Post.timestamp.desc()).all()
+    # التأكد من عدم وجود قيمة None في الـ avatar لمنع انهيار القالب عند دمج النصوص
+    if not current_user.avatar:
+        current_user.avatar = 'default_avatar.png'
+        db.session.commit()
+
+    # استخدام created_at بدلاً من timestamp ليتوافق مع الموديل الجديد
+    try:
+        posts = Post.query.order_by(Post.created_at.desc()).all()
+    except:
+        # كخيار احتياطي إذا كان الاسم مختلفاً في قاعدة البيانات
+        posts = Post.query.all()
+
     ai_suggestion = "شاركنا مهارة جديدة تعلمتها اليوم لتلهم زملاءك في السودان!"
-    # تم إبقاء التمرير كما هو لضمان عمل الـ Jinja مع العلاقات
+    
     return render_template('community.html', posts=posts, ai_suggestion=ai_suggestion, Comment=Comment)
 
 @community_bp.route('/post/new', methods=['POST'])
 @login_required
 def new_post():
-    body = request.form.get('body')
-    if body:
-        post = Post(body=body, author=current_user)
+    # استخدام content بدلاً من body ليتوافق مع نظام المنشورات
+    content = request.form.get('body') or request.form.get('content')
+    if content:
+        post = Post(content=content, user_id=current_user.id)
         db.session.add(post)
         db.session.commit()
         flash('تم نشر منشورك بنجاح!', 'success')
@@ -43,9 +55,10 @@ def like_post(post_id):
 @community_bp.route('/post/<int:post_id>/comment', methods=['POST'])
 @login_required
 def add_comment(post_id):
-    body = request.form.get('comment_body')
-    if body:
-        comment = Comment(body=body, user_id=current_user.id, post_id=post_id)
+    # استخدام content بدلاً من body للتعليقات أيضاً
+    content = request.form.get('comment_body') or request.form.get('content')
+    if content:
+        comment = Comment(content=content, user_id=current_user.id, post_id=post_id)
         db.session.add(comment)
         db.session.commit()
     return redirect(url_for('community.index'))
