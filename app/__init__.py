@@ -19,7 +19,7 @@ def create_app(config_name='default'):
     app = Flask(__name__)
     env_config = 'production' if os.environ.get('VERCEL') else config_name
     app.config.from_object(config[env_config])
-    
+
     db.init_app(app)
     login_manager.init_app(app)
     migrate.init_app(app, db)
@@ -33,7 +33,7 @@ def create_app(config_name='default'):
         from app.jobs import jobs_bp
         from app.chat import chat_bp
         from app.telegram_bot import telegram_bp
-        
+
         # تسجيل الأساسيات فوراً
         app.register_blueprint(auth_bp)
         app.register_blueprint(jobs_bp, url_prefix='/jobs')
@@ -50,11 +50,24 @@ def create_app(config_name='default'):
             app.register_blueprint(admin_bp, url_prefix='/admin')
             from app.community import community_bp
             app.register_blueprint(community_bp, url_prefix='/community')
+            from app.applications import apps_bp
+            app.register_blueprint(apps_bp, url_prefix='/apps')
+            from app.agent_worker import agent_bp
+            app.register_blueprint(agent_bp, url_prefix='/agent')
+            from app.interview import interview_bp
+            app.register_blueprint(interview_bp, url_prefix='/interview')
         except Exception as e:
             print(f"Non-critical blueprint failed: {e}")
 
     @login_manager.user_loader
     def load_user(user_id):
+        from app.models import User
         return db.session.get(User, int(user_id))
+
+    # --- هذا الجزء يحل مشكلة Notification undefined ---
+    @app.context_processor
+    def inject_vars():
+        from app.models import Notification
+        return dict(Notification=Notification)
 
     return app
