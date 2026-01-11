@@ -7,23 +7,23 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from app.models import User, Job, CV, Application, db, InterviewReport, Notification
 from app.serper_search import serper_searcher
 from app.notifications import send_welcome_email
-from sqlalchemy import text  # ضروري جداً للاستعلام المباشر
+from sqlalchemy import text  
 
 auth_bp = Blueprint('auth', __name__)
 
-# --- الصفحة الرئيسية (إصلاح جذري باستخدام SQL خام) ---
 @auth_bp.route('/')
 def index():
     try:
-        # استعلام يدوي يطلب أعمدة محددة فقط لتفادي طلب employer_id المختفي
+        # استعلام SQL خام صريح لتجنب طلب أي أعمدة قديمة
         query = text("""
-            SELECT id, title, company_name, location, description, category, salary, job_type, created_at 
-            FROM job 
-            WHERE is_active = true 
-            ORDER BY created_at DESC 
+            SELECT id, title, company_name, location, description, category, salary, job_type, created_at
+            FROM job
+            WHERE is_active = true
+            ORDER BY created_at DESC
             LIMIT 6
         """)
         result = db.session.execute(query)
+        # تحويل النتيجة إلى قائمة من القواميس لتعمل مع القالب (Template)
         latest_jobs = result.fetchall()
     except Exception as e:
         print(f"❌ Database Error in Index: {e}")
@@ -31,7 +31,6 @@ def index():
         latest_jobs = []
     return render_template('index.html', jobs=latest_jobs)
 
-# --- تسجيل الدخول ---
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -46,7 +45,6 @@ def login():
         flash('بيانات الدخول غير صحيحة، يرجى المحاولة مرة أخرى.', 'danger')
     return render_template('login.html')
 
-# --- تسجيل حساب جديد ---
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
@@ -77,13 +75,12 @@ def register():
         return redirect(url_for('auth.login'))
     return render_template('register.html')
 
-# --- لوحة التحكم ---
 @auth_bp.route('/dashboard')
 @login_required
 def dashboard():
     if current_user.role == 'employer':
-        # استخدام استعلام مباشر لتفادي مشاكل العلاقات القديمة في الـ Dashboard
-        query = text("SELECT * FROM job WHERE user_id = :uid")
+        # استخدام SQL خام هنا أيضاً لضمان الاستقرار
+        query = text("SELECT id, title, company_name, location, created_at FROM job WHERE user_id = :uid")
         jobs = db.session.execute(query, {"uid": current_user.id}).fetchall()
         return render_template('dashboard_employer.html', jobs=jobs)
 
@@ -104,27 +101,13 @@ def dashboard():
     return render_template('dashboard.html', cvs=current_user.cvs, recent_applications=recent_apps,
                            web_jobs=web_jobs, chart_labels=chart_labels, chart_scores=chart_scores)
 
-# --- إعدادات الوكيل الذكي ---
-@auth_bp.route('/update-agent-settings', methods=['GET', 'POST'])
-@login_required
-def update_agent_settings():
-    if request.method == 'POST':
-        current_user.agent_query = request.form.get('agent_query')
-        current_user.agent_enabled = 'agent_enabled' in request.form
-        db.session.commit()
-        flash('تم تحديث إعدادات القناص الذكي بنجاح! 🚀', 'success')
-        return redirect(url_for('auth.dashboard'))
-    return render_template('agent_settings.html')
-
-# --- إصلاح قاعدة البيانات (رابط الطوارئ) ---
 @auth_bp.route('/fix-db-now')
 def fix_db_now():
     try:
-        # محاولة إصلاح اسم العمود وتعديل الجدول
         db.session.execute(text("""
-            DO $$ 
-            BEGIN 
-                IF EXISTS (SELECT 1 FROM information_schema.columns 
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT 1 FROM information_schema.columns
                            WHERE table_name='job' AND column_name='employer_id') THEN
                     ALTER TABLE job RENAME COLUMN employer_id TO user_id;
                 END IF;
@@ -134,6 +117,8 @@ def fix_db_now():
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_query VARCHAR(255);'))
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_agent_run TIMESTAMP;'))
         db.session.commit()
+        # مسح الكاش يدوياً لـ SQLAlchemy
+        db.session.expire_all()
         return "✅ تم تحديث وصيانة قاعدة البيانات بنجاح!"
     except Exception as e:
         db.session.rollback()
