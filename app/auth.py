@@ -1,9 +1,10 @@
 # ~/jobeni-sD/app/auth.py
 import os
 import re
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from app.models import User, Job, CV, Application, db, InterviewReport, Notification, Message
 from app.serper_search import serper_searcher
 from app.notifications import send_welcome_email
@@ -14,18 +15,13 @@ auth_bp = Blueprint('auth', __name__)
 @auth_bp.route('/')
 def index():
     try:
-        # استعلام SQL خام صريح لتجنب طلب أي أعمدة قديمة
         query = text("""
             SELECT id, title, company_name, location, description, category, salary, job_type, created_at
-            FROM job
-            WHERE is_active = true
-            ORDER BY created_at DESC
-            LIMIT 6
+            FROM job WHERE is_active = true ORDER BY created_at DESC LIMIT 6
         """)
         result = db.session.execute(query)
         latest_jobs = result.fetchall()
     except Exception as e:
-        print(f"❌ Database Error in Index: {e}")
         db.session.rollback()
         latest_jobs = []
     return render_template('index.html', jobs=latest_jobs)
@@ -41,7 +37,7 @@ def login():
         if user and check_password_hash(user.password, password):
             login_user(user, remember=True)
             return redirect(url_for('auth.dashboard'))
-        flash('بيانات الدخول غير صحيحة، يرجى المحاولة مرة أخرى.', 'danger')
+        flash('بيانات الدخول غير صحيحة.', 'danger')
     return render_template('login.html')
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
@@ -51,26 +47,19 @@ def register():
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         email = request.form.get('email', '').lower().strip()
-        password = request.form.get('password')
-        role = request.form.get('role', 'jobseeker')
-
         if User.query.filter((User.email == email) | (User.username == username)).first():
-            flash('اسم المستخدم أو البريد الإلكتروني مسجل بالفعل.', 'warning')
+            flash('البريد أو المستخدم مسجل مسبقاً.', 'warning')
             return redirect(url_for('auth.register'))
-
         new_user = User(
-            username=username,
-            email=email,
+            username=username, email=email,
             full_name=request.form.get('full_name', '').strip(),
-            password=generate_password_hash(password, method='pbkdf2:sha256'),
-            role=role
+            password=generate_password_hash(request.form.get('password'), method='pbkdf2:sha256'),
+            role=request.form.get('role', 'jobseeker'),
+            avatar='default_avatar.png' # القيمة الافتراضية لحل خطأ الـ None
         )
         db.session.add(new_user)
         db.session.commit()
-        try:
-            send_welcome_email(new_user.email, new_user.username, new_user.id)
-        except: pass
-        flash('تم إنشاء حسابك بنجاح! يمكنك الآن تسجيل الدخول.', 'success')
+        flash('تم إنشاء الحساب بنجاح!', 'success')
         return redirect(url_for('auth.login'))
     return render_template('register.html')
 
@@ -84,25 +73,47 @@ def dashboard():
 
     recent_apps = Application.query.filter_by(user_id=current_user.id).order_by(Application.applied_at.desc()).limit(5).all()
     reports = InterviewReport.query.filter_by(user_id=current_user.id).order_by(InterviewReport.created_at.asc()).all()
-
+    
     chart_labels = [r.created_at.strftime('%m/%d') for r in reports]
-    chart_scores = [int(re.search(r'(\d+)', str(r.score)).group(1)) if re.search(r'(\d+)', str(r.score)) else 0 for r in reports]
-
-    web_jobs = []
-    latest_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
-    if latest_cv and latest_cv.profession:
-        try:
-            res = serper_searcher.search_jobs(query=f"{latest_cv.profession} jobs in Sudan")
-            web_jobs = res.get('jobs', [])[:4]
-        except: pass
+    chart_scores = []
+    for r in reports:
+        match = re.search(r'(\d+)', str(r.score))
+        chart_scores.append(int(match.group(1)) if match else 0)
 
     return render_template('dashboard.html', cvs=current_user.cvs, recent_applications=recent_apps,
-                           web_jobs=web_jobs, chart_labels=chart_labels, chart_scores=chart_scores)
+                           chart_labels=chart_labels, chart_scores=chart_scores)
 
-@auth_bp.route('/profile')
+@auth_bp.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
+    if request.method == 'POST':
+        current_user.full_name = request.form.get('full_name')
+        current_user.bio = request.form.get('bio')
+        db.session.commit()
+        flash('تم تحديث البروفايل', 'success')
     return render_template('profile.html')
+
+@auth_bp.route('/upload_avatar', methods=['POST'])
+@login_required
+def upload_avatar():
+    file = request.files.get('avatar')
+    if file:
+        filename = secure_filename(f"user_{current_user.id}_{file.filename}")
+        # ملاحظة: في Vercel الرفع مؤقت لـ /tmp
+        file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
+        current_user.avatar = filename
+        db.session.commit()
+        flash('تم تحديث الصورة', 'success')
+    return redirect(url_for('auth.profile'))
+
+@auth_bp.route('/update_agent_settings', methods=['POST'])
+@login_required
+def update_agent_settings():
+    current_user.agent_enabled = 'agent_enabled' in request.form
+    current_user.agent_query = request.form.get('agent_query')
+    db.session.commit()
+    flash('تم تحديث إعدادات المستشار الذكي', 'success')
+    return redirect(url_for('auth.dashboard'))
 
 @auth_bp.route('/unread_count')
 @login_required
@@ -117,31 +128,8 @@ def mark_notifications_read():
     db.session.commit()
     return jsonify({'status': 'success'})
 
-@auth_bp.route('/fix-db-now')
-def fix_db_now():
-    try:
-        db.session.execute(text("""
-            DO $$
-            BEGIN
-                IF EXISTS (SELECT 1 FROM information_schema.columns
-                           WHERE table_name='job' AND column_name='employer_id') THEN
-                    ALTER TABLE job RENAME COLUMN employer_id TO user_id;
-                END IF;
-            END $$;
-        """))
-        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_enabled BOOLEAN DEFAULT FALSE;'))
-        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_query VARCHAR(255);'))
-        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_agent_run TIMESTAMP;'))
-        db.session.commit()
-        db.session.expire_all()
-        return "✅ تم تحديث وصيانة قاعدة البيانات بنجاح!"
-    except Exception as e:
-        db.session.rollback()
-        return f"❌ خطأ أثناء الصيانة: {str(e)}"
-
 @auth_bp.route('/logout')
 @login_required
 def logout():
     logout_user()
-    flash('تم تسجيل الخروج.', 'info')
     return redirect(url_for('auth.login'))
