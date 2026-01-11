@@ -11,4 +11,6 @@ app = create_app('production' if os.environ.get('VERCEL') else 'default')
 if __name__ == "__main__":
     # تم ضبط الديباج (debug) ليعمل فقط في البيئة المحلية لسهولة اكتشاف الأخطاء
     is_debug = False if os.environ.get('VERCEL') else True
-    app.run(debug=is_debug)
+    
+    # تشغيل التطبيق على بورت 5008 محلياً
+    app.run(debug=is_debug, port=5008)

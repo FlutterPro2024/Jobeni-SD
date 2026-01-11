@@ -17,15 +17,24 @@ def send_message(chat_id, text, reply_markup=None):
         return res.json()
     except: return None
 
+# --- الدالة التي كانت مفقودة وتسببت في التعطيل ---
+def notify_new_message(telegram_id, sender_name, job_title, message_body):
+    text = (
+        f"💬 <b>رسالة جديدة!</b>\n"
+        f"من: {sender_name}\n"
+        f"بخصوص: {job_title}\n\n"
+        f"الرسالة: {message_body[:100]}..."
+    )
+    return send_message(telegram_id, text)
+
 @telegram_bp.route('/telegram-webhook', methods=['POST'])
 def telegram_webhook():
     data = request.get_json()
     if not data: return jsonify({"status": "no data"}), 200
-    handle_telegram_webhook(data) # استدعاء المعالج الموحد
+    handle_telegram_webhook(data)
     return jsonify({"status": "success"}), 200
 
 def handle_telegram_webhook(data):
-    """المعالج الرئيسي الموحد لجميع الرسائل"""
     if "message" in data:
         message = data["message"]
         chat_id = message["chat"]["id"]
@@ -35,13 +44,15 @@ def handle_telegram_webhook(data):
             parts = text.split(" ")
             if len(parts) > 1:
                 from app.models import User, db
-                user = User.query.get(int(parts[1]))
-                if user:
-                    user.telegram_id = str(chat_id)
-                    db.session.commit()
-                    send_message(chat_id, f"✅ تم ربط حسابك بنجاح يا <b>{user.username}</b>!\nالآن سأقوم بإرسال تنبيهات الوظائف والمقابلات هنا.")
+                try:
+                    user = db.session.get(User, int(parts[1]))
+                    if user:
+                        user.telegram_id = str(chat_id)
+                        db.session.commit()
+                        send_message(chat_id, f"✅ تم ربط حسابك بنجاح يا <b>{user.username}</b>!")
+                except: db.session.rollback()
             else:
-                send_message(chat_id, "🤖 مرحباً بك في بوت جوبيني السودان!\nاستخدم الموقع لربط حسابك وتفعيل (قناص الوظائف).")
+                send_message(chat_id, "🤖 مرحباً بك في بوت جوبيني السودان!")
 
         elif chat_id in interview_sessions:
             handle_interview_logic(chat_id, text)

@@ -2,14 +2,16 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from app.models import Message, User, Job, CV, Post, PostLike, Comment, db
-from app.telegram_bot import notify_new_message
 from app.openrouter_ai import openrouter_ai
+
+# استيراد آمن لمنع الـ ImportError
+try:
+    from app.telegram_bot import notify_new_message
+except ImportError:
+    def notify_new_message(*args, **kwargs): return None
 
 chat_bp = Blueprint('chat', __name__)
 
-# ==========================================
-# 1. نظام الدردشة (الذكية وبين المستخدمين)
-# ==========================================
 @chat_bp.route('/chat/<int:job_id>/<int:recipient_id>', methods=['GET', 'POST'])
 @login_required
 def open_chat(job_id, recipient_id):
@@ -26,7 +28,6 @@ def open_chat(job_id, recipient_id):
         body = request.form.get('message')
         if body:
             try:
-                # حفظ رسالة المستخدم
                 new_msg = Message(
                     sender_id=current_user.id,
                     recipient_id=recipient_id if recipient_id != 0 else None,
@@ -36,30 +37,20 @@ def open_chat(job_id, recipient_id):
                 db.session.commit()
 
                 if is_ai_agent:
-                    # جلب بيانات المستخدم لـ AI لتخصيص الرد
                     user_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
                     cv_text = user_cv.extracted_text if user_cv else "لا توجد سيرة ذاتية مرفوعة حالياً."
-
-                    system_context = (
-                        f"أنت 'مساعد جوبيني الذكي'. المستخدم الحالي هو: {current_user.full_name}. "
-                        f"سيرته المهنية ملخصة في: {cv_text[:500]}. "
-                        "أجب بلهجة مهنية سودانية محببة، واستخدم الرموز التعبيرية والنقاط لتنظيم الإجابة."
-                    )
+                    system_context = f"أنت مساعد جوبيني. المستخدم: {current_user.full_name}. السيرة: {cv_text[:500]}."
                     ai_response = openrouter_ai.get_ai_response(f"{system_context}\nسؤال المستخدم: {body}")
-
-                    # حفظ رد الـ AI في قاعدة البيانات ليظهر في المحادثة
                     ai_msg = Message(sender_id=0, recipient_id=current_user.id, body=ai_response, is_read=True)
                     db.session.add(ai_msg)
                     db.session.commit()
                 else:
-                    # إشعار تلجرام للمستخدمين الحقيقيين عند استلام رسالة
-                    if recipient.telegram_id:
+                    if recipient and recipient.telegram_id:
                         notify_new_message(recipient.telegram_id, current_user.username, job.title if job else "تواصل عام", body)
             except Exception as e:
                 db.session.rollback()
                 flash(f"حدث خطأ أثناء الإرسال: {str(e)}", "danger")
 
-    # جلب أرشيف الرسائل بين الطرفين
     messages = Message.query.filter(
         ((Message.sender_id == current_user.id) & (Message.recipient_id == recipient_id)) |
         ((Message.sender_id == recipient_id) & (Message.recipient_id == current_user.id))
@@ -67,9 +58,6 @@ def open_chat(job_id, recipient_id):
 
     return render_template('chat.html', messages=messages, recipient=recipient, job=job, is_ai_agent=is_ai_agent)
 
-# ==========================================
-# 2. نظام المجتمع (Community Feed)
-# ==========================================
 @chat_bp.route('/community', methods=['GET', 'POST'])
 @login_required
 def community():
@@ -81,14 +69,9 @@ def community():
             db.session.commit()
             flash('تم نشر مشاركتك بنجاح! 🚀', 'success')
             return redirect(url_for('chat.community'))
-
-    # نظام اقتراح المنشورات باستخدام AI (بناءً على تخصص المستخدم)
-    ai_suggestion = "ما هي نصيحتك للشباب السوداني الباحث عن عمل في مجالك اليوم؟"
-    user_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
-    if user_cv and user_cv.profession:
-        ai_suggestion = f"بصفتك خبير في {user_cv.profession}، شاركنا سراً من أسرار النجاح في هذا التخصص."
-
+    
     posts = Post.query.order_by(Post.timestamp.desc()).all()
+    ai_suggestion = "شارك نصيحة مهنية اليوم!"
     return render_template('community.html', posts=posts, ai_suggestion=ai_suggestion)
 
 @chat_bp.route('/like_post/<int:post_id>', methods=['POST'])
@@ -114,23 +97,13 @@ def add_comment(post_id):
         comment = Comment(body=body, user_id=current_user.id, post_id=post_id)
         db.session.add(comment)
         db.session.commit()
-        flash('تم إضافة التعليق.', 'success')
     return redirect(url_for('chat.community'))
 
-# ==========================================
-# 3. نظام المتابعة
-# ==========================================
 @chat_bp.route('/follow/<int:user_id>')
 @login_required
 def follow(user_id):
     user = User.query.get_or_404(user_id)
-    if user == current_user:
-        flash('لا يمكنك متابعة نفسك!', 'warning')
-    else:
-        if user not in current_user.followed:
-            current_user.followed.append(user)
-            db.session.commit()
-            flash(f'أنت الآن تتابع {user.username}', 'success')
-        else:
-            flash(f'أنت تتابع {user.username} بالفعل.', 'info')
+    if user != current_user and user not in current_user.followed:
+        current_user.followed.append(user)
+        db.session.commit()
     return redirect(request.referrer or url_for('chat.community'))
