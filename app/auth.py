@@ -1,8 +1,7 @@
 # ~/jobeni-sD/app/auth.py
 import os
 import re
-import cloudinary
-import cloudinary.uploader
+import requests
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -12,15 +11,10 @@ from app.serper_search import serper_searcher
 from app.notifications import send_welcome_email
 from sqlalchemy import text
 
-# إعدادات Cloudinary (تُستبدل بالبيانات القادمة من الدوحة)
-cloudinary.config(
-  cloud_name = "dvv7v9v9v", 
-  api_key = "your_key", 
-  api_secret = "your_secret",
-  secure = True
-)
-
 auth_bp = Blueprint('auth', __name__)
+
+# مفتاح ImgBB الخاص بك (يعمل في السودان)
+IMGBB_API_KEY = "673cbd292e4b734899cf1d846ff9f40b"
 
 @auth_bp.route('/')
 def index():
@@ -100,10 +94,9 @@ def register():
         if User.query.filter((User.email == email) | (User.username == username)).first():
             flash('البريد أو المستخدم مسجل مسبقاً.', 'warning')
             return redirect(url_for('auth.register'))
-        
-        # استخدام رابط صورة تلقائي ذكي
+
         avatar_url = f"https://ui-avatars.com/api/?name={username}&background=random&color=fff"
-        
+
         new_user = User(
             username=username, email=email,
             full_name=request.form.get('full_name', '').strip(),
@@ -113,7 +106,6 @@ def register():
         )
         db.session.add(new_user)
         db.session.commit()
-        # إرسال إيميل الترحيب
         try: send_welcome_email(email, username, new_user.id)
         except: pass
         flash('تم إنشاء الحساب بنجاح!', 'success')
@@ -155,14 +147,20 @@ def upload_avatar():
     file = request.files.get('avatar')
     if file:
         try:
-            # الرفع السحابي لحل مشكلة Vercel
-            upload_result = cloudinary.uploader.upload(file, 
-                folder="jobeni_avatars",
-                public_id=f"user_{current_user.id}",
-                overwrite=True)
-            current_user.avatar = upload_result['secure_url']
-            db.session.commit()
-            flash('تم تحديث الصورة بنجاح!', 'success')
+            # الرفع السحابي باستخدام ImgBB بدل Cloudinary
+            files = {"image": (file.filename, file.read())}
+            response = requests.post(
+                "https://api.imgbb.com/1/upload",
+                params={"key": IMGBB_API_KEY},
+                files=files
+            )
+            data = response.json()
+            if data["success"]:
+                current_user.avatar = data["data"]["url"]
+                db.session.commit()
+                flash('تم تحديث الصورة بنجاح عبر السحاب!', 'success')
+            else:
+                flash('فشل الرفع للمستودع السحابي.', 'danger')
         except Exception as e:
             flash(f'خطأ في الرفع: {str(e)}', 'danger')
     return redirect(url_for('auth.profile'))
@@ -194,3 +192,4 @@ def mark_notifications_read():
 def logout():
     logout_user()
     return redirect(url_for('auth.login'))
+
