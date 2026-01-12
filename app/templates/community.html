@@ -57,16 +57,18 @@
                                 {% if post.author != current_user and post.author not in current_user.followed %}
                                 <a href="{{ url_for('community.follow', username=post.author.username) }}" class="btn btn-sm btn-outline-primary rounded-pill">+ متابعة</a>
                                 {% endif %}
-                                
+
                                 {% if post.author == current_user %}
                                 <div class="dropdown">
-                                    <button class="btn btn-link text-muted p-0" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-h"></i></button>
-                                    <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                                        <li><button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#editModal{{post.id}}"><i class="fas fa-edit me-2"></i> تعديل</button></li>
+                                    <button class="btn btn-link text-muted p-0" data-bs-toggle="dropdown">
+                                        <i class="fas fa-ellipsis-h"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                                        <li><button class="dropdown-item py-2" data-bs-toggle="modal" data-bs-target="#editModal{{post.id}}"><i class="fas fa-edit me-2 text-primary"></i> تعديل</button></li>
                                         <li><hr class="dropdown-divider"></li>
                                         <li>
                                             <form action="{{ url_for('community.delete_post', post_id=post.id) }}" method="POST">
-                                                <button type="submit" class="dropdown-item text-danger" onclick="return confirm('حذف نهائي؟')"><i class="fas fa-trash me-2"></i> حذف</button>
+                                                <button type="submit" class="dropdown-item py-2 text-danger" onclick="return confirm('حذف نهائي؟')"><i class="fas fa-trash me-2"></i> حذف</button>
                                             </form>
                                         </li>
                                     </ul>
@@ -118,13 +120,14 @@
 
                 <div class="modal fade" id="editModal{{post.id}}" tabindex="-1">
                     <div class="modal-dialog modal-dialog-centered">
-                        <div class="modal-content">
+                        <div class="modal-content border-0 rounded-4">
+                            <div class="modal-header border-0"><h5 class="fw-bold">تعديل المنشور</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                             <form action="{{ url_for('community.edit_post', post_id=post.id) }}" method="POST">
                                 <div class="modal-body pb-0">
-                                    <textarea name="content" class="form-control border-0" rows="4">{{ post.body }}</textarea>
+                                    <textarea name="content" class="form-control border-0 bg-light" rows="4">{{ post.body }}</textarea>
                                 </div>
                                 <div class="modal-footer border-0">
-                                    <button type="submit" class="btn btn-primary rounded-pill">تحديث</button>
+                                    <button type="submit" class="btn btn-primary rounded-pill px-4">تحديث الآن</button>
                                 </div>
                             </form>
                         </div>
@@ -160,7 +163,7 @@
                     <textarea name="body" class="form-control border-0 fs-5" rows="5" placeholder="عن ماذا تود التحدث؟" required></textarea>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="submit" class="btn btn-primary w-100 rounded-pill">نشر</button>
+                    <button type="submit" class="btn btn-primary w-100 rounded-pill py-2">نشر المنشور</button>
                 </div>
             </form>
         </div>
@@ -180,4 +183,3 @@ function handleLike(postId, btn) {
 }
 </script>
 {% endblock %}
-

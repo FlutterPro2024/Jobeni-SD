@@ -93,7 +93,6 @@ def delete_post(post_id):
         return redirect(url_for('community.index'))
     
     try:
-        # حذف الملحقات أولاً
         Comment.query.filter_by(post_id=post_id).delete()
         PostLike.query.filter_by(post_id=post_id).delete()
         db.session.delete(post)
