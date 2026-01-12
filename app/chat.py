@@ -28,6 +28,7 @@ def open_chat(job_id, recipient_id):
         body = request.form.get('message')
         if body:
             try:
+                # 1. إرسال رسالة المستخدم (Sender هو المستخدم الحالي)
                 new_msg = Message(
                     sender_id=current_user.id,
                     recipient_id=recipient_id if recipient_id != 0 else None,
@@ -37,11 +38,24 @@ def open_chat(job_id, recipient_id):
                 db.session.commit()
 
                 if is_ai_agent:
+                    # 2. الحصول على رد الذكاء الاصطناعي
                     user_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
                     cv_text = user_cv.extracted_text if user_cv else "لا توجد سيرة ذاتية مرفوعة حالياً."
                     system_context = f"أنت مساعد جوبيني. المستخدم: {current_user.full_name}. السيرة: {cv_text[:500]}."
                     ai_response = openrouter_ai.get_ai_response(f"{system_context}\nسؤال المستخدم: {body}")
-                    ai_msg = Message(sender_id=0, recipient_id=current_user.id, body=ai_response, is_read=True)
+                    
+                    # --- الحل الجذري للخطأ هنا ---
+                    # نبحث عن مستخدم البوت الموجود في قاعدتك (باسم bot أو Jobeni_Bot)
+                    bot_user = User.query.filter(User.username.ilike('%bot%')).first()
+                    # إذا لم نجده، نستخدم أول مستخدم (Admin) أو ID=1 كاحتياط لضمان عدم حدوث Error
+                    valid_bot_id = bot_user.id if bot_user else 1
+                    
+                    ai_msg = Message(
+                        sender_id=valid_bot_id, 
+                        recipient_id=current_user.id, 
+                        body=ai_response, 
+                        is_read=True
+                    )
                     db.session.add(ai_msg)
                     db.session.commit()
                 else:
@@ -51,9 +65,14 @@ def open_chat(job_id, recipient_id):
                 db.session.rollback()
                 flash(f"حدث خطأ أثناء الإرسال: {str(e)}", "danger")
 
+    # جلب الرسائل للعرض
+    # ملاحظة: للعرض فقط، نعتبر أن الرسائل من المساعد (recipient_id=0) هي الرسائل المرتبطة بالـ valid_bot_id
+    bot_user = User.query.filter(User.username.ilike('%bot%')).first()
+    actual_bot_id = bot_user.id if bot_user else 1
+
     messages = Message.query.filter(
-        ((Message.sender_id == current_user.id) & (Message.recipient_id == recipient_id)) |
-        ((Message.sender_id == recipient_id) & (Message.recipient_id == current_user.id))
+        ((Message.sender_id == current_user.id) & (Message.recipient_id == (recipient_id if recipient_id != 0 else actual_bot_id))) |
+        ((Message.sender_id == (recipient_id if recipient_id != 0 else actual_bot_id)) & (Message.recipient_id == current_user.id))
     ).order_by(Message.timestamp.asc()).all()
 
     return render_template('chat.html', messages=messages, recipient=recipient, job=job, is_ai_agent=is_ai_agent)
@@ -69,7 +88,7 @@ def community():
             db.session.commit()
             flash('تم نشر مشاركتك بنجاح! 🚀', 'success')
             return redirect(url_for('chat.community'))
-    
+
     posts = Post.query.order_by(Post.timestamp.desc()).all()
     ai_suggestion = "شارك نصيحة مهنية اليوم!"
     return render_template('community.html', posts=posts, ai_suggestion=ai_suggestion)
