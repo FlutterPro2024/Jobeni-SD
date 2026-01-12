@@ -26,6 +26,41 @@ def index():
         latest_jobs = []
     return render_template('index.html', jobs=latest_jobs)
 
+# --- المسار الجديد لحل مشكلة الـ 404 في الرادار الآلي ---
+@auth_bp.route('/run-jobs-agent')
+@login_required
+def run_jobs_agent():
+    try:
+        from app.serper_search import serper_searcher
+        # جلب الكلمات البحثية من إعدادات المستخدم
+        query_text = current_user.agent_query or "وظائف في السودان"
+        results = serper_searcher.search_jobs(query_text)
+        
+        new_jobs_count = 0
+        for job_data in results:
+            # التحقق من عدم تكرار الوظيفة بناءً على الاسم والشركة
+            exists = Job.query.filter_by(title=job_data['title'], company_name=job_data['company']).first()
+            if not exists:
+                new_job = Job(
+                    title=job_data['title'],
+                    company_name=job_data['company'],
+                    location=job_data.get('location', 'ريموت'),
+                    description=job_data.get('description', ''),
+                    link=job_data.get('link', ''),
+                    source='الرادار الآلي',
+                    is_active=True
+                )
+                db.session.add(new_job)
+                new_jobs_count += 1
+        
+        db.session.commit()
+        flash(f'تم تشغيل الرادار بنجاح! وجدنا {new_jobs_count} وظائف جديدة.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'حدث خطأ أثناء تشغيل الرادار: {str(e)}', 'danger')
+        
+    return redirect(url_for('auth.dashboard'))
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -55,7 +90,7 @@ def register():
             full_name=request.form.get('full_name', '').strip(),
             password=generate_password_hash(request.form.get('password'), method='pbkdf2:sha256'),
             role=request.form.get('role', 'jobseeker'),
-            avatar='default_avatar.png' # القيمة الافتراضية لحل خطأ الـ None
+            avatar='default_avatar.png'
         )
         db.session.add(new_user)
         db.session.commit()
@@ -73,7 +108,7 @@ def dashboard():
 
     recent_apps = Application.query.filter_by(user_id=current_user.id).order_by(Application.applied_at.desc()).limit(5).all()
     reports = InterviewReport.query.filter_by(user_id=current_user.id).order_by(InterviewReport.created_at.asc()).all()
-    
+
     chart_labels = [r.created_at.strftime('%m/%d') for r in reports]
     chart_scores = []
     for r in reports:
@@ -99,7 +134,6 @@ def upload_avatar():
     file = request.files.get('avatar')
     if file:
         filename = secure_filename(f"user_{current_user.id}_{file.filename}")
-        # ملاحظة: في Vercel الرفع مؤقت لـ /tmp
         file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
         current_user.avatar = filename
         db.session.commit()
