@@ -17,7 +17,6 @@ def send_message(chat_id, text, reply_markup=None):
         return res.json()
     except: return None
 
-# --- الدالة التي كانت مفقودة وتسببت في التعطيل ---
 def notify_new_message(telegram_id, sender_name, job_title, message_body):
     text = (
         f"💬 <b>رسالة جديدة!</b>\n"
@@ -27,7 +26,8 @@ def notify_new_message(telegram_id, sender_name, job_title, message_body):
     )
     return send_message(telegram_id, text)
 
-@telegram_bp.route('/telegram-webhook', methods=['POST'])
+# تم تغيير المسار هنا من /telegram-webhook إلى /webhook ليتطابق مع setup_webhook.py
+@telegram_bp.route('/webhook', methods=['POST'])
 def telegram_webhook():
     data = request.get_json()
     if not data: return jsonify({"status": "no data"}), 200
@@ -40,9 +40,10 @@ def handle_telegram_webhook(data):
         chat_id = message["chat"]["id"]
         text = message.get("text", "")
 
-        if text.startswith("/start"):
+        if text and text.startswith("/start"):
             parts = text.split(" ")
             if len(parts) > 1:
+                # استيراد محلي لتجنب التعارض (Circular Import)
                 from app.models import User, db
                 try:
                     user = db.session.get(User, int(parts[1]))
@@ -50,21 +51,25 @@ def handle_telegram_webhook(data):
                         user.telegram_id = str(chat_id)
                         db.session.commit()
                         send_message(chat_id, f"✅ تم ربط حسابك بنجاح يا <b>{user.username}</b>!")
-                except: db.session.rollback()
+                    else:
+                        send_message(chat_id, "❌ لم نتمكن من العثور على حسابك.")
+                except Exception as e: 
+                    db.session.rollback()
+                    print(f"Error linking telegram: {e}")
             else:
-                send_message(chat_id, "🤖 مرحباً بك في بوت جوبيني السودان!")
+                send_message(chat_id, "🤖 مرحباً بك في بوت جوبيني السودان! لربط حسابك، يرجى استخدامه من داخل المنصة.")
 
         elif chat_id in interview_sessions:
             handle_interview_logic(chat_id, text)
 
 def handle_interview_logic(chat_id, text):
     session = interview_sessions[chat_id]
-    if text.lower() in ["إنهاء", "خروج", "تم"]:
+    if text and text.lower() in ["إنهاء", "خروج", "تم"]:
         prompt = f"حلل ردود المتقدم لوظيفة {session['job']}: {session['history']}. أعط تقرير مختصر ونسبة مئوية."
         report = openrouter_ai.get_ai_response(prompt)
         send_message(chat_id, f"📊 <b>تقرير المقابلة:</b>\n\n{report}")
         del interview_sessions[chat_id]
-    else:
+    elif text:
         session['history'].append(f"User: {text}")
         ai_reply = openrouter_ai.get_ai_response(f"مدير توظيف يسأل: {text}. اسأله السؤال التالي.")
         session['history'].append(f"AI: {ai_reply}")
@@ -80,5 +85,5 @@ def send_document(chat_id, document_path, caption=None):
             res = requests.post(url, data=data, files=files, timeout=15)
             return res.json()
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Error sending document: {e}")
         return None
