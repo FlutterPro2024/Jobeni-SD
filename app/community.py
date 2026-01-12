@@ -31,7 +31,7 @@ def index():
     except Exception:
         posts = []
 
-    # جلب المستخدمين المتصلين بأمان (خلال آخر 5 دقائق)
+    # جلب المستخدمين المتصلين بأمان
     online_friends = []
     try:
         five_mins_ago = datetime.utcnow() - timedelta(minutes=5)
@@ -39,9 +39,9 @@ def index():
     except Exception:
         online_friends = []
 
-    # جلب المقترحات (استبعاد البوت ورقم 0)
+    # جلب المقترحات (استبعاد النفس والبوت)
     try:
-        suggested_users = User.query.filter(User.id != current_user.id, User.id != 8, User.id != 0).limit(5).all()
+        suggested_users = User.query.filter(User.id != current_user.id, User.id != 8).limit(5).all()
     except:
         suggested_users = []
 
@@ -67,6 +67,41 @@ def new_post():
         except Exception:
             db.session.rollback()
             flash('حدث خطأ أثناء النشر.', 'danger')
+    return redirect(url_for('community.index'))
+
+@community_bp.route('/post/edit/<int:post_id>', methods=['POST'])
+@login_required
+def edit_post(post_id):
+    post = Post.query.get_or_404(post_id)
+    if post.author != current_user:
+        flash('غير مصرح لك بتعديل هذا المنشور', 'danger')
+        return redirect(url_for('community.index'))
+    
+    content = request.form.get('content')
+    if content:
+        post.body = content
+        db.session.commit()
+        flash('تم تحديث المنشور بنجاح', 'success')
+    return redirect(url_for('community.index'))
+
+@community_bp.route('/post/delete/<int:post_id>', methods=['POST'])
+@login_required
+def delete_post(post_id):
+    post = Post.query.get_or_404(post_id)
+    if post.author != current_user:
+        flash('غير مصرح لك بحذف هذا المنشور', 'danger')
+        return redirect(url_for('community.index'))
+    
+    try:
+        # حذف الملحقات أولاً
+        Comment.query.filter_by(post_id=post_id).delete()
+        PostLike.query.filter_by(post_id=post_id).delete()
+        db.session.delete(post)
+        db.session.commit()
+        flash('تم حذف المنشور بنجاح', 'info')
+    except:
+        db.session.rollback()
+        flash('حدث خطأ أثناء الحذف', 'danger')
     return redirect(url_for('community.index'))
 
 @community_bp.route('/like/<int:post_id>', methods=['POST'])
@@ -116,30 +151,13 @@ def follow(username):
             db.session.rollback()
     return redirect(request.referrer or url_for('community.index'))
 
-@community_bp.route('/unfollow/<username>')
-@login_required
-def unfollow(username):
-    user = User.query.filter_by(username=username).first()
-    if user:
-        try:
-            current_user.followed.remove(user)
-            db.session.commit()
-            flash(f'ألغيت متابعة {username}', 'info')
-        except:
-            db.session.rollback()
-    return redirect(request.referrer or url_for('community.index'))
-
 @community_bp.route('/messages')
 @login_required
 def messages():
     try:
         bot_user = User.query.filter(User.username.ilike('%bot%')).first()
         bot_id = bot_user.id if bot_user else 8
-
-        all_messages = Message.query.filter(
-            or_(Message.sender_id == current_user.id, Message.recipient_id == current_user.id)
-        ).filter(Message.sender_id != bot_id, Message.recipient_id != bot_id).order_by(Message.timestamp.desc()).all()
-
+        all_messages = Message.query.filter(or_(Message.sender_id == current_user.id, Message.recipient_id == current_user.id)).filter(Message.sender_id != bot_id, Message.recipient_id != bot_id).order_by(Message.timestamp.desc()).all()
         conversations = {}
         for msg in all_messages:
             other_user_id = msg.recipient_id if msg.sender_id == current_user.id else msg.sender_id
@@ -149,11 +167,7 @@ def messages():
                     is_online = False
                     if other_user.last_seen:
                         is_online = other_user.last_seen >= (datetime.utcnow() - timedelta(minutes=5))
-                    conversations[other_user_id] = {
-                        'other_user': other_user,
-                        'last_message': msg,
-                        'is_online': is_online
-                    }
+                    conversations[other_user_id] = {'other_user': other_user, 'last_message': msg, 'is_online': is_online}
         return render_template('messages.html', messages=conversations.values())
-    except Exception:
+    except:
         return render_template('messages.html', messages=[])
