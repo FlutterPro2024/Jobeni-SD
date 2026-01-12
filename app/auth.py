@@ -26,38 +26,56 @@ def index():
         latest_jobs = []
     return render_template('index.html', jobs=latest_jobs)
 
-# --- المسار الجديد لحل مشكلة الـ 404 في الرادار الآلي ---
 @auth_bp.route('/run-jobs-agent')
 @login_required
 def run_jobs_agent():
     try:
         from app.serper_search import serper_searcher
-        # جلب الكلمات البحثية من إعدادات المستخدم
         query_text = current_user.agent_query or "وظائف في السودان"
         results = serper_searcher.search_jobs(query_text)
         
+        # التأكد أن النتائج ليست نصاً (إصلاح خطأ string indices)
+        if isinstance(results, str):
+            flash(f'تنبيه من المحرك: {results}', 'info')
+            return redirect(url_for('auth.dashboard'))
+
         new_jobs_count = 0
-        for job_data in results:
-            # التحقق من عدم تكرار الوظيفة بناءً على الاسم والشركة
-            exists = Job.query.filter_by(title=job_data['title'], company_name=job_data['company']).first()
-            if not exists:
-                new_job = Job(
-                    title=job_data['title'],
-                    company_name=job_data['company'],
-                    location=job_data.get('location', 'ريموت'),
-                    description=job_data.get('description', ''),
-                    link=job_data.get('link', ''),
-                    source='الرادار الآلي',
-                    is_active=True
-                )
-                db.session.add(new_job)
-                new_jobs_count += 1
-        
-        db.session.commit()
-        flash(f'تم تشغيل الرادار بنجاح! وجدنا {new_jobs_count} وظائف جديدة.', 'success')
+        if results and isinstance(results, list):
+            for job_data in results:
+                # التحقق الإضافي لتجنب أخطاء النوع داخل القائمة
+                if not isinstance(job_data, dict):
+                    continue
+                    
+                title = job_data.get('title')
+                company = job_data.get('company')
+                
+                if not title or not company:
+                    continue
+
+                exists = Job.query.filter_by(title=title, company_name=company).first()
+                if not exists:
+                    new_job = Job(
+                        title=title,
+                        company_name=company,
+                        location=job_data.get('location', 'ريموت'),
+                        description=job_data.get('description', ''),
+                        link=job_data.get('link', ''),
+                        source='الرادار الآلي',
+                        is_active=True
+                    )
+                    db.session.add(new_job)
+                    new_jobs_count += 1
+            
+            db.session.commit()
+            flash(f'تم تشغيل الرادار بنجاح! وجدنا {new_jobs_count} وظائف جديدة لـ {query_text}.', 'success')
+        else:
+            flash('لم يتم العثور على نتائج حالياً، جرب تغيير مسمى الوظيفة.', 'info')
+
     except Exception as e:
         db.session.rollback()
+        # عرض الخطأ بشكل مفصل للمساعدة في التصحيح
         flash(f'حدث خطأ أثناء تشغيل الرادار: {str(e)}', 'danger')
+        print(f"Agent Error: {e}")
         
     return redirect(url_for('auth.dashboard'))
 
