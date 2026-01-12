@@ -17,3 +17,4 @@ fpdf2==2.7.6
 arabic-reshaper==3.0.0
 python-bidi==0.4.2
 # تم حذف pandas و numpy مؤقتاً لتسريع الـ Build وضمان النجاح
+requests
