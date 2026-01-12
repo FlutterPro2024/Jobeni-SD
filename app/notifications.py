@@ -1,10 +1,13 @@
 # ~/jobeni-sD/app/notifications.py
 import threading
-from flask import current_app, url_for
+from flask import current_app, url_for, Blueprint, jsonify
 from flask_mail import Message as MailMessage
+from flask_login import login_required, current_user
 from app import mail, db
 from app.models import Notification
 from app.telegram_bot import send_message
+
+notifications_bp = Blueprint('notifications', __name__)
 
 def add_notification(user_id, title, message, category='info', link=None):
     """إضافة إشعار لقاعدة البيانات (نظام الجرس داخل الموقع)"""
@@ -24,6 +27,39 @@ def add_notification(user_id, title, message, category='info', link=None):
         print(f"❌ [DB Notif Error]: {e}")
         return False
 
+# --- APIs لنظام الإشعارات الحية (Live Notifications) ---
+
+@notifications_bp.route('/api/unread_count')
+@login_required
+def unread_count():
+    """إرجاع عدد الإشعارات غير المقروءة للـ JavaScript"""
+    count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
+    return jsonify({'count': count})
+
+@notifications_bp.route('/api/latest')
+@login_required
+def latest_notifications():
+    """جلب آخر 5 إشعارات لعرضها في القائمة المنسدلة"""
+    notifs = Notification.query.filter_by(user_id=current_user.id)\
+                               .order_by(Notification.created_at.desc()).limit(5).all()
+    return jsonify([{
+        'id': n.id,
+        'title': n.title,
+        'message': n.message,
+        'link': n.link or '#',
+        'is_read': n.is_read
+    } for n in notifs])
+
+@notifications_bp.route('/api/mark_read', methods=['POST'])
+@login_required
+def mark_read():
+    """تحويل كافة الإشعارات لمقروءة عند فتح القائمة"""
+    Notification.query.filter_by(user_id=current_user.id, is_read=False).update({Notification.is_read: True})
+    db.session.commit()
+    return jsonify({'status': 'success'})
+
+# --- دوال الإرسال (إيميل، تلجرام، ويب) ---
+
 def send_async_email(app, msg):
     """دالة داخلية لإرسال الإيميل في الخلفية دون تعطيل المستخدم"""
     with app.app_context():
@@ -36,73 +72,26 @@ def send_async_email(app, msg):
 def send_welcome_email(email, username, user_id):
     """إرسال ترحيب عند التسجيل"""
     app = current_app._get_current_object()
-    
-    # إشعار داخل الموقع
-    add_notification(user_id, "مرحباً بك في جوبيني! 🎉", f"يا {username}، نحن سعداء بانضمامك إلينا. ابدأ برفع سيرتك الذاتية الآن.", "success")
-
+    add_notification(user_id, "مرحباً بك في جوبيني! 🎉", f"يا {username}، نحن سعداء بانضمامك إلينا.", "success")
     msg = MailMessage(subject="مرحباً بك في جوبيني SD 🌍", recipients=[email])
-    msg.body = f"أهلاً بك يا {username} في جوبيني، منصة التوظيف الذكية الأولى في السودان.\nنتمنى لك رحلة بحث موفقة عن وظيفة أحلامك."
-    
-    # تشغيل في خيط منفصل لسرعة الاستجابة
+    msg.body = f"أهلاً بك يا {username} في جوبيني."
     threading.Thread(target=send_async_email, args=[app, msg]).start()
 
 def send_new_application_email(employer, job, applicant, match_score):
     """إشعار صاحب العمل عند وجود متقدم جديد"""
     app = current_app._get_current_object()
-
-    # 1. إشعار الجرس داخل الموقع
-    add_notification(
-        employer.id,
-        "تقديم جديد 🎯",
-        f"قدم {applicant.full_name or applicant.username} على وظيفة {job.title} بنسبة مطابقة {match_score}%",
-        "primary"
-    )
-
-    # 2. إرسال إيميل
-    msg = MailMessage(subject=f"🔔 تقديم جديد لوظيفة: {job.title}", recipients=[employer.email])
-    msg.body = f"هناك متقدم جديد لوظيفتك.\nالمتقدم: {applicant.username}\nنسبة المطابقة الذكية: {match_score}%"
+    add_notification(employer.id, "تقديم جديد 🎯", f"قدم {applicant.username} على وظيفة {job.title}", "primary")
+    msg = MailMessage(subject=f"🔔 تقديم جديد: {job.title}", recipients=[employer.email])
+    msg.body = f"هناك متقدم جديد بنسبة مطابقة {match_score}%"
     threading.Thread(target=send_async_email, args=[app, msg]).start()
-
-    # 3. إشعار تلجرام إذا كان مفعلاً
     if employer.telegram_id:
-        tg_text = (f"🎯 <b>تقديم جديد!</b>\n"
-                   f"💼 الوظيفة: {job.title}\n"
-                   f"👤 المتقدم: {applicant.username}\n"
-                   f"📊 المطابقة: {match_score}%")
-        try: 
-            send_message(employer.telegram_id, tg_text)
-        except Exception as e:
-            print(f"❌ [Telegram Error]: {e}")
+        try: send_message(employer.telegram_id, f"🎯 تقديم جديد لوظيفة {job.title}")
+        except: pass
 
 def send_application_status_email(applicant, job_title, status):
-    """إشعار المتقدم بتحديث حالة طلبه (قبول/رفض/مقابلة)"""
+    """إشعار المتقدم بتحديث حالة طلبه"""
     app = current_app._get_current_object()
-
-    status_map = {
-        'accepted': 'مقبول مبدئياً ✅',
-        'rejected': 'نعتذر منك ❌',
-        'interview': 'دعوة لمقابلة 📅',
-        'pending': 'قيد الانتظار ⏳'
-    }
-    current_status_ar = status_map.get(status, status)
-
-    # 1. إشعار الجرس
-    add_notification(
-        applicant.id, 
-        "تحديث حالة طلبك", 
-        f"تم تحديث حالة طلبك لوظيفة ({job_title}) إلى: {current_status_ar}", 
-        "info"
-    )
-
-    # 2. إرسال إيميل
-    msg = MailMessage(subject=f"تحديث بخصوص طلبك لـ {job_title}", recipients=[applicant.email])
-    msg.body = f"مرحباً، تم تحديث حالة طلبك للوظيفة {job_title} لتصبح: {current_status_ar}"
+    add_notification(applicant.id, "تحديث حالة طلبك", f"حالة طلبك لـ ({job_title}) هي الآن: {status}", "info")
+    msg = MailMessage(subject="تحديث بخصوص طلبك", recipients=[applicant.email])
+    msg.body = f"تم تحديث حالة طلبك للوظيفة {job_title}"
     threading.Thread(target=send_async_email, args=[app, msg]).start()
-
-    # 3. إشعار تلجرام
-    if applicant.telegram_id:
-        tg_msg = f"🔔 <b>تحديث لطلبك:</b>\n💼 {job_title}\nالحالة: {current_status_ar}"
-        try: 
-            send_message(applicant.telegram_id, tg_msg)
-        except: 
-            pass

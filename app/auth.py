@@ -1,6 +1,8 @@
 # ~/jobeni-sD/app/auth.py
 import os
 import re
+import cloudinary
+import cloudinary.uploader
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -9,6 +11,14 @@ from app.models import User, Job, CV, Application, db, InterviewReport, Notifica
 from app.serper_search import serper_searcher
 from app.notifications import send_welcome_email
 from sqlalchemy import text
+
+# إعدادات Cloudinary (تُستبدل بالبيانات القادمة من الدوحة)
+cloudinary.config(
+  cloud_name = "dvv7v9v9v", 
+  api_key = "your_key", 
+  api_secret = "your_secret",
+  secure = True
+)
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -33,8 +43,7 @@ def run_jobs_agent():
         from app.serper_search import serper_searcher
         query_text = current_user.agent_query or "وظائف في السودان"
         results = serper_searcher.search_jobs(query_text)
-        
-        # التأكد أن النتائج ليست نصاً (إصلاح خطأ string indices)
+
         if isinstance(results, str):
             flash(f'تنبيه من المحرك: {results}', 'info')
             return redirect(url_for('auth.dashboard'))
@@ -42,41 +51,29 @@ def run_jobs_agent():
         new_jobs_count = 0
         if results and isinstance(results, list):
             for job_data in results:
-                # التحقق الإضافي لتجنب أخطاء النوع داخل القائمة
-                if not isinstance(job_data, dict):
-                    continue
-                    
+                if not isinstance(job_data, dict): continue
                 title = job_data.get('title')
                 company = job_data.get('company')
-                
-                if not title or not company:
-                    continue
+                if not title or not company: continue
 
                 exists = Job.query.filter_by(title=title, company_name=company).first()
                 if not exists:
                     new_job = Job(
-                        title=title,
-                        company_name=company,
+                        title=title, company_name=company,
                         location=job_data.get('location', 'ريموت'),
                         description=job_data.get('description', ''),
                         link=job_data.get('link', ''),
-                        source='الرادار الآلي',
-                        is_active=True
+                        source='الرادار الآلي', is_active=True
                     )
                     db.session.add(new_job)
                     new_jobs_count += 1
-            
             db.session.commit()
-            flash(f'تم تشغيل الرادار بنجاح! وجدنا {new_jobs_count} وظائف جديدة لـ {query_text}.', 'success')
+            flash(f'تم تشغيل الرادار بنجاح! وجدنا {new_jobs_count} وظائف جديدة.', 'success')
         else:
-            flash('لم يتم العثور على نتائج حالياً، جرب تغيير مسمى الوظيفة.', 'info')
-
+            flash('لم يتم العثور على نتائج حالياً.', 'info')
     except Exception as e:
         db.session.rollback()
-        # عرض الخطأ بشكل مفصل للمساعدة في التصحيح
         flash(f'حدث خطأ أثناء تشغيل الرادار: {str(e)}', 'danger')
-        print(f"Agent Error: {e}")
-        
     return redirect(url_for('auth.dashboard'))
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
@@ -103,15 +100,22 @@ def register():
         if User.query.filter((User.email == email) | (User.username == username)).first():
             flash('البريد أو المستخدم مسجل مسبقاً.', 'warning')
             return redirect(url_for('auth.register'))
+        
+        # استخدام رابط صورة تلقائي ذكي
+        avatar_url = f"https://ui-avatars.com/api/?name={username}&background=random&color=fff"
+        
         new_user = User(
             username=username, email=email,
             full_name=request.form.get('full_name', '').strip(),
             password=generate_password_hash(request.form.get('password'), method='pbkdf2:sha256'),
             role=request.form.get('role', 'jobseeker'),
-            avatar='default_avatar.png'
+            avatar=avatar_url
         )
         db.session.add(new_user)
         db.session.commit()
+        # إرسال إيميل الترحيب
+        try: send_welcome_email(email, username, new_user.id)
+        except: pass
         flash('تم إنشاء الحساب بنجاح!', 'success')
         return redirect(url_for('auth.login'))
     return render_template('register.html')
@@ -126,7 +130,6 @@ def dashboard():
 
     recent_apps = Application.query.filter_by(user_id=current_user.id).order_by(Application.applied_at.desc()).limit(5).all()
     reports = InterviewReport.query.filter_by(user_id=current_user.id).order_by(InterviewReport.created_at.asc()).all()
-
     chart_labels = [r.created_at.strftime('%m/%d') for r in reports]
     chart_scores = []
     for r in reports:
@@ -151,11 +154,17 @@ def profile():
 def upload_avatar():
     file = request.files.get('avatar')
     if file:
-        filename = secure_filename(f"user_{current_user.id}_{file.filename}")
-        file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
-        current_user.avatar = filename
-        db.session.commit()
-        flash('تم تحديث الصورة', 'success')
+        try:
+            # الرفع السحابي لحل مشكلة Vercel
+            upload_result = cloudinary.uploader.upload(file, 
+                folder="jobeni_avatars",
+                public_id=f"user_{current_user.id}",
+                overwrite=True)
+            current_user.avatar = upload_result['secure_url']
+            db.session.commit()
+            flash('تم تحديث الصورة بنجاح!', 'success')
+        except Exception as e:
+            flash(f'خطأ في الرفع: {str(e)}', 'danger')
     return redirect(url_for('auth.profile'))
 
 @auth_bp.route('/update_agent_settings', methods=['POST'])

@@ -30,12 +30,24 @@
         .nav-link { font-weight: 500; color: rgba(255,255,255,0.85) !important; transition: 0.3s; }
         .nav-link:hover { color: #0dcaf0 !important; transform: translateY(-1px); }
         .footer { background: #1a1d20; color: rgba(255,255,255,0.6); padding: 40px 0; margin-top: 80px; }
-        .notification-badge { padding: 4px 6px; font-size: 0.65rem; animation: pulse 2s infinite; top: 5px !important; right: 5px !important; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
+        
+        /* تأثير النبض للإشعارات */
+        .notification-badge { 
+            padding: 4px 6px; 
+            font-size: 0.65rem; 
+            animation: pulse 2s infinite; 
+            top: 5px !important; 
+            right: 5px !important; 
+        }
+        @keyframes pulse { 
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); } 
+            70% { transform: scale(1.2); box-shadow: 0 0 0 5px rgba(220, 53, 69, 0); } 
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); } 
+        }
+        
         .bg-unread { background-color: #f0f7ff !important; }
         .flag-icon { display: inline-block; direction: ltr; unicode-bidi: isolate; }
-        /* تحسين استجابة القائمة المنسدلة */
-        .dropdown-menu { border-radius: 12px; margin-top: 10px; }
+        .dropdown-menu { border-radius: 12px; margin-top: 10px; border: none; shadow: 0 10px 30px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body>
@@ -54,41 +66,38 @@
                     <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('community.index') }}"><i class="fas fa-users ms-1"></i> المجتمع</a></li>
 
                     {% if current_user.is_authenticated %}
+                        <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('community.messages') }}"><i class="fas fa-envelope ms-1"></i> الرسائل</a></li>
                         <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('auth.dashboard') }}"><i class="fas fa-columns ms-1"></i> لوحة التحكم</a></li>
 
                         <li class="nav-item dropdown px-2">
                             <a class="nav-link position-relative d-inline-block" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown">
                                 <i class="fas fa-bell fs-5"></i>
-                                {% set unread_count = current_user.notifications.filter_by(is_read=False).count() %}
-                                {% if unread_count > 0 %}
-                                    <span class="position-absolute badge rounded-circle bg-danger border border-light notification-badge">
-                                        {{ unread_count }}
-                                    </span>
-                                {% endif %}
+                                <span id="notif-count-badge" class="position-absolute badge rounded-circle bg-danger border border-light notification-badge" style="display: none;">
+                                    0
+                                </span>
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 py-0 text-end mt-2" style="min-width: 280px; max-height: 400px; overflow-y: auto;">
-                                <li class="p-3 border-bottom bg-light d-flex justify-content-between">
-                                    <span class="badge bg-primary rounded-pill unread-label">{{ unread_count }} جديدة</span>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-lg py-0 text-end mt-2" style="min-width: 300px; max-height: 450px; overflow-y: auto;">
+                                <li class="p-3 border-bottom bg-light d-flex justify-content-between align-items-center">
+                                    <span class="badge bg-primary rounded-pill" id="unread-count-label">0 جديدة</span>
                                     <h6 class="mb-0 fw-bold small">مركز التنبيهات</h6>
                                 </li>
                                 <div id="notification-list">
-                                    {% for notif in current_user.notifications.order_by(Notification.created_at.desc()).limit(10) %}
-                                        <li><a class="dropdown-item p-3 border-bottom {% if not notif.is_read %}bg-unread{% endif %}" href="{{ notif.link or '#' }}"><p class="small mb-0 text-dark">{{ notif.title }}</p></a></li>
-                                    {% else %}
-                                        <li class="p-4 text-center text-muted small">لا توجد تنبيهات</li>
-                                    {% endfor %}
+                                    <li class="p-4 text-center text-muted small">جاري تحميل التنبيهات...</li>
                                 </div>
+                                <li class="text-center border-top"><a href="#" class="dropdown-item py-2 small text-primary">مشاهدة الكل</a></li>
                             </ul>
                         </li>
 
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle btn btn-outline-info btn-sm rounded-pill px-3 text-white" href="#" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <li class="nav-item dropdown ms-lg-2">
+                            <a class="nav-link dropdown-toggle btn btn-outline-info btn-sm rounded-pill px-3 text-white" href="#" id="userDropdown" data-bs-toggle="dropdown">
+                                <img src="{{ current_user.avatar }}" onerror="this.src='/static/default_avatar.png'" width="20" height="20" class="rounded-circle me-1">
                                 {{ current_user.username }}
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="userDropdown">
-                                <li><a class="dropdown-item text-end small" href="{{ url_for('auth.profile') }}">الإعدادات</a></li>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                                <li><a class="dropdown-item text-end small" href="{{ url_for('auth.profile') }}"><i class="fas fa-user-cog ms-2"></i> الإعدادات</a></li>
+                                <li><a class="dropdown-item text-end small" href="{{ url_for('community.messages') }}"><i class="fas fa-envelope ms-2"></i> بريدي الوارد</a></li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item text-end text-danger small" href="{{ url_for('auth.logout') }}">خروج</a></li>
+                                <li><a class="dropdown-item text-end text-danger small" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt ms-2"></i> خروج</a></li>
                             </ul>
                         </li>
                     {% else %}
@@ -118,46 +127,69 @@
     </main>
 
     <footer class="footer text-center">
-        <p class="mb-0 small opacity-75">© 2026 Jobeni SD. <span class="flag-icon">🇸🇩</span></p>
+        <div class="container">
+            <div class="mb-3">
+                <a href="#" class="text-white-50 mx-2 text-decoration-none"><i class="fab fa-facebook"></i></a>
+                <a href="#" class="text-white-50 mx-2 text-decoration-none"><i class="fab fa-twitter"></i></a>
+                <a href="#" class="text-white-50 mx-2 text-decoration-none"><i class="fab fa-linkedin"></i></a>
+            </div>
+            <p class="mb-0 small opacity-75">© 2026 Jobeni SD. صنع بكل فخر في السودان <span class="flag-icon">🇸🇩</span></p>
+        </div>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function checkNotifications() {
-            // التحقق من أن المستخدم مسجل دخول قبل إرسال طلب التنبيهات
+        // دالة فحص الإشعارات الحية
+        function updateNotifications() {
             if ("{{ current_user.is_authenticated }}" === "True") {
                 fetch("{{ url_for('auth.unread_count') }}")
                     .then(res => res.json())
                     .then(data => {
-                        const badge = document.querySelector('.notification-badge');
-                        const label = document.querySelector('.unread-label');
+                        const badge = document.getElementById('notif-count-badge');
+                        const label = document.getElementById('unread-count-label');
                         if (data.count > 0) {
-                            if (badge) { 
-                                badge.textContent = data.count; 
-                                badge.style.display = 'block'; 
-                            }
-                            if (label) { 
-                                label.textContent = data.count + ' جديدة'; 
-                            }
+                            badge.textContent = data.count;
+                            badge.style.display = 'block';
+                            label.textContent = data.count + ' جديدة';
+                        } else {
+                            badge.style.display = 'none';
+                            label.textContent = '0 جديدة';
                         }
                     })
-                    .catch(err => console.log("Notification check failed"));
+                    .catch(err => console.log("Live check failed"));
             }
         }
-        
-        // التحديث كل 30 ثانية
-        setInterval(checkNotifications, 30000);
 
-        const dropToggle = document.getElementById('notificationDropdown');
-        if (dropToggle) {
-            dropToggle.addEventListener('show.bs.dropdown', () => {
-                fetch("{{ url_for('auth.mark_notifications_read') }}", { method: 'POST' })
-                .then(() => {
-                    const badge = document.querySelector('.notification-badge');
-                    if (badge) badge.style.display = 'none';
-                });
+        // جلب قائمة الإشعارات عند فتح القائمة
+        const notifDrop = document.getElementById('notificationDropdown');
+        if (notifDrop) {
+            notifDrop.addEventListener('show.bs.dropdown', () => {
+                const list = document.getElementById('notification-list');
+                // ملاحظة: افترضنا وجود راوت /notifications/api/latest كما شرحنا سابقاً
+                fetch("/notifications/api/latest") 
+                    .then(res => res.json())
+                    .then(data => {
+                        list.innerHTML = '';
+                        if (data.length > 0) {
+                            data.forEach(n => {
+                                list.innerHTML += `
+                                    <li>
+                                        <a class="dropdown-item p-3 border-bottom bg-unread" href="${n.link}">
+                                            <p class="small mb-1 fw-bold text-dark">${n.title}</p>
+                                            <p class="x-small mb-0 text-muted" style="font-size: 0.75rem;">${n.message}</p>
+                                        </a>
+                                    </li>`;
+                            });
+                        } else {
+                            list.innerHTML = '<li class="p-4 text-center text-muted small">لا توجد تنبيهات جديدة</li>';
+                        }
+                    });
             });
         }
+
+        // تشغيل الفحص الدوري كل 30 ثانية
+        setInterval(updateNotifications, 30000);
+        document.addEventListener('DOMContentLoaded', updateNotifications);
     </script>
 </body>
 </html>
