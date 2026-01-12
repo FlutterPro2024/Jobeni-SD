@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from app.models import Post, db, Comment, PostLike, User, Message, Notification
 from datetime import datetime
+from sqlalchemy import or_
 
 community_bp = Blueprint('community', __name__)
 
@@ -22,9 +23,9 @@ def index():
     suggested_users = User.query.filter(User.id != current_user.id).limit(5).all()
     ai_suggestion = "شاركنا مهارة جديدة تعلمتها اليوم لتلهم زملاءك في السودان!"
 
-    return render_template('community.html', 
-                           posts=posts, 
-                           ai_suggestion=ai_suggestion, 
+    return render_template('community.html',
+                           posts=posts,
+                           ai_suggestion=ai_suggestion,
                            suggested_users=suggested_users,
                            Comment=Comment)
 
@@ -76,7 +77,6 @@ def follow(username):
     user = User.query.filter_by(username=username).first()
     if user and user != current_user:
         current_user.followed.append(user)
-        # إضافة إشعار للمستخدم المتابَع
         notif = Notification(user_id=user.id, title="متابع جديد", message=f"بدأ {current_user.username} بمتابعتك!")
         db.session.add(notif)
         db.session.commit()
@@ -107,7 +107,28 @@ def send_message(recipient_id):
 @community_bp.route('/messages')
 @login_required
 def messages():
-    # جلب الرسائل التي تخص المستخدم (مرسلة أو مستلمة)
-    msgs = Message.query.filter((Message.sender_id == current_user.id) | (Message.recipient_id == current_user.id))\
-                        .order_by(Message.timestamp.desc()).all()
-    return render_template('messages.html', messages=msgs)
+    # منطق متطور لجلب قائمة المحادثات (كل شخص وآخر رسالة معاه)
+    all_messages = Message.query.filter(
+        or_(Message.sender_id == current_user.id, Message.recipient_id == current_user.id)
+    ).order_by(Message.timestamp.desc()).all()
+
+    conversations = {}
+    for msg in all_messages:
+        # تحديد الطرف الآخر في المحادثة
+        other_user_id = msg.recipient_id if msg.sender_id == current_user.id else msg.sender_id
+        
+        # لو الطرف التاني هو "0" (المساعد الذكي)، حنستخدم اليوزر رقم 8 اللي أنشأناه
+        if other_user_id == 0 or other_user_id is None:
+            # محاولة البحث عن مستخدم البوت
+            bot_user = User.query.filter(User.username.ilike('%bot%')).first()
+            other_user_id = bot_user.id if bot_user else 8
+
+        if other_user_id not in conversations:
+            other_user = User.query.get(other_user_id)
+            if other_user:
+                conversations[other_user_id] = {
+                    'other_user': other_user,
+                    'last_message': msg
+                }
+    
+    return render_template('messages.html', messages=conversations.values())

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 800px;">
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white border-bottom py-3">
+            <h4 class="mb-0 text-primary d-flex align-items-center">
+                <i class="fas fa-comments-alt me-2"></i> المحادثات والرسائل
+            </h4>
+        </div>
+        <div class="card-body p-0">
+            <div class="list-group list-group-flush">
+                {% if messages %}
+                    {% for msg in messages %}
+                        <a href="{{ url_for('chat.open_chat', job_id=0, recipient_id=msg.other_user.id) }}" 
+                           class="list-group-item list-group-item-action py-3 border-0 border-bottom">
+                            <div class="d-flex align-items-center">
+                                <div class="position-relative">
+                                    <img src="{{ msg.other_user.avatar or 'https://ui-avatars.com/api/?name=' + msg.other_user.username }}" 
+                                         class="rounded-circle shadow-sm" 
+                                         style="width: 55px; height: 55px; object-fit: cover;" 
+                                         alt="{{ msg.other_user.username }}">
+                                    {% if not msg.last_message.is_read and msg.last_message.recipient_id == current_user.id %}
+                                        <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
+                                            <span class="visually-hidden">رسالة جديدة</span>
+                                        </span>
+                                    {% endif %}
+                                </div>
+
+                                <div class="ms-3 flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <h6 class="mb-0 fw-bold">{{ msg.other_user.full_name or msg.other_user.username }}</h6>
+                                        <small class="text-muted">{{ msg.last_message.timestamp.strftime('%I:%M %p') }}</small>
+                                    </div>
+                                    <p class="text-muted mb-0 text-truncate" style="max-width: 300px;">
+                                        {% if msg.last_message.sender_id == current_user.id %}
+                                            <span class="text-primary"><i class="fas fa-check-double small"></i> أنت:</span>
+                                        {% endif %}
+                                        {{ msg.last_message.body }}
+                                    </p>
+                                </div>
+                                
+                                <div class="ms-2">
+                                    <i class="fas fa-chevron-left text-light"></i>
+                                </div>
+                            </div>
+                        </a>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-5">
+                        <div class="mb-3">
+                            <i class="fas fa-envelope-open text-light fa-4x"></i>
+                        </div>
+                        <h5 class="text-muted">لا توجد محادثات نشطة بعد</h5>
+                        <p class="small text-secondary">ابدأ بالتواصل مع أصحاب العمل أو استخدم المساعد الذكي.</p>
+                        <a href="{{ url_for('chat.open_chat', job_id=0, recipient_id=0) }}" class="btn btn-outline-primary btn-sm rounded-pill">
+                            تحدث مع المساعد الذكي 🤖
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .list-group-item-action:hover {
+        background-color: #f8f9fa;
+        transition: 0.3s ease;
+    }
+    .text-truncate {
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
