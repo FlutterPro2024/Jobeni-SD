@@ -8,6 +8,10 @@
     .post-card { border-radius: 12px; border: none; transition: 0.3s; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     .post-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
     .user-avatar { width: 48px; height: 48px; object-fit: cover; border-radius: 50%; border: 2px solid #fff; }
+    .online-badge {
+        position: absolute; bottom: 2px; right: 2px; width: 12px; height: 12px;
+        background-color: #28a745; border: 2px solid #fff; border-radius: 50%;
+    }
     .ai-suggestion-alert {
         background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%);
         border: none; border-right: 4px solid #0284c7; border-radius: 10px;
@@ -17,19 +21,22 @@
     .interact-btn.liked { color: #dc3545; }
     .comment-box { background-color: #f0f2f5; border-radius: 15px; padding: 8px 12px; }
     .post-body { white-space: pre-wrap; word-wrap: break-word; }
+    .sticky-sidebar { position: sticky; top: 80px; }
 </style>
 
 <div class="container community-container" dir="rtl">
     <div class="row">
         <div class="col-lg-3 d-none d-lg-block">
-            <div class="card post-card p-3 text-center shadow-sm">
-                <img src="{{ url_for('static', filename='uploads/' + current_user.avatar) }}" class="user-avatar mx-auto mb-2" style="width: 70px; height: 70px;">
-                <h6 class="fw-bold mb-0">{{ current_user.full_name }}</h6>
-                <small class="text-muted d-block mb-3">{{ current_user.headline or 'عضو في جوبيني' }}</small>
-                <div class="d-flex justify-content-around border-top pt-3">
-                    <div class="text-center"><small class="text-muted d-block">متابَعين</small><b>{{ current_user.followed.count() if current_user.followed else 0 }}</b></div>
-                    <div class="border-start"></div>
-                    <div class="text-center"><small class="text-muted d-block">متابِعين</small><b>{{ current_user.followers.count() if current_user.followers else 0 }}</b></div>
+            <div class="sticky-sidebar">
+                <div class="card post-card p-3 text-center shadow-sm">
+                    <img src="{{ current_user.avatar or 'https://ui-avatars.com/api/?name=' + current_user.username }}" class="user-avatar mx-auto mb-2" style="width: 70px; height: 70px;">
+                    <h6 class="fw-bold mb-0">{{ current_user.full_name }}</h6>
+                    <small class="text-muted d-block mb-3">{{ current_user.headline or 'عضو في جوبيني' }}</small>
+                    <div class="d-flex justify-content-around border-top pt-3">
+                        <div class="text-center"><small class="text-muted d-block">متابَعين</small><b>{{ current_user.followed.count() if current_user.followed else 0 }}</b></div>
+                        <div class="border-start"></div>
+                        <div class="text-center"><small class="text-muted d-block">متابِعين</small><b>{{ current_user.followers.count() if current_user.followers else 0 }}</b></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -37,7 +44,7 @@
         <div class="col-lg-6 col-md-12">
             <div class="card post-card p-3 shadow-sm mb-4">
                 <div class="d-flex gap-2 align-items-center">
-                    <img src="{{ url_for('static', filename='uploads/' + current_user.avatar) }}" class="user-avatar">
+                    <img src="{{ current_user.avatar or 'https://ui-avatars.com/api/?name=' + current_user.username }}" class="user-avatar">
                     <button class="form-control rounded-pill bg-light text-end text-muted border-0 px-4 py-2" data-bs-toggle="modal" data-bs-target="#newPostModal">
                         بماذا تفكر يا {{ current_user.username }}؟
                     </button>
@@ -55,7 +62,7 @@
                 <div class="card post-card shadow-sm">
                     <div class="card-body">
                         <div class="d-flex align-items-center mb-3">
-                            <img src="{{ url_for('static', filename='uploads/' + post.author.avatar) }}" class="user-avatar ms-2">
+                            <img src="{{ post.author.avatar or 'https://ui-avatars.com/api/?name=' + post.author.username }}" class="user-avatar ms-2">
                             <div>
                                 <h6 class="mb-0 fw-bold">{{ post.author.full_name }}</h6>
                                 <small class="text-muted">{{ post.author.headline or 'مهني سوداني' }} • {{ post.timestamp.strftime('%Y-%m-%d') }}</small>
@@ -91,7 +98,7 @@
                             <div id="comments-container-{{ post.id }}">
                                 {% for comment in post.comments.all() %}
                                 <div class="d-flex gap-2 mb-2">
-                                    <img src="{{ url_for('static', filename='uploads/' + comment.user.avatar) }}" class="rounded-circle" width="32" height="32">
+                                    <img src="{{ comment.user.avatar or 'https://ui-avatars.com/api/?name=' + comment.user.username }}" class="rounded-circle" width="32" height="32">
                                     <div class="comment-box flex-grow-1">
                                         <h6 class="mb-0 small fw-bold">{{ comment.user.full_name or comment.user.username }}</h6>
                                         <p class="mb-0 small text-secondary">{{ comment.body }}</p>
@@ -117,6 +124,44 @@
                     <p class="text-muted">لا توجد منشورات بعد. كن أول من ينشر!</p>
                 </div>
                 {% endfor %}
+            </div>
+        </div>
+
+        <div class="col-lg-3 d-none d-lg-block">
+            <div class="sticky-sidebar">
+                <div class="card post-card p-3 shadow-sm mb-3">
+                    <h6 class="fw-bold mb-3 text-primary"><i class="fas fa-circle text-success small"></i> متصلون الآن</h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% if online_friends %}
+                            {% for friend in online_friends %}
+                            <a href="{{ url_for('chat.open_chat', job_id=0, recipient_id=friend.id) }}" title="{{ friend.full_name }}">
+                                <div class="position-relative">
+                                    <img src="{{ friend.avatar or 'https://ui-avatars.com/api/?name=' + friend.username }}" class="rounded-circle border" style="width: 40px; height: 40px; object-fit: cover;">
+                                    <span class="online-badge"></span>
+                                </div>
+                            </a>
+                            {% endfor %}
+                        {% else %}
+                            <small class="text-muted">لا يوجد أصدقاء متصلون حالياً</small>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card post-card p-3 shadow-sm">
+                    <h6 class="fw-bold mb-3">مقترحات المتابعة</h6>
+                    {% for s_user in suggested_users %}
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <img src="{{ s_user.avatar or 'https://ui-avatars.com/api/?name=' + s_user.username }}" class="rounded-circle" width="35" height="35">
+                            <div style="line-height: 1;">
+                                <small class="fw-bold d-block">{{ s_user.username }}</small>
+                                <small class="text-muted" style="font-size: 10px;">{{ s_user.headline or 'مهني' }}</small>
+                            </div>
+                        </div>
+                        <a href="{{ url_for('community.follow', username=s_user.username) }}" class="btn btn-outline-primary btn-sm rounded-pill py-0 px-2" style="font-size: 12px;">+ تابع</a>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
         </div>
     </div>
