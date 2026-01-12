@@ -7,17 +7,25 @@ from sqlalchemy import or_
 
 community_bp = Blueprint('community', __name__)
 
+# --- هذا هو المسار الذي كان مفقوداً ويسبب Not Found ---
+@community_bp.route('/force-db-update-2026')
+def force_db_update():
+    try:
+        db.create_all()
+        return "<h1>✅ تم تحديث قاعدة البيانات بنجاح!</h1><p>كل الجداول الجديدة (Like, Comment, Notification) أصبحت جاهزة.</p><a href='/community'>العودة للمجتمع</a>"
+    except Exception as e:
+        return f"<h1>❌ حدث خطأ أثناء التحديث</h1><p>{str(e)}</p>"
+# --------------------------------------------------
+
 @community_bp.route('/')
 @login_required
 def index():
-    # تحديث حالة الاتصال بأمان
     try:
         current_user.last_seen = datetime.utcnow()
         db.session.commit()
     except Exception:
         db.session.rollback()
 
-    # التأكد من وجود صورة
     if not current_user.avatar:
         current_user.avatar = 'https://ui-avatars.com/api/?name=' + current_user.username
         try:
@@ -25,13 +33,11 @@ def index():
         except:
             db.session.rollback()
 
-    # جلب المنشورات
     try:
         posts = Post.query.order_by(Post.timestamp.desc()).all()
     except Exception:
         posts = []
 
-    # جلب المستخدمين المتصلين بأمان
     online_friends = []
     try:
         five_mins_ago = datetime.utcnow() - timedelta(minutes=5)
@@ -39,7 +45,6 @@ def index():
     except Exception:
         online_friends = []
 
-    # جلب المقترحات (استبعاد النفس والبوت)
     try:
         suggested_users = User.query.filter(User.id != current_user.id, User.id != 8).limit(5).all()
     except:
