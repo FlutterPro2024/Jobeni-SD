@@ -2,17 +2,25 @@
 import os
 import re
 import requests
+from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-from app.models import User, Job, CV, Application, db, InterviewReport, Notification, Message, Post  # أضفنا Post هنا
+from app.models import User, Job, CV, Application, db, InterviewReport, Notification, Message, Post
 from app.serper_search import serper_searcher
 from app.notifications import send_welcome_email
 from sqlalchemy import text
 
 auth_bp = Blueprint('auth', __name__)
 IMGBB_API_KEY = "673cbd292e4b734899cf1d846ff9f40b"
+
+# --- تحديث حالة المستخدم (نشط الآن) تلقائياً ---
+@auth_bp.before_app_request
+def update_last_seen():
+    if current_user.is_authenticated:
+        current_user.last_seen = datetime.utcnow()
+        db.session.commit()
 
 @auth_bp.route('/')
 def index():
@@ -30,9 +38,10 @@ def index():
 @login_required
 def user_profile(username):
     user = User.query.filter_by(username=username).first_or_404()
-    # جلب منشورات هذا المستخدم فقط لعرضها في ملفه
     posts = Post.query.filter_by(user_id=user.id).order_by(Post.timestamp.desc()).all()
-    return render_template('user_profile.html', user=user, posts=posts)
+    # التحقق من حالة الاتصال (أقل من 5 دقائق)
+    is_online = user.last_seen and (datetime.utcnow() - user.last_seen).total_seconds() < 300
+    return render_template('user_profile.html', user=user, posts=posts, is_online=is_online)
 
 @auth_bp.route('/run-jobs-agent')
 @login_required
@@ -73,6 +82,9 @@ def login():
         user = User.query.filter_by(email=email).first()
         if user and check_password_hash(user.password, password):
             login_user(user, remember=True)
+            # تحديث الحالة فور الدخول
+            user.last_seen = datetime.utcnow()
+            db.session.commit()
             return redirect(url_for('auth.dashboard'))
         flash('بيانات الدخول غير صحيحة.', 'danger')
     return render_template('login.html')
@@ -86,8 +98,17 @@ def register():
         if User.query.filter((User.email == email) | (User.username == username)).first():
             flash('البريد أو المستخدم مسجل مسبقاً.', 'warning')
             return redirect(url_for('auth.register'))
+        
         avatar_url = f"https://ui-avatars.com/api/?name={username}&background=random&color=fff"
-        new_user = User(username=username, email=email, full_name=request.form.get('full_name', '').strip(), password=generate_password_hash(request.form.get('password'), method='pbkdf2:sha256'), role=request.form.get('role', 'jobseeker'), avatar=avatar_url)
+        new_user = User(
+            username=username, 
+            email=email, 
+            full_name=request.form.get('full_name', '').strip(), 
+            password=generate_password_hash(request.form.get('password'), method='pbkdf2:sha256'), 
+            role=request.form.get('role', 'jobseeker'), 
+            avatar=avatar_url,
+            last_seen=datetime.utcnow()
+        )
         db.session.add(new_user)
         db.session.commit()
         try: send_welcome_email(email, username, new_user.id)
@@ -103,13 +124,16 @@ def dashboard():
         query = text("SELECT id, title, company_name, location, created_at FROM job WHERE user_id = :uid")
         jobs = db.session.execute(query, {"uid": current_user.id}).fetchall()
         return render_template('dashboard_employer.html', jobs=jobs)
+    
     recent_apps = Application.query.filter_by(user_id=current_user.id).order_by(Application.applied_at.desc()).limit(5).all()
     reports = InterviewReport.query.filter_by(user_id=current_user.id).order_by(InterviewReport.created_at.asc()).all()
+    
     chart_labels = [r.created_at.strftime('%m/%d') for r in reports]
     chart_scores = []
     for r in reports:
         match = re.search(r'(\d+)', str(r.score))
         chart_scores.append(int(match.group(1)) if match else 0)
+    
     return render_template('dashboard.html', cvs=current_user.cvs, recent_applications=recent_apps, chart_labels=chart_labels, chart_scores=chart_scores)
 
 @auth_bp.route('/profile', methods=['GET', 'POST'])
@@ -118,8 +142,10 @@ def profile():
     if request.method == 'POST':
         current_user.full_name = request.form.get('full_name')
         current_user.bio = request.form.get('bio')
+        current_user.headline = request.form.get('headline')
+        current_user.phone = request.form.get('phone')
         db.session.commit()
-        flash('تم تحديث البروفايل', 'success')
+        flash('تم تحديث البروفايل بنجاح', 'success')
     return render_template('profile.html')
 
 @auth_bp.route('/upload_avatar', methods=['POST'])
@@ -165,4 +191,5 @@ def mark_notifications_read():
 @login_required
 def logout():
     logout_user()
+    flash('تم تسجيل الخروج بنجاح.', 'info')
     return redirect(url_for('auth.login'))

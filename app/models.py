@@ -17,13 +17,17 @@ class User(db.Model, UserMixin):
     full_name = db.Column(db.String(100))
     role = db.Column(db.String(20), default='jobseeker') # jobseeker or employer
     phone = db.Column(db.String(20))
-    avatar = db.Column(db.String(200), default='default_avatar.png')
+    avatar = db.Column(db.String(200), default='https://ui-avatars.com/api/?name=User')
     headline = db.Column(db.String(200))
     bio = db.Column(db.Text)
     location_name = db.Column(db.String(100))
     lat = db.Column(db.Float)
     lng = db.Column(db.Float)
     telegram_id = db.Column(db.String(50))
+
+    # --- حقول الحالة اللحظية (الجديدة) ---
+    last_seen = db.Column(db.DateTime, default=datetime.utcnow)
+    is_typing_now = db.Column(db.DateTime, default=datetime.utcnow)
 
     # أعمدة الوكيل الذكي (Smart Agent)
     agent_enabled = db.Column(db.Boolean, default=False)
@@ -32,10 +36,7 @@ class User(db.Model, UserMixin):
 
     # العلاقات (Relationships)
     cvs = db.relationship('CV', backref='owner', lazy=True, cascade="all, delete-orphan")
-    
-    # إصلاح العلاقة: الربط الصريح عبر user_id وتجنب التخمين التلقائي لـ employer_id
     jobs = db.relationship('Job', back_populates='employer_user', lazy=True, foreign_keys='Job.user_id')
-    
     applications = db.relationship('Application', backref='applicant', lazy=True)
     posts = db.relationship('Post', backref='author', lazy='dynamic')
     notifications = db.relationship('Notification', backref='recipient', lazy='dynamic')
@@ -46,6 +47,11 @@ class User(db.Model, UserMixin):
         secondaryjoin=(followers.c.followed_id == id),
         backref=db.backref('followers', lazy='dynamic'), lazy='dynamic'
     )
+
+    def ping(self):
+        """تحديث توقيت آخر ظهور"""
+        self.last_seen = datetime.utcnow()
+        db.session.commit()
 
 class Job(db.Model):
     __tablename__ = 'job'
@@ -61,13 +67,9 @@ class Job(db.Model):
     category = db.Column(db.String(50), default='عام')
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    # العمود الموحد لربط صاحب العمل (تم تصحيحه من employer_id إلى user_id)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
-    # العلاقة العكسية الصريحة
     employer_user = db.relationship('User', back_populates='jobs')
-
     applications = db.relationship('Application', backref='job_ref', lazy=True, cascade="all, delete-orphan")
 
 class CV(db.Model):

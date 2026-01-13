@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}البحث عن زملاء المهنة{% endblock %}
+
+{% block content %}
+<div class="container py-5 text-end" dir="rtl">
+    <div class="row justify-content-center mb-5">
+        <div class="col-lg-8 text-center">
+            <h2 class="fw-bold mb-4">ابحث عن زملاء المهنة في السودان 🇸🇩</h2>
+            <form action="{{ url_for('search.search_users') }}" method="GET" class="position-relative">
+                <input type="text" name="q" class="form-control form-control-lg rounded-pill shadow-sm px-5" 
+                       placeholder="ابحث بالاسم، المسمى الوظيفي (مثلاً: محاسب، مهندس)..." value="{{ query or '' }}">
+                <button type="submit" class="btn btn-primary rounded-circle position-absolute" 
+                        style="left: 10px; top: 50%; transform: translateY(-50%); width: 45px; height: 45px;">
+                    <i class="fas fa-search"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        {% for user in users %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 border-0 shadow-sm rounded-4 text-center p-3 transition-hover">
+                <div class="position-relative d-inline-block mx-auto mb-3">
+                    <img src="{{ user.avatar or 'https://ui-avatars.com/api/?name=' + user.username }}" 
+                         class="rounded-circle border border-3 border-light shadow-sm" 
+                         width="100" height="100" style="object-fit: cover;">
+                    
+                    {% set is_online = user.last_seen and (utcnow - user.last_seen).total_seconds() < 300 %}
+                    <span class="position-absolute bottom-0 start-0 p-2 border border-3 border-white rounded-circle {{ 'bg-success' if is_online else 'bg-secondary' }}" 
+                          style="width: 20px; height: 20px;"></span>
+                </div>
+                
+                <h5 class="fw-bold mb-1">{{ user.full_name or user.username }}</h5>
+                <p class="text-primary small mb-2">{{ user.headline or 'باحث عن عمل' }}</p>
+                
+                <div class="mb-3">
+                    <small class="text-muted text-truncate d-block px-3" style="max-height: 40px;">
+                        {{ user.bio or 'لا يوجد وصف تعريفي متاح حالياً.' }}
+                    </small>
+                </div>
+
+                <div class="mt-auto d-flex justify-content-center gap-2">
+                    <a href="{{ url_for('auth.user_profile', username=user.username) }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                        الملف الشخصي
+                    </a>
+                    <a href="{{ url_for('chat.open_chat', job_id=0, recipient_id=user.id) }}" class="btn btn-primary btn-sm rounded-pill px-3">
+                        <i class="fas fa-paper-plane ms-1"></i> مراسلة
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12 text-center py-5">
+            <i class="fas fa-user-slash fa-4x text-muted mb-3 opacity-25"></i>
+            <h5 class="text-muted">لم نجد مستخدمين بهذا الاسم. حاول بكلمات أخرى!</h5>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .transition-hover { transition: transform 0.3s ease; }
+    .transition-hover:hover { transform: translateY(-10px); }
+    .bg-success { background-color: #28a745 !important; }
+</style>
+{% endblock %}

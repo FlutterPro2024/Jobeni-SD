@@ -1,99 +1,46 @@
 {% extends "base.html" %}
-{% block title %}
-    {% if is_ai_agent %}الدردشة مع الوكيل الذكي{% else %}الدردشة مع {{ recipient.full_name or recipient.username }}{% endif %}
-{% endblock %}
+{% block title %}الدردشة مع {{ recipient.username }}{% endblock %}
 
 {% block content %}
+<audio id="notifSound" src="{{ url_for('static', filename='sounds/notify.mp3') }}" preload="auto"></audio>
+
 <div class="container py-4 text-end" dir="rtl">
     <div class="row justify-content-center">
         <div class="col-lg-8">
             <div class="card border-0 shadow-lg rounded-4 overflow-hidden" style="background: #f8fafc; height: 80vh; display: flex; flex-direction: column;">
-
-                <div class="card-header bg-white border-0 py-3 shadow-sm d-flex justify-content-between align-items-center">
+                
+                <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
-                        <div class="{% if is_ai_agent %}bg-info{% else %}bg-primary{% endif %} text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px; margin-left: 15px;">
-                            {% if is_ai_agent %}
-                                <i class="fas fa-robot"></i>
-                            {% else %}
-                                <i class="fas fa-user"></i>
-                            {% endif %}
+                        <div class="position-relative ms-3">
+                            <img src="{{ recipient.avatar or 'https://ui-avatars.com/api/?name=' + recipient.username }}" class="rounded-circle border" width="48" height="48">
+                            <span id="status-dot" class="position-absolute bottom-0 start-0 p-1 bg-secondary border border-2 border-white rounded-circle" style="width: 14px; height: 14px;"></span>
                         </div>
                         <div>
-                            <h6 class="fw-bold mb-0 text-dark">
-                                {% if is_ai_agent %}مساعد جوبيني الذكي{% else %}{{ recipient.full_name or recipient.username }}{% endif %}
-                            </h6>
-                            {% if job %}
-                                <small class="text-primary fw-bold">بخصوص: {{ job.title }}</small>
-                            {% elif is_ai_agent %}
-                                <small class="text-info fw-bold"><i class="fas fa-magic me-1"></i> مستشارك المهني العالمي</small>
-                            {% else %}
-                                <small class="text-muted">دردشة مباشرة</small>
-                            {% endif %}
+                            <h6 class="fw-bold mb-0 text-dark">{{ recipient.username }}</h6>
+                            <small id="typing-indicator" class="text-success fw-bold" style="display: none;">جاري الكتابة...</small>
+                            <small id="last-seen-text" class="text-muted small">جاري التحقق من الحالة...</small>
                         </div>
                     </div>
-                    <a href="{{ url_for('auth.dashboard') }}" class="btn btn-sm btn-outline-secondary rounded-pill">
-                        <i class="fas fa-times"></i>
-                    </a>
+                    <a href="{{ url_for('community.messages') }}" class="btn btn-light rounded-pill btn-sm"><i class="fas fa-arrow-left"></i></a>
                 </div>
 
                 <div class="card-body overflow-auto p-4" id="chatWindow" style="flex: 1; background: #eef2f7;">
-                    {% for msg in messages %}
-                        <div class="d-flex mb-4 {% if msg.sender_id == current_user.id %}justify-content-start flex-row-reverse{% else %}justify-content-start{% endif %}">
-
-                            {% if msg.sender_id == 0 %}
-                                <div class="bg-info text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 35px; height: 35px; min-width: 35px; margin-left: 10px;">
-                                    <i class="fas fa-robot" style="font-size: 0.9rem;"></i>
-                                </div>
-                            {% endif %}
-
-                            <div class="p-3 shadow-sm
-                                {% if msg.sender_id == current_user.id %}
-                                    bg-primary text-white ms-2
-                                {% elif msg.sender_id == 0 %}
-                                    bg-white border-end border-info border-4 text-dark me-2
-                                {% else %}
-                                    bg-white text-dark me-2
-                                {% endif %}"
-                                 style="max-width: 85%; border-radius: 20px; position: relative; unicode-bidi: plaintext;">
-
-                                <div class="message-content">
-                                    {% if msg.sender_id == 0 %}
-                                        <div class="ai-response-text">
-                                            {# عرض النص مع معالجة الأسطر والنقاط #}
-                                            {{ msg.body | replace('\n', '<br>') | safe }}
-                                        </div>
-                                    {% else %}
-                                        {{ msg.body | replace('\n', '<br>') | safe }}
-                                    {% endif %}
-                                </div>
-
-                                <div class="text-start mt-2" style="font-size: 0.7rem; opacity: 0.6;">
-                                    {{ msg.timestamp.strftime('%I:%M %p') }}
+                    <div id="messages-container">
+                        {% for msg in messages %}
+                            <div class="d-flex mb-4 {% if msg.sender_id == current_user.id %}justify-content-start flex-row-reverse{% else %}justify-content-start{% endif %}">
+                                <div class="p-3 shadow-sm {% if msg.sender_id == current_user.id %}bg-primary text-white ms-2{% else %}bg-white text-dark me-2{% endif %}" style="max-width: 85%; border-radius: 20px;">
+                                    <div class="message-content">{{ msg.body | safe }}</div>
+                                    <div class="text-start mt-1" style="font-size: 0.6rem; opacity: 0.7;">{{ msg.timestamp.strftime('%I:%M %p') }}</div>
                                 </div>
                             </div>
-                        </div>
-                    {% else %}
-                        <div class="text-center py-5 mt-5">
-                            <i class="fas {% if is_ai_agent %}fa-robot{% else %}fa-comments{% endif %} fa-4x text-muted opacity-25 mb-3"></i>
-                            <p class="text-muted">
-                                {% if is_ai_agent %}
-                                    مرحباً بك يا {{ current_user.username }}! أنا جاهز لتحليل مسارك المهني. اسألني أي سؤال.
-                                {% else %}
-                                    لا توجد رسائل بعد.. ابدأ المحادثة الآن.
-                                {% endif %}
-                            </p>
-                        </div>
-                    {% endfor %}
+                        {% endfor %}
+                    </div>
                 </div>
 
                 <div class="card-footer bg-white border-0 p-3">
-                    <form action="" method="POST" class="d-flex gap-2" id="chatForm">
-                        <input type="text" name="message" id="msgInput" class="form-control rounded-pill border-2 bg-light px-4 shadow-none"
-                               placeholder="{% if is_ai_agent %}اسأل الوكيل الذكي...{% else %}اكتب رسالتك هنا...{% endif %}"
-                               required autocomplete="off">
-                        <button type="submit" class="btn {% if is_ai_agent %}btn-info{% else %}btn-primary{% endif %} rounded-circle d-flex align-items-center justify-content-center shadow" style="width: 50px; height: 50px; min-width: 50px;">
-                            <i class="fas fa-paper-plane text-white"></i>
-                        </button>
+                    <form id="chatForm" class="d-flex gap-2">
+                        <input type="text" id="msgInput" class="form-control rounded-pill border-0 bg-light px-4" placeholder="اكتب رسالتك..." autocomplete="off">
+                        <button type="submit" class="btn btn-primary rounded-circle shadow" style="width: 48px; height: 48px;"><i class="fas fa-paper-plane"></i></button>
                     </form>
                 </div>
             </div>
@@ -102,65 +49,58 @@
 </div>
 
 <script>
-    // التمرير التلقائي لأسفل الدردشة
-    var chatWindow = document.getElementById("chatWindow");
-    chatWindow.scrollTop = chatWindow.scrollHeight;
+    const chatWindow = document.getElementById("chatWindow");
+    const msgInput = document.getElementById("msgInput");
+    const container = document.getElementById("messages-container");
+    const typingIndicator = document.getElementById("typing-indicator");
+    const notifSound = document.getElementById("notifSound");
+    let lastMsgCount = {{ messages|length }};
 
-    // منع إعادة إرسال النموذج عند تحديث الصفحة
-    if ( window.history.replaceState ) {
-        window.history.replaceState( null, null, window.location.href );
-    }
+    // التمرير للأسفل
+    function scrollBottom() { chatWindow.scrollTop = chatWindow.scrollHeight; }
+    scrollBottom();
 
-    // تفعيل اللودر عند الإرسال
-    document.getElementById('chatForm').onsubmit = function() {
-        const btn = this.querySelector('button');
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm text-white"></span>';
-        btn.disabled = true;
+    // إرسال الرسالة عبر AJAX
+    document.getElementById('chatForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const body = msgInput.value;
+        if(!body) return;
+        msgInput.value = '';
+        
+        await fetch(window.location.href, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `message=${encodeURIComponent(body)}`
+        });
+        updateChat();
     };
+
+    // تحديث المحادثة والحالة
+    async function updateChat() {
+        const res = await fetch(window.location.href + '?json=1');
+        const data = await res.json();
+        
+        // جاري الكتابة؟
+        typingIndicator.style.display = data.is_typing ? 'block' : 'none';
+        
+        // الحالة
+        const dot = document.getElementById('status-dot');
+        dot.className = `position-absolute bottom-0 start-0 p-1 border border-2 border-white rounded-circle ${data.is_online ? 'bg-success' : 'bg-secondary'}`;
+        document.getElementById('last-seen-text').innerText = data.is_online ? 'نشط الآن' : 'غير متصل';
+
+        // رسائل جديدة؟
+        if (data.messages.length > lastMsgCount) {
+            notifSound.play().catch(e => console.log("Sound blocked by browser"));
+            // إعادة بناء الرسائل (تبسيطاً)
+            location.reload(); 
+        }
+    }
+
+    // إرسال إشارة "أنا أكتب الآن"
+    msgInput.oninput = () => {
+        fetch(`/chat/typing/${recipient_id}`, {method: 'POST'});
+    };
+
+    setInterval(updateChat, 3000);
 </script>
-
-<style>
-    #chatWindow::-webkit-scrollbar { width: 6px; }
-    #chatWindow::-webkit-scrollbar-track { background: transparent; }
-    #chatWindow::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-
-    .bg-primary { background: linear-gradient(135deg, #1e40af, #2563eb) !important; }
-    .bg-info { background: linear-gradient(135deg, #0891b2, #0dcaf0) !important; }
-
-    .message-content {
-        word-wrap: break-word;
-        white-space: normal !important;
-        font-size: 0.95rem;
-        line-height: 1.6;
-        direction: rtl;
-        text-align: right;
-        unicode-bidi: plaintext;
-    }
-
-    .ai-response-text {
-        color: #1e293b;
-    }
-
-    /* تحسين شكل القوائم والداشات في رد الـ AI */
-    .ai-response-text br + br {
-        display: block;
-        content: "";
-        margin-top: 10px;
-    }
-
-    /* أنيميشن ظهور الرسائل */
-    .d-flex {
-        animation: fadeIn 0.4s ease-out;
-    }
-
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* استايل إضافي لضمان عدم لخبطة الإنجليزي مع العربي */
-    .message-content * {
-        unicode-bidi: plaintext;
-    }
-</style>
 {% endblock %}

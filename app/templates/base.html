@@ -3,97 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Jobeni SD - منصة التوظيف الذكية{% endblock %}</title>                                     
-    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-    <meta name="theme-color" content="#007bff">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon.png') }}">
-
+    <title>{% block title %}Jobeni SD - منصة التوظيف الذكية{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
     <style>
         :root { --gradient-blue: linear-gradient(135deg, #0d6efd 0%, #0dcaf0 100%); }
-        body { padding-top: 85px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; unicode-bidi: plaintext; }
-        .logo-container { display: flex; align-items: center; text-decoration: none !important; }
-        .logo-icon {                                                   
-            background: var(--gradient-blue); color: white; width: 40px; height: 40px;
-            border-radius: 10px; display: flex; align-items: center; justify-content: center;
-            font-weight: bold; font-size: 20px; margin-left: 12px; box-shadow: 0 4px 12px rgba(13, 110, 253, 0.2);
-        }                                                          
-        .logo-text {                                                   
-            font-size: 24px; font-weight: 800; background: var(--gradient-blue);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        }
-        .navbar { backdrop-filter: blur(12px); background-color: rgba(33, 37, 41, 0.97) !important; border-bottom: 1px solid rgba(255,255,255,0.08); }
-        .nav-link { font-weight: 500; color: rgba(255,255,255,0.85) !important; transition: 0.3s; }
-        .nav-link:hover { color: #0dcaf0 !important; transform: translateY(-1px); }
-        .footer { background: #1a1d20; color: rgba(255,255,255,0.6); padding: 40px 0; margin-top: 80px; }
-
-        /* تأثير النبض للإشعارات */
-        .notification-badge {
-            padding: 4px 6px;
-            font-size: 0.65rem;
-            animation: pulse 2s infinite;
-            top: 5px !important;
-            right: 5px !important;
-        }                                                          
-        @keyframes pulse {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
-            70% { transform: scale(1.2); box-shadow: 0 0 0 5px rgba(220, 53, 69, 0); }
-            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }                                           
-        }                                                  
-        .bg-unread { background-color: #f0f7ff !important; }
-        .flag-icon { display: inline-block; direction: ltr; unicode-bidi: isolate; }
-        .dropdown-menu { border-radius: 12px; margin-top: 10px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }      
+        body { padding-top: 85px; font-family: 'Segoe UI', sans-serif; background-color: #f8f9fa; }
+        .navbar { background-color: rgba(33, 37, 41, 0.97) !important; backdrop-filter: blur(10px); }
+        .logo-icon { background: var(--gradient-blue); color: white; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-left: 10px; }
+        .logo-text { font-size: 22px; font-weight: 800; background: var(--gradient-blue); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .nav-link { color: rgba(255,255,255,0.85) !important; transition: 0.3s; }
+        .nav-link:hover { color: #0dcaf0 !important; }
+        .notification-badge { padding: 4px 6px; font-size: 0.65rem; top: 5px !important; right: 5px !important; }
     </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top shadow-sm">
         <div class="container">
-            <a class="logo-container" href="{{ url_for('auth.index') }}">
+            <a class="d-flex align-items-center text-decoration-none" href="{{ url_for('auth.index') }}">
                 <div class="logo-icon">J</div>
                 <span class="logo-text">Jobeni SD</span>
             </a>
-            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"><span class="navbar-toggler-icon"></span></button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto align-items-center text-end">
-                    <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('jobs.jobs_list') }}"><i class="fas fa-briefcase ms-1"></i> الوظائف</a></li>
-                    <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('community.index') }}"><i class="fas fa-users ms-1"></i> المجتمع</a></li>                     
-                    
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('jobs.jobs_list') }}">الوظائف</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('community.index') }}">المجتمع</a></li>
                     {% if current_user.is_authenticated %}
-                        <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('community.messages') }}"><i class="fas fa-envelope ms-1"></i> الرسائل</a></li>
-                        <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('auth.dashboard') }}"><i class="fas fa-columns ms-1"></i> لوحة التحكم</a></li>
-
-                        <li class="nav-item dropdown px-2">
-                            <a class="nav-link position-relative d-inline-block" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-bell fs-5"></i>
-                                <span id="notif-count-badge" class="position-absolute badge rounded-circle bg-danger border border-light notification-badge" style="display: none;">0</span>
+                        <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('community.messages') }}">الرسائل</a></li>
+                        <li class="nav-item dropdown ms-lg-3">
+                            <a class="nav-link dropdown-toggle btn btn-outline-info btn-sm rounded-pill px-3 text-white" href="#" data-bs-toggle="dropdown">
+                                <img src="{{ current_user.avatar }}" width="20" height="20" class="rounded-circle me-1"> {{ current_user.username }}
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end shadow-lg py-0 text-end mt-2" style="min-width: 300px; max-height: 450px; overflow-y: auto;">
-                                <li class="p-3 border-bottom bg-light d-flex justify-content-between align-items-center">
-                                    <span class="badge bg-primary rounded-pill" id="unread-count-label">0 جديدة</span>
-                                    <h6 class="mb-0 fw-bold small">مركز التنبيهات</h6>
-                                </li>
-                                <div id="notification-list">
-                                    <li class="p-4 text-center text-muted small">جاري تحميل التنبيهات...</li>
-                                </div>
-                                <li class="text-center border-top"><a href="#" class="dropdown-item py-2 small text-primary">مشاهدة الكل</a></li>
-                            </ul>
-                        </li>
-
-                        <li class="nav-item dropdown ms-lg-2">
-                            <a class="nav-link dropdown-toggle btn btn-outline-info btn-sm rounded-pill px-3 text-white" href="#" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                <img src="{{ current_user.avatar }}" onerror="this.src='https://ui-avatars.com/api/?name={{ current_user.username }}'" width="20" height="20" class="rounded-circle me-1">
-                                {{ current_user.username }}
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end shadow border-0">
-                                <li><a class="dropdown-item text-end small" href="{{ url_for('auth.profile') }}"><i class="fas fa-user-cog ms-2"></i> الإعدادات</a></li>
-                                <li><a class="dropdown-item text-end small" href="{{ url_for('community.messages') }}"><i class="fas fa-envelope ms-2"></i> بريدي الوارد</a></li>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 text-end">
+                                <li><a class="dropdown-item small" href="{{ url_for('auth.user_profile', username=current_user.username) }}"><i class="fas fa-user-circle ms-2"></i> ملفي الشخصي</a></li>
+                                <li><a class="dropdown-item small" href="{{ url_for('auth.profile') }}"><i class="fas fa-cog ms-2"></i> الإعدادات</a></li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item text-end text-danger small" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt ms-2"></i> خروج</a></li>
+                                <li><a class="dropdown-item small text-danger" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt ms-2"></i> خروج</a></li>
                             </ul>
                         </li>
                     {% else %}
@@ -109,82 +55,18 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm text-end small">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
+                    <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm text-end small">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
                 {% endfor %}
             {% endif %}
         {% endwith %}
     </div>
 
-    <main>
-        {% block content %}{% endblock %}
-    </main>
+    <main>{% block content %}{% endblock %}</main>
 
-    <footer class="footer text-center">
-        <div class="container">
-            <div class="mb-3">
-                <a href="#" class="text-white-50 mx-2 text-decoration-none"><i class="fab fa-facebook"></i></a>
-                <a href="#" class="text-white-50 mx-2 text-decoration-none"><i class="fab fa-twitter"></i></a>
-                <a href="#" class="text-white-50 mx-2 text-decoration-none"><i class="fab fa-linkedin"></i></a>
-            </div>
-            <p class="mb-0 small opacity-75">© 2026 Jobeni SD. صنع بكل فخر في السودان <span class="flag-icon">🇸🇩</span></p>
-        </div>
+    <footer class="py-4 text-center mt-5 opacity-50">
+        <p class="small">© 2026 Jobeni SD. صنع بكل فخر في السودان 🇸🇩</p>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <script>
-        // دالة فحص الإشعارات الحية
-        function updateNotifications() {
-            if ("{{ current_user.is_authenticated }}" === "True") {
-                fetch("{{ url_for('auth.unread_count') }}")
-                    .then(res => res.json())
-                    .then(data => {
-                        const badge = document.getElementById('notif-count-badge');
-                        const label = document.getElementById('unread-count-label');
-                        if (data.count > 0) {
-                            badge.textContent = data.count;
-                            badge.style.display = 'block';
-                            label.textContent = data.count + ' جديدة';
-                        } else {
-                            badge.style.display = 'none';
-                            label.textContent = '0 جديدة';
-                        }
-                    })
-                    .catch(err => console.log("Live check failed"));
-            }
-        }
-
-        // جلب قائمة الإشعارات عند فتح القائمة
-        const notifDrop = document.getElementById('notificationDropdown');
-        if (notifDrop) {
-            notifDrop.addEventListener('show.bs.dropdown', () => {
-                const list = document.getElementById('notification-list');
-                fetch("/notifications/api/latest")
-                    .then(res => res.json())
-                    .then(data => {
-                        list.innerHTML = '';
-                        if (data.length > 0) {
-                            data.forEach(n => {
-                                list.innerHTML += `
-                                    <li>
-                                        <a class="dropdown-item p-3 border-bottom bg-unread" href="${n.link}">
-                                            <p class="small mb-1 fw-bold text-dark text-end">${n.title}</p>
-                                            <p class="x-small mb-0 text-muted text-end" style="font-size: 0.75rem;">${n.message}</p>
-                                        </a>
-                                    </li>`;
-                            });
-                        } else {
-                            list.innerHTML = '<li class="p-4 text-center text-muted small">لا توجد تنبيهات جديدة</li>';
-                        }
-                    });
-            });
-        }
-
-        setInterval(updateNotifications, 30000);
-        document.addEventListener('DOMContentLoaded', updateNotifications);
-    </script>
 </body>
 </html>

@@ -3,8 +3,9 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from app.models import Message, User, Job, CV, Post, PostLike, Comment, db
 from app.openrouter_ai import openrouter_ai
+from datetime import datetime, timedelta
 
-# استيراد آمن لمنع الـ ImportError
+# استيراد آمن لمنع الـ ImportError لملف التليجرام
 try:
     from app.telegram_bot import notify_new_message
 except ImportError:
@@ -12,11 +13,21 @@ except ImportError:
 
 chat_bp = Blueprint('chat', __name__)
 
-@chat_bp.route('/chat/<int:job_id>/<int:recipient_id>', methods=['GET', 'POST'])
+# --- ميزة جاري الكتابة ---
+@chat_bp.route('/typing/<int:recipient_id>', methods=['POST'])
+@login_required
+def set_typing(recipient_id):
+    """تحديث وقت الكتابة للمستخدم لكي يظهر للطرف الآخر"""
+    current_user.is_typing_now = datetime.utcnow()
+    db.session.commit()
+    return jsonify({"status": "ok"})
+
+@chat_bp.route('/<int:job_id>/<int:recipient_id>', methods=['GET', 'POST'])
 @login_required
 def open_chat(job_id, recipient_id):
     is_ai_agent = (recipient_id == 0)
-
+    
+    # 1. تحديد المستلم
     if is_ai_agent:
         recipient = User(id=0, username="ai_assistant", full_name="مساعد جوبيني الذكي 🤖")
         job = None
@@ -24,11 +35,11 @@ def open_chat(job_id, recipient_id):
         job = Job.query.get(job_id) if job_id != 0 else None
         recipient = User.query.get_or_404(recipient_id)
 
+    # 2. معالجة الإرسال (POST)
     if request.method == 'POST':
         body = request.form.get('message')
         if body:
             try:
-                # 1. إرسال رسالة المستخدم (Sender هو المستخدم الحالي)
                 new_msg = Message(
                     sender_id=current_user.id,
                     recipient_id=recipient_id if recipient_id != 0 else None,
@@ -38,44 +49,61 @@ def open_chat(job_id, recipient_id):
                 db.session.commit()
 
                 if is_ai_agent:
-                    # 2. الحصول على رد الذكاء الاصطناعي
+                    # رد الذكاء الاصطناعي
                     user_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
-                    cv_text = user_cv.extracted_text if user_cv else "لا توجد سيرة ذاتية مرفوعة حالياً."
+                    cv_text = user_cv.extracted_text if user_cv else "لا توجد سيرة ذاتية مرفوعة."
                     system_context = f"أنت مساعد جوبيني. المستخدم: {current_user.full_name}. السيرة: {cv_text[:500]}."
                     ai_response = openrouter_ai.get_ai_response(f"{system_context}\nسؤال المستخدم: {body}")
-                    
-                    # --- الحل الجذري للخطأ هنا ---
-                    # نبحث عن مستخدم البوت الموجود في قاعدتك (باسم bot أو Jobeni_Bot)
+
                     bot_user = User.query.filter(User.username.ilike('%bot%')).first()
-                    # إذا لم نجده، نستخدم أول مستخدم (Admin) أو ID=1 كاحتياط لضمان عدم حدوث Error
                     valid_bot_id = bot_user.id if bot_user else 1
-                    
+
                     ai_msg = Message(
-                        sender_id=valid_bot_id, 
-                        recipient_id=current_user.id, 
-                        body=ai_response, 
+                        sender_id=valid_bot_id,
+                        recipient_id=current_user.id,
+                        body=ai_response,
                         is_read=True
                     )
                     db.session.add(ai_msg)
                     db.session.commit()
                 else:
+                    # تنبيه التليجرام
                     if recipient and recipient.telegram_id:
                         notify_new_message(recipient.telegram_id, current_user.username, job.title if job else "تواصل عام", body)
             except Exception as e:
                 db.session.rollback()
                 flash(f"حدث خطأ أثناء الإرسال: {str(e)}", "danger")
 
-    # جلب الرسائل للعرض
-    # ملاحظة: للعرض فقط، نعتبر أن الرسائل من المساعد (recipient_id=0) هي الرسائل المرتبطة بالـ valid_bot_id
+    # 3. جلب الرسائل للعرض
     bot_user = User.query.filter(User.username.ilike('%bot%')).first()
     actual_bot_id = bot_user.id if bot_user else 1
-
+    
+    target_id = recipient_id if recipient_id != 0 else actual_bot_id
+    
     messages = Message.query.filter(
-        ((Message.sender_id == current_user.id) & (Message.recipient_id == (recipient_id if recipient_id != 0 else actual_bot_id))) |
-        ((Message.sender_id == (recipient_id if recipient_id != 0 else actual_bot_id)) & (Message.recipient_id == current_user.id))
+        ((Message.sender_id == current_user.id) & (Message.recipient_id == target_id)) |
+        ((Message.sender_id == target_id) & (Message.recipient_id == current_user.id))
     ).order_by(Message.timestamp.asc()).all()
 
-    return render_template('chat.html', messages=messages, recipient=recipient, job=job, is_ai_agent=is_ai_agent)
+    # 4. معالجة طلبات التحديث التلقائي (JSON)
+    if request.args.get('json'):
+        is_online = recipient.last_seen >= (datetime.utcnow() - timedelta(minutes=5)) if (not is_ai_agent and recipient.last_seen) else False
+        is_typing = recipient.is_typing_now >= (datetime.utcnow() - timedelta(seconds=7)) if (not is_ai_agent and recipient.is_typing_now) else False
+        
+        return jsonify({
+            "is_online": is_online,
+            "is_typing": is_typing,
+            "messages_count": len(messages),
+            "messages": [{"id": m.id, "body": m.body, "sender_id": m.sender_id} for m in messages[-10:]] # آخر 10 رسائل للتحقق
+        })
+
+    return render_template('chat.html', 
+                           messages=messages, 
+                           recipient=recipient, 
+                           job=job, 
+                           is_ai_agent=is_ai_agent,
+                           utcnow=datetime.utcnow(),
+                           timedelta=timedelta)
 
 @chat_bp.route('/community', methods=['GET', 'POST'])
 @login_required
@@ -126,3 +154,4 @@ def follow(user_id):
         current_user.followed.append(user)
         db.session.commit()
     return redirect(request.referrer or url_for('chat.community'))
+	
