@@ -13,14 +13,18 @@
     .comment-box { background-color: #f0f2f5; border-radius: 15px; padding: 8px 12px; }
     .post-body { white-space: pre-wrap; font-size: 1.05rem; line-height: 1.6; }
     .sticky-sidebar { position: sticky; top: 90px; }
+    a.user-link { text-decoration: none; color: inherit; }
+    a.user-link:hover { color: #0d6efd; }
 </style>
 
 <div class="container mt-4" dir="rtl">
     <div class="row">
-        <div class="col-lg-3 d-none d-lg-block">
+        <div class="col-lg-3 d-none d-lg-block text-end">
             <div class="sticky-sidebar">
                 <div class="card post-card p-3 text-center shadow-sm">
-                    <img src="{{ current_user.avatar or 'https://ui-avatars.com/api/?name=' + current_user.username }}" class="user-avatar mx-auto mb-2" style="width: 70px; height: 70px;">
+                    <a href="{{ url_for('auth.user_profile', username=current_user.username) }}">
+                        <img src="{{ current_user.avatar or 'https://ui-avatars.com/api/?name=' + current_user.username }}" class="user-avatar mx-auto mb-2" style="width: 70px; height: 70px;">
+                    </a>
                     <h6 class="fw-bold mb-0">{{ current_user.full_name or current_user.username }}</h6>
                     <small class="text-muted d-block mb-3">{{ current_user.headline or 'عضو في جوبيني' }}</small>
                     <div class="d-flex justify-content-around border-top pt-3 text-center">
@@ -48,9 +52,13 @@
                     <div class="card-body">
                         <div class="d-flex align-items-center justify-content-between mb-3">
                             <div class="d-flex align-items-center">
-                                <img src="{{ post.author.avatar or 'https://ui-avatars.com/api/?name=' + post.author.username }}" class="user-avatar ms-2">
+                                <a href="{{ url_for('auth.user_profile', username=post.author.username) }}">
+                                    <img src="{{ post.author.avatar or 'https://ui-avatars.com/api/?name=' + post.author.username }}" class="user-avatar ms-2">
+                                </a>
                                 <div class="text-end">
-                                    <h6 class="mb-0 fw-bold">{{ post.author.full_name or post.author.username }}</h6>
+                                    <a href="{{ url_for('auth.user_profile', username=post.author.username) }}" class="user-link">
+                                        <h6 class="mb-0 fw-bold">{{ post.author.full_name or post.author.username }}</h6>
+                                    </a>
                                     <small class="text-muted">{{ post.timestamp.strftime('%Y-%m-%d') }}</small>
                                 </div>
                             </div>
@@ -103,9 +111,13 @@
                         <div class="mt-3">
                             {% for comment in post.comments.limit(5).all() %}
                             <div class="d-flex gap-2 mb-2">
-                                <img src="{{ comment.user.avatar }}" class="rounded-circle ms-2" width="30" height="30">
+                                <a href="{{ url_for('auth.user_profile', username=comment.user.username) }}">
+                                    <img src="{{ comment.user.avatar }}" class="rounded-circle ms-2" width="30" height="30">
+                                </a>
                                 <div class="comment-box flex-grow-1 text-end">
-                                    <h6 class="mb-0 small fw-bold">{{ comment.user.username }}</h6>
+                                    <a href="{{ url_for('auth.user_profile', username=comment.user.username) }}" class="user-link">
+                                        <h6 class="mb-0 small fw-bold">{{ comment.user.username }}</h6>
+                                    </a>
                                     <p class="mb-0 small">{{ comment.body }}</p>
                                 </div>
                             </div>
@@ -145,7 +157,7 @@
                     <h6 class="fw-bold mb-3 text-primary text-end"><i class="fas fa-circle text-success small me-1"></i> متصلون الآن</h6>
                     <div class="d-flex flex-wrap justify-content-end gap-2">
                         {% for friend in online_friends %}
-                        <a href="{{ url_for('chat.open_chat', job_id=0, recipient_id=friend.id) }}" class="position-relative">
+                        <a href="{{ url_for('auth.user_profile', username=friend.username) }}" class="position-relative" title="{{ friend.username }}">
                             <img src="{{ friend.avatar }}" class="rounded-circle border" width="40" height="40">
                             <span class="online-badge"></span>
                         </a>
