@@ -17,41 +17,43 @@
                         <a href="{{ url_for('chat.open_chat', job_id=0, recipient_id=msg.other_user.id) }}"
                            class="list-group-item list-group-item-action py-3 border-0 border-bottom position-relative">
                             <div class="d-flex align-items-center">
-                                
-                                <div class="position-relative">
+
+                                <div class="position-relative ms-3">
                                     <img src="{{ msg.other_user.avatar or 'https://ui-avatars.com/api/?name=' + msg.other_user.username + '&background=random&color=fff' }}"
                                          class="rounded-circle shadow-sm"
                                          style="width: 60px; height: 60px; object-fit: cover; border: 2px solid #f8f9fa;"
                                          alt="{{ msg.other_user.username }}">
-                                    
+
                                     {% if msg.is_online %}
-                                        <span class="position-absolute bottom-0 end-0 p-1 bg-success border border-2 border-white rounded-circle" 
+                                        <span class="position-absolute bottom-0 start-0 p-1 bg-success border border-2 border-white rounded-circle"
                                               style="width: 15px; height: 15px;" title="متصل الآن"></span>
                                     {% endif %}
                                 </div>
 
-                                <div class="ms-3 flex-grow-1">
+                                <div class="flex-grow-1 text-end">
                                     <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <h6 class="mb-0 fw-bold text-dark">{{ msg.other_user.full_name or msg.other_user.username }}</h6>
                                         <small class="text-muted" style="font-size: 0.75rem;">
                                             {{ msg.last_message.timestamp.strftime('%I:%M %p') }}
                                         </small>
+                                        <h6 class="mb-0 fw-bold text-dark">{{ msg.other_user.full_name or msg.other_user.username }}</h6>
                                     </div>
                                     <div class="d-flex justify-content-between align-items-center">
-                                        <p class="text-muted mb-0 text-truncate" style="max-width: 280px; font-size: 0.9rem;">
-                                            {% if msg.last_message.sender_id == current_user.id %}
-                                                <span class="text-primary fw-bold"><i class="fas fa-check"></i> أنت:</span>
-                                            {% endif %}
-                                            {{ msg.last_message.body }}
-                                        </p>
-                                        
                                         {% if not msg.last_message.is_read and msg.last_message.recipient_id == current_user.id %}
                                             <span class="badge rounded-pill bg-danger" style="font-size: 0.6rem;">جديد</span>
+                                        {% else %}
+                                            <span></span>
                                         {% endif %}
+                                        
+                                        <p class="text-muted mb-0 text-truncate" style="max-width: 280px; font-size: 0.9rem;">
+                                            {{ msg.last_message.body }}
+                                            {% if msg.last_message.sender_id == current_user.id %}
+                                                <span class="text-primary fw-bold"> :أنت <i class="fas fa-check"></i></span>
+                                            {% endif %}
+                                        </p>
                                     </div>
                                 </div>
 
-                                <div class="ms-3 text-light">
+                                <div class="me-3 text-light">
                                     <i class="fas fa-chevron-left"></i>
                                 </div>
                             </div>
@@ -79,22 +81,13 @@
 </div>
 
 <style>
-    /* تنسيقات إضافية للجمالية */
     .bg-soft-primary { background-color: #e7f1ff; }
-    .list-group-item-action { transition: all 0.2s ease-in-out; }
+    .list-group-item-action { transition: all 0.2s ease-in-out; border-right: 4px solid transparent !important; }
     .list-group-item-action:hover {
         background-color: #f1f8ff !important;
-        transform: translateX(-5px);
+        border-right-color: #0d6efd !important;
     }
-    .text-truncate {
-        display: block;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-    [dir="rtl"] .list-group-item-action:hover {
-        transform: translateX(5px);
-    }
+    .text-truncate { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .bg-success { background-color: #28a745 !important; }
 </style>
 {% endblock %}
