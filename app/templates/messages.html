@@ -9,25 +9,27 @@
                 <i class="fas fa-comments ms-3"></i> رسائل الأصدقاء
             </h4>
             <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-soft-primary text-primary rounded-pill px-3 py-2">{{ messages|length }} محادثة</span>
+                <span class="badge bg-soft-primary text-primary rounded-pill px-3 py-2">{{ chat_partners|length if chat_partners else 0 }} محادثة</span>
             </div>
         </div>
 
         <div class="card-body p-0">
             <div class="list-group list-group-flush">
-                {% if messages %}
-                    {% for msg in messages %}
-                        <a href="{{ url_for('chat.open_chat', job_id=0, recipient_id=msg.other_user.id) }}"
+                {% if chat_partners %}
+                    {% for partner in chat_partners %}
+                        {# ملاحظة: الكود يفترض وجود علاقة أو دالة لجلب آخر رسالة، سنستخدم مسار الدردشة المباشر #}
+                        <a href="{{ url_for('chat.open_chat', job_id=0, recipient_id=partner.id) }}"
                            class="list-group-item list-group-item-action py-4 border-0 border-bottom position-relative chat-item">
                             <div class="d-flex align-items-center">
-                                
+
                                 <div class="position-relative ms-3">
-                                    <img src="{{ msg.other_user.avatar or 'https://ui-avatars.com/api/?name=' + msg.other_user.username + '&background=random&color=fff' }}"
+                                    <img src="{{ partner.avatar or 'https://ui-avatars.com/api/?name=' + partner.username + '&background=random&color=fff' }}"
                                          class="rounded-circle shadow-sm border border-2 border-light"
                                          style="width: 65px; height: 65px; object-fit: cover;"
-                                         alt="{{ msg.other_user.username }}">
+                                         alt="{{ partner.username }}">
 
-                                    {% if msg.is_online %}
+                                    {% set is_online = partner.last_seen and (utcnow - partner.last_seen).total_seconds() < 300 %}
+                                    {% if is_online %}
                                         <span class="position-absolute bottom-0 start-0 p-1 bg-success border border-3 border-white rounded-circle pulse-online"
                                               style="width: 18px; height: 18px;" title="متصل الآن"></span>
                                     {% else %}
@@ -39,28 +41,17 @@
                                 <div class="flex-grow-1 text-end overflow-hidden">
                                     <div class="d-flex justify-content-between align-items-center mb-1">
                                         <h6 class="mb-0 fw-bold text-dark fs-5">
-                                            {{ msg.other_user.full_name or msg.other_user.username }}
+                                            {{ partner.full_name or partner.username }}
                                         </h6>
                                         <small class="text-muted" style="font-size: 0.8rem;">
-                                            {% if msg.last_message.timestamp.date() == utcnow.date() %}
-                                                {{ msg.last_message.timestamp.strftime('%I:%M %p') }}
-                                            {% else %}
-                                                {{ msg.last_message.timestamp.strftime('%Y/%m/%d') }}
-                                            {% endif %}
+                                            {{ partner.last_seen.strftime('%I:%M %p') if partner.last_seen else '' }}
                                         </small>
                                     </div>
-                                    
+
                                     <div class="d-flex justify-content-between align-items-center">
                                         <p class="text-muted mb-0 text-truncate" style="max-width: 85%; font-size: 0.95rem;">
-                                            {% if msg.last_message.sender_id == current_user.id %}
-                                                <span class="text-primary ms-1"><i class="fas fa-reply"></i> أنت:</span>
-                                            {% endif %}
-                                            {{ msg.last_message.body | striptags | truncate(60) }}
+                                            اضغط لفتح المحادثة ومتابعة التواصل..
                                         </p>
-                                        
-                                        {% if not msg.last_message.is_read and msg.last_message.recipient_id == current_user.id %}
-                                            <span class="badge rounded-pill bg-danger shadow-sm px-2 py-1" style="font-size: 0.65rem;">جديد</span>
-                                        {% endif %}
                                     </div>
                                 </div>
 
@@ -92,7 +83,6 @@
 </div>
 
 <style>
-    /* التنسيقات الاحترافية */
     .bg-soft-primary { background-color: #eef5ff; }
     .chat-item { transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); border-right: 5px solid transparent !important; }
     .chat-item:hover {
@@ -100,13 +90,12 @@
         border-right-color: #0d6efd !important;
         transform: translateX(-5px);
     }
-    
-    /* أنيميشن النقطة الخضراء المتصلة */
+
     .pulse-online {
         box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
         animation: pulse 2s infinite;
     }
-    
+
     @keyframes pulse {
         0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
         70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
@@ -118,4 +107,3 @@
     .bg-secondary { background-color: #adb5bd !important; }
 </style>
 {% endblock %}
-

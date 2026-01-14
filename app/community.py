@@ -29,19 +29,18 @@ def index():
                            online_friends=online_friends,
                            Comment=Comment)
 
-# --- الدالة المضافة لحل مشكلة الخطأ في الـ Chat ---
 @community_bp.route('/messages')
 @login_required
 def messages():
-    """عرض قائمة المحادثات الأخيرة للمستخدم"""
-    # جلب المستخدمين الذين تواصل معهم الحالي
+    """عرض قائمة المحادثات الأخيرة"""
     sent_msgs = Message.query.filter_by(sender_id=current_user.id).all()
     rcvd_msgs = Message.query.filter_by(recipient_id=current_user.id).all()
-    
-    user_ids = set([m.recipient_id for m in sent_msgs] + [m.sender_id for m in rcvd_msgs])
+    user_ids = set([m.recipient_id for m in sent_msgs if m.recipient_id] + [m.sender_id for m in rcvd_msgs])
     chat_partners = User.query.filter(User.id.in_(user_ids)).all() if user_ids else []
     
-    return render_template('messages.html', chat_partners=chat_partners)
+    return render_template('messages.html', 
+                           chat_partners=chat_partners, 
+                           utcnow=datetime.utcnow())
 
 @community_bp.route('/post/new', methods=['POST'])
 @login_required
@@ -53,22 +52,9 @@ def new_post():
             db.session.add(post)
             db.session.commit()
             flash('تم نشر منشورك بنجاح! 🚀', 'success')
-        except Exception:
+        except:
             db.session.rollback()
             flash('حدث خطأ أثناء النشر.', 'danger')
-    return redirect(url_for('community.index'))
-
-@community_bp.route('/post/delete/<int:post_id>', methods=['POST'])
-@login_required
-def delete_post(post_id):
-    post = Post.query.get_or_404(post_id)
-    if post.user_id != current_user.id:
-        flash('غير مسموح لك بحذف هذا المنشور.', 'danger')
-        return redirect(url_for('community.index'))
-
-    db.session.delete(post)
-    db.session.commit()
-    flash('تم حذف المنشور بنجاح.', 'info')
     return redirect(url_for('community.index'))
 
 @community_bp.route('/like/<int:post_id>', methods=['POST'])
@@ -113,26 +99,20 @@ def follow(username):
     if user == current_user:
         flash('لا يمكنك متابعة نفسك!', 'warning')
         return redirect(url_for('auth.user_profile', username=username))
-
     if user in current_user.followed:
         current_user.followed.remove(user)
-        flash(f'لقد ألغيت متابعة {username}', 'info')
     else:
         current_user.followed.append(user)
         notif = Notification(user_id=user.id, title="متابع جديد",
                              message=f"بدأ {current_user.username} بمتابعتك الآن!")
         db.session.add(notif)
-        flash(f'أنت الآن تتابع {username}', 'success')
-
     db.session.commit()
     return redirect(request.referrer or url_for('auth.user_profile', username=username))
 
 @community_bp.route('/force-db-update-2026')
 def force_db_update():
     try:
-        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_enabled BOOLEAN DEFAULT FALSE'))
-        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_query VARCHAR(255)'))
-        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_agent_run TIMESTAMP'))
+        db.session.execute(text('ALTER TABLE "message" ADD COLUMN IF NOT EXISTS file_path VARCHAR(300)'))
         db.session.commit()
         return "✅ تم تحديث قاعدة البيانات بنجاح.", 200
     except Exception as e:
