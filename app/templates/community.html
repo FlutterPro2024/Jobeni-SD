@@ -23,7 +23,7 @@
             <div class="sticky-sidebar">
                 <div class="card post-card p-3 text-center shadow-sm">
                     <a href="{{ url_for('auth.user_profile', username=current_user.username) }}">
-                        <img src="{{ current_user.avatar or 'https://ui-avatars.com/api/?name=' + current_user.username }}" class="user-avatar mx-auto mb-2" style="width: 70px; height: 70px;">
+                        <img src="{{ current_user.avatar or 'https://ui-avatars.com/api/?name=' + (current_user.username|urlencode) }}" class="user-avatar mx-auto mb-2" style="width: 70px; height: 70px;">
                     </a>
                     <h6 class="fw-bold mb-0">{{ current_user.full_name or current_user.username }}</h6>
                     <small class="text-muted d-block mb-3">{{ current_user.headline or 'عضو في جوبيني' }}</small>
@@ -53,7 +53,7 @@
                         <div class="d-flex align-items-center justify-content-between mb-3">
                             <div class="d-flex align-items-center">
                                 <a href="{{ url_for('auth.user_profile', username=post.author.username) }}">
-                                    <img src="{{ post.author.avatar or 'https://ui-avatars.com/api/?name=' + post.author.username }}" class="user-avatar ms-2">
+                                    <img src="{{ post.author.avatar or 'https://ui-avatars.com/api/?name=' + (post.author.username|urlencode) }}" class="user-avatar ms-2">
                                 </a>
                                 <div class="text-end">
                                     <a href="{{ url_for('auth.user_profile', username=post.author.username) }}" class="user-link">
@@ -191,12 +191,12 @@ function handleLike(postId, btn) {
     .then(data => {
         document.getElementById(`like-count-${postId}`).innerText = data.likes_count;
         const icon = btn.querySelector('i');
-        if (data.action === 'liked') { 
-            btn.classList.add('liked'); 
-            icon.className = 'fas fa-heart'; 
-        } else { 
-            btn.classList.remove('liked'); 
-            icon.className = 'far fa-heart'; 
+        if (data.action === 'liked') {
+            btn.classList.add('liked');
+            icon.className = 'fas fa-heart';
+        } else {
+            btn.classList.remove('liked');
+            icon.className = 'far fa-heart';
         }
     });
 }

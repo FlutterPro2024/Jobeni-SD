@@ -2,6 +2,7 @@
 from app import db
 from flask_login import UserMixin
 from datetime import datetime
+from flask import url_for  # استيراد مهم جداً للروابط الديناميكية
 
 # جدول المتابعين (Many-to-Many)
 followers = db.Table('followers',
@@ -17,7 +18,7 @@ class User(db.Model, UserMixin):
     full_name = db.Column(db.String(100))
     role = db.Column(db.String(20), default='jobseeker')
     phone = db.Column(db.String(20))
-    avatar = db.Column(db.String(200), default='https://ui-avatars.com/api/?name=User')
+    avatar = db.Column(db.String(200)) # تم تعديله ليكون مرناً
     headline = db.Column(db.String(200))
     bio = db.Column(db.Text)
     location_name = db.Column(db.String(100))
@@ -40,6 +41,14 @@ class User(db.Model, UserMixin):
         primaryjoin=(followers.c.follower_id == id),
         secondaryjoin=(followers.c.followed_id == id),
         backref=db.backref('followers', lazy='dynamic'), lazy='dynamic')
+
+    # الدالة السحرية لعرض الصورة الشخصية بدون أخطاء 404
+    def get_avatar(self):
+        if self.avatar:
+            if self.avatar.startswith('http'):
+                return self.avatar
+            return url_for('static', filename='uploads/' + self.avatar)
+        return f"https://ui-avatars.com/api/?name={self.username}&background=random&color=fff"
 
     def ping(self):
         self.last_seen = datetime.utcnow()
