@@ -3,6 +3,17 @@
 
 {% block content %}
 <div class="container py-4 text-end" dir="rtl">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show rounded-pill mb-4 shadow-sm" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
     <div class="card border-0 text-white shadow-lg rounded-4 mb-4" style="background: linear-gradient(135deg, #1a1d20 0%, #0d6efd 100%);">
         <div class="card-body p-4 p-md-5">
             <h2 class="fw-bold mb-2">أهلاً بك، {{ current_user.full_name or current_user.username }}! 👋</h2>
@@ -32,30 +43,6 @@
                 </div>
             </div>
 
-            <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
-                <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
-                    <a href="{{ url_for('community.index') }}" class="small text-decoration-none">تفاعل الآن</a>
-                    <h5 class="fw-bold mb-0 text-dark small-md"><i class="fas fa-users text-info ms-2"></i> نبض المجتمع المهني</h5>
-                </div>
-                <div class="card-body p-3">
-                    <div class="d-flex gap-2 mb-3 overflow-hidden">
-                        <div class="p-2 bg-light rounded-3 flex-grow-1 small text-muted border-end border-info border-3">
-                            <i class="fas fa-lightbulb text-warning me-1"></i> شارك خبرتك اليوم مع زملائك في السودان!
-                        </div>
-                    </div>
-                    <a href="{{ url_for('community.index') }}" class="btn btn-light btn-sm w-100 rounded-pill text-primary fw-bold">الانتقال للمجتمع واستكشاف المنشورات</a>
-                </div>
-            </div>
-
-            <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
-                <div class="card-header bg-white border-0 pt-4 px-4 text-start">
-                    <h5 class="fw-bold mb-0 text-dark small-md"><i class="fas fa-chart-line text-primary ms-2"></i> مؤشر تطور الأداء المهني</h5>
-                </div>
-                <div class="card-body p-4">
-                    <canvas id="performanceChart" style="max-height: 250px; width: 100%;"></canvas>
-                </div>
-            </div>
-
             <div class="card border-0 shadow-sm rounded-4 bg-white mb-4 border-end border-primary border-4">
                 <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
                     <span class="badge {% if current_user.agent_enabled %}bg-success{% else %}bg-secondary{% endif %} rounded-pill">
@@ -67,11 +54,13 @@
                     <form action="{{ url_for('auth.update_agent_settings') }}" method="POST" class="row align-items-end g-3">
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-muted">المجال الوظيفي المستهدف:</label>
-                            <input type="text" name="agent_query" class="form-control rounded-pill border-2 text-end" placeholder="مثلاً: Cloud Architect" value="{{ current_user.agent_query or '' }}">
+                            <input type="text" name="agent_query" class="form-control rounded-pill border-2 text-end" placeholder="مثلاً: Software Engineer" value="{{ current_user.agent_query or '' }}">
                         </div>
                         <div class="col-md-4 py-2 text-center text-md-end">
                             <div class="form-check form-switch d-inline-block">
-                                <input class="form-check-input" type="checkbox" name="agent_enabled" id="agentSwitch" {% if current_user.agent_enabled %}checked{% endif %}>
+                                <input class="form-check-input" type="checkbox" name="agent_enabled" id="agentSwitch" 
+                                       {% if current_user.agent_enabled %}checked{% endif %} 
+                                       onclick="window.location.href='/agent/toggle-agent';">
                                 <label class="form-check-label small fw-bold me-2" for="agentSwitch">تفعيل المراقبة</label>
                             </div>
                         </div>
@@ -79,6 +68,20 @@
                             <button type="submit" class="btn btn-primary w-100 rounded-pill btn-sm py-2 shadow-sm">تحديث</button>
                         </div>
                     </form>
+                    {% if not current_user.telegram_id %}
+                    <div class="mt-3 p-2 bg-danger-subtle text-danger rounded-3 small text-center">
+                        <i class="fas fa-exclamation-circle me-1"></i> الرادار يحتاج ربط حسابك بـ <b>تليجرام</b> ليرسل لك الوظائف.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+                <div class="card-header bg-white border-0 pt-4 px-4 text-start">
+                    <h5 class="fw-bold mb-0 text-dark small-md"><i class="fas fa-chart-line text-primary ms-2"></i> مؤشر تطور الأداء المهني</h5>
+                </div>
+                <div class="card-body p-4">
+                    <canvas id="performanceChart" style="max-height: 250px; width: 100%;"></canvas>
                 </div>
             </div>
         </div>
@@ -118,12 +121,12 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const ctx = document.getElementById('performanceChart').getContext('2d');
         const scores = {{ chart_scores|tojson if chart_scores else '[0, 0, 0]' }};
         const labels = {{ chart_labels|tojson if chart_labels else '["بداية", "حالياً", "هدف"]' }};
-
         new Chart(ctx, {
             type: 'line',
             data: {
