@@ -4,28 +4,17 @@
 {% block content %}
 <div class="container py-5" dir="rtl">
     <div class="row g-4">
-        <div class="col-lg-4">
+        <div class="col-lg-4 text-end">
             <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden text-center">
                 <div class="card-header bg-primary py-5"></div>
                 <div class="card-body p-4 mt-n5">
                     <div class="position-relative d-inline-block">
-                        <img src="{{ url_for('static', filename='uploads/' + (current_user.avatar or 'default_avatar.png')) }}" 
-                             class="rounded-circle border border-white border-4 shadow-sm mb-3 bg-white" 
+                        <img src="{{ current_user.avatar or 'https://ui-avatars.com/api/?name=' + (current_user.username|urlencode) }}"
+                             class="rounded-circle border border-white border-4 shadow-sm mb-3 bg-white"
                              style="width: 120px; height: 120px; object-fit: cover; margin-top: -60px;">
-                        <button class="btn btn-sm btn-dark rounded-circle position-absolute bottom-0 end-0 mb-3 me-1" 
-                                data-bs-toggle="modal" data-bs-target="#uploadAvatarModal">
-                            <i class="fas fa-camera p-1"></i>
-                        </button>
                     </div>
-                    
                     <h4 class="fw-bold mb-1">{{ current_user.full_name or current_user.username }}</h4>
                     <p class="text-primary small fw-bold mb-3">{{ current_user.headline or 'عضو مجتمع جوبيني' }}</p>
-                    
-                    <div class="d-flex justify-content-center gap-2 mb-3 text-muted small">
-                        <span><i class="fas fa-map-marker-alt ms-1"></i> {{ current_user.location_name or 'السودان' }}</span>
-                        <span class="border-start ps-2"><i class="fas fa-link ms-1"></i> @{{ current_user.username }}</span>
-                    </div>
-
                     <div class="row g-2 mt-2">
                         <div class="col-4">
                             <div class="p-2 border rounded-3 bg-light">
@@ -48,36 +37,9 @@
                     </div>
                 </div>
             </div>
-
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-info text-white mb-4">
-                <div class="card-body p-4 text-start">
-                    <div class="d-flex align-items-center mb-3">
-                        <i class="fab fa-telegram fa-2x ms-2"></i>
-                        <h5 class="fw-bold mb-0">تنبيهات جوبيني</h5>
-                    </div>
-                    {% if current_user.telegram_id %}
-                        <p class="small opacity-90">مربوط بنجاح. تصلك التنبيهات والوظائف الآن.</p>
-                        <div class="badge bg-white text-info rounded-pill px-3 py-2">ID: {{ current_user.telegram_id }}</div>
-                    {% else %}
-                        <p class="small opacity-90">فعل الإشعارات لتصلك فرص الوظائف فور نشرها.</p>
-                        <a href="https://t.me/Jobeni_Task_Bot?start={{ current_user.id }}" target="_blank" class="btn btn-light btn-sm text-info rounded-pill px-4 fw-bold w-100">تفعيل تلجرام</a>
-                    {% endif %}
-                </div>
-            </div>
         </div>
 
         <div class="col-lg-8">
-            <div class="card border-0 shadow-sm rounded-4 mb-4 text-start">
-                <div class="card-header bg-white border-0 pt-4 px-4">
-                    <h5 class="fw-bold mb-0"><i class="fas fa-info-circle text-primary ms-2"></i> النبذة التعريفية (Bio)</h5>
-                </div>
-                <div class="card-body p-4">
-                    <p class="text-dark" style="line-height: 1.8;">
-                        {{ current_user.bio or 'لا توجد نبذة تعريفية مضافة حالياً. أضف مهاراتك وخبراتك ليراك أصحاب العمل.' }}
-                    </p>
-                </div>
-            </div>
-
             <div class="card border-0 shadow-sm rounded-4 text-start">
                 <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
                     <h5 class="fw-bold mb-0"><i class="fas fa-user-cog text-primary ms-2"></i> تعديل البيانات الشخصية</h5>
@@ -85,32 +47,21 @@
                 <div class="card-body p-4">
                     <form method="POST">
                         <div class="row g-3">
-                            <div class="col-md-6">
+                            <div class="col-md-6 text-end">
                                 <label class="form-label small fw-bold text-muted">الاسم الكامل</label>
-                                <input type="text" name="full_name" class="form-control rounded-3 bg-light border-0" value="{{ current_user.full_name or '' }}" placeholder="الاسم كما يظهر في الشهادات">
+                                <input type="text" name="full_name" class="form-control rounded-3 bg-light border-0" value="{{ current_user.full_name or '' }}">
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold text-muted">المسمى الوظيفي (Headline)</label>
-                                <input type="text" name="headline" class="form-control rounded-3 bg-light border-0" value="{{ current_user.headline or '' }}" placeholder="مثلاً: مهندس برمجيات | خبير مبيعات">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold text-muted">البريد الإلكتروني</label>
-                                <input type="email" name="email" class="form-control rounded-3 bg-light border-0" value="{{ current_user.email }}" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold text-muted">رقم الهاتف (مع مفتاح الدولة)</label>
-                                <div class="input-group" dir="ltr">
-                                    <span class="input-group-text bg-light border-0"><i class="fas fa-phone-alt"></i></span>
-                                    <input type="tel" name="phone" class="form-control bg-light border-0" value="{{ current_user.phone or '' }}" placeholder="+249 123 456 789">
-                                </div>
+                            <div class="col-md-6 text-end">
+                                <label class="form-label small fw-bold text-muted">المسمى الوظيفي</label>
+                                <input type="text" name="headline" class="form-control rounded-3 bg-light border-0" value="{{ current_user.headline or '' }}">
                             </div>
                             <div class="col-12 text-end">
                                 <label class="form-label small fw-bold text-muted">النبذة (Bio)</label>
                                 <textarea name="bio" class="form-control rounded-3 bg-light border-0" rows="4">{{ current_user.bio or '' }}</textarea>
                             </div>
                             <div class="col-12 mt-4 text-start">
-                                <button type="submit" class="btn btn-primary px-5 rounded-pill shadow-sm fw-bold">حفظ كل التغييرات</button>
-                                <a href="{{ url_for('chat.community') }}" class="btn btn-light px-4 rounded-pill border ms-2">إلغاء</a>
+                                <button type="submit" class="btn btn-primary px-5 rounded-pill shadow-sm fw-bold">حفظ التغييرات</button>
+                                <a href="{{ url_for('community.index') }}" class="btn btn-light px-4 rounded-pill border ms-2">إلغاء</a>
                             </div>
                         </div>
                     </form>
@@ -119,30 +70,4 @@
         </div>
     </div>
 </div>
-
-<div class="modal fade" id="uploadAvatarModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content rounded-4 border-0">
-            <div class="modal-header border-0">
-                <h5 class="fw-bold mb-0">تحديث الصورة الشخصية</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body p-4 text-center">
-                <form action="{{ url_for('auth.upload_avatar') }}" method="POST" enctype="multipart/form-data">
-                    <input type="file" name="avatar" class="form-control mb-3" accept="image/*" required>
-                    <button type="submit" class="btn btn-primary w-100 rounded-pill">رفع الصورة الجديدة</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<style>
-    body { background-color: #f8fafc; }
-    .bg-primary { background: linear-gradient(45deg, #1e3a8a, #3b82f6) !important; }
-    .rounded-4 { border-radius: 1.25rem !important; }
-    .form-control:focus { background-color: #fff !important; border: 1px solid #3b82f6 !important; box-shadow: none; }
-    .avatar-xl { position: relative; }
-    .mt-n5 { margin-top: -3rem !important; }
-</style>
 {% endblock %}

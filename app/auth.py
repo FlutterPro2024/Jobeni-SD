@@ -74,7 +74,7 @@ def dashboard():
 
     recent_apps = Application.query.filter_by(user_id=current_user.id).order_by(Application.applied_at.desc()).limit(5).all()
     reports = InterviewReport.query.filter_by(user_id=current_user.id).all()
-    
+
     chart_labels = [r.created_at.strftime('%m/%d') for r in reports] if reports else ["بدء"]
     chart_scores = []
     for r in reports:
@@ -84,7 +84,7 @@ def dashboard():
 
     return render_template('dashboard.html', cvs=current_user.cvs, recent_applications=recent_apps, chart_labels=chart_labels, chart_scores=chart_scores)
 
-@auth_bp.route('/user/<string:username>')
+@auth_bp.route('/user/<path:username>')
 @login_required
 def user_profile(username):
     user = User.query.filter_by(username=username).first_or_404()
