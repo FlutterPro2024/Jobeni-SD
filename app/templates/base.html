@@ -8,30 +8,35 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root { --gradient-blue: linear-gradient(135deg, #0d6efd 0%, #0dcaf0 100%); }
-        body { padding-top: 85px; font-family: 'Segoe UI', sans-serif; background-color: #f8f9fa; }
-        .navbar { background-color: rgba(33, 37, 41, 0.97) !important; backdrop-filter: blur(10px); }
+        body { padding-top: 85px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; }
+        .navbar { background-color: rgba(33, 37, 41, 0.97) !important; backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.1); }
         .logo-icon { background: var(--gradient-blue); color: white; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-left: 10px; }
         .logo-text { font-size: 22px; font-weight: 800; background: var(--gradient-blue); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .nav-link { color: rgba(255,255,255,0.85) !important; transition: 0.3s; }
+        .nav-link { color: rgba(255,255,255,0.85) !important; transition: 0.3s; font-weight: 500; }
         .nav-link:hover { color: #0dcaf0 !important; }
-        .dropdown-menu { border-radius: 15px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .dropdown-menu { border-radius: 15px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.1); margin-top: 10px; }
+        .alert { border-radius: 12px; border: none; }
     </style>
 </head>
 <body>
+    <audio id="notification-sound" preload="auto">
+        <source src="https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3" type="audio/mpeg">
+    </audio>
+
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top shadow-sm">
         <div class="container">
             <a class="d-flex align-items-center text-decoration-none" href="{{ url_for('auth.index') }}">
                 <div class="logo-icon">J</div>
                 <span class="logo-text">Jobeni SD</span>
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto align-items-center">
                     <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('jobs.jobs_list') }}">الوظائف</a></li>
                     <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('community.index') }}">المجتمع</a></li>
-                    
+
                     {% if current_user.is_authenticated %}
                         <li class="nav-item">
                             <a class="nav-link px-3" href="{{ url_for('chat.open_chat', job_id=0, recipient_id=0) }}">
@@ -40,18 +45,18 @@
                         </li>
                         <li class="nav-item dropdown ms-lg-3">
                             <a class="nav-link dropdown-toggle btn btn-outline-info btn-sm rounded-pill px-3 text-white" href="#" data-bs-toggle="dropdown">
-                                <img src="{{ current_user.avatar or 'https://ui-avatars.com/api/?name=' + current_user.username }}" width="20" height="20" class="rounded-circle me-1"> {{ current_user.username }}
+                                <img src="{{ current_user.avatar or 'https://ui-avatars.com/api/?name=' + current_user.username }}" width="24" height="24" class="rounded-circle me-1"> {{ current_user.username }}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end shadow border-0 text-end">
-                                <li><a class="dropdown-item small" href="{{ url_for('auth.user_profile', username=current_user.username) }}"><i class="fas fa-user-circle ms-2"></i> ملفي الشخصي</a></li>
-                                <li><a class="dropdown-item small" href="{{ url_for('auth.profile') }}"><i class="fas fa-cog ms-2"></i> الإعدادات</a></li>
+                                <li><a class="dropdown-item small py-2" href="{{ url_for('auth.user_profile', username=current_user.username) }}"><i class="fas fa-user-circle ms-2 text-primary"></i> ملفي الشخصي</a></li>
+                                <li><a class="dropdown-item small py-2" href="{{ url_for('auth.profile') }}"><i class="fas fa-cog ms-2 text-secondary"></i> الإعدادات</a></li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item small text-danger" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt ms-2"></i> خروج</a></li>
+                                <li><a class="dropdown-item small py-2 text-danger" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt ms-2"></i> خروج</a></li>
                             </ul>
                         </li>
                     {% else %}
                         <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('auth.login') }}">دخول</a></li>
-                        <li class="nav-item"><a class="btn btn-primary btn-sm rounded-pill px-4" href="{{ url_for('auth.register') }}">انضم الآن</a></li>
+                        <li class="nav-item"><a class="btn btn-primary btn-sm rounded-pill px-4 ms-2" href="{{ url_for('auth.register') }}">انضم الآن</a></li>
                     {% endif %}
                 </ul>
             </div>
@@ -62,7 +67,7 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm small">
+                    <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show shadow-sm small">
                         {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
@@ -75,10 +80,28 @@
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="py-4 text-center mt-5 opacity-50">
-        <p class="small">© 2026 Jobeni SD. صنع بكل فخر في السودان 🇸🇩</p>
+    <footer class="py-5 text-center mt-5">
+        <div class="container">
+            <p class="text-muted small mb-1">© 2026 Jobeni SD. جميع الحقوق محفوظة</p>
+            <p class="small fw-bold" style="color: #0d6efd;">صنع بكل فخر في السودان 🇸🇩</p>
+        </div>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // دالة تشغيل صوت التنبيه العالمية
+        function playNotify() {
+            const sound = document.getElementById('notification-sound');
+            if (sound) {
+                sound.play().catch(e => console.log("الصوت بانتظار تفاعل المستخدم"));
+            }
+        }
+
+        // تفعيل التلميحات (Tooltips) لو وجدت
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+    </script>
 </body>
 </html>

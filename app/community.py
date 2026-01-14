@@ -37,9 +37,9 @@ def messages():
     rcvd_msgs = Message.query.filter_by(recipient_id=current_user.id).all()
     user_ids = set([m.recipient_id for m in sent_msgs if m.recipient_id] + [m.sender_id for m in rcvd_msgs])
     chat_partners = User.query.filter(User.id.in_(user_ids)).all() if user_ids else []
-    
-    return render_template('messages.html', 
-                           chat_partners=chat_partners, 
+
+    return render_template('messages.html',
+                           chat_partners=chat_partners,
                            utcnow=datetime.utcnow())
 
 @community_bp.route('/post/new', methods=['POST'])
@@ -92,26 +92,23 @@ def add_comment(post_id):
         db.session.commit()
     return redirect(url_for('community.index'))
 
-@community_bp.route('/follow/<string:username>')
+@community_bp.route('/delete_post/<int:post_id>', methods=['POST'])
 @login_required
-def follow(username):
-    user = User.query.filter_by(username=username).first_or_404()
-    if user == current_user:
-        flash('لا يمكنك متابعة نفسك!', 'warning')
-        return redirect(url_for('auth.user_profile', username=username))
-    if user in current_user.followed:
-        current_user.followed.remove(user)
+def delete_post(post_id):
+    post = Post.query.get_or_404(post_id)
+    if post.user_id == current_user.id or current_user.role == 'admin':
+        db.session.delete(post)
+        db.session.commit()
+        flash('تم حذف المنشور بنجاح.', 'info')
     else:
-        current_user.followed.append(user)
-        notif = Notification(user_id=user.id, title="متابع جديد",
-                             message=f"بدأ {current_user.username} بمتابعتك الآن!")
-        db.session.add(notif)
-    db.session.commit()
-    return redirect(request.referrer or url_for('auth.user_profile', username=username))
+        flash('ليس لديك صلاحية لحذف هذا المنشور.', 'danger')
+    return redirect(url_for('community.index'))
 
 @community_bp.route('/force-db-update-2026')
 def force_db_update():
     try:
+        db.create_all()
+        # إضافة عمود file_path لو لم يكن موجوداً
         db.session.execute(text('ALTER TABLE "message" ADD COLUMN IF NOT EXISTS file_path VARCHAR(300)'))
         db.session.commit()
         return "✅ تم تحديث قاعدة البيانات بنجاح.", 200

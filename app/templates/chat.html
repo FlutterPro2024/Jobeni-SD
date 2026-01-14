@@ -2,8 +2,6 @@
 {% block title %}الدردشة مع {{ recipient.username }}{% endblock %}
 
 {% block content %}
-<audio id="notifSound" src="{{ url_for('static', filename='sounds/notify.mp3') }}" preload="auto"></audio>
-
 <div class="container py-4 text-end" dir="rtl">
     <div class="row justify-content-center">
         <div class="col-lg-8">
@@ -32,12 +30,9 @@
                                     {% if msg.file_path %}
                                         <div class="mb-2">
                                             {% if msg.file_path.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')) %}
-                                                <img src="{{ msg.file_path }}" class="img-fluid rounded-3 shadow-sm" style="max-height: 250px; cursor: pointer;" onclick="window.open(this.src)">
+                                                <img src="{{ msg.file_path }}" class="img-fluid rounded-3" style="max-height: 250px; cursor: pointer;" onclick="window.open(this.src)">
                                             {% else %}
-                                                <div class="bg-light p-2 rounded d-flex align-items-center text-dark">
-                                                    <i class="fas fa-file-alt ms-2 fa-lg text-primary"></i>
-                                                    <a href="{{ msg.file_path }}" target="_blank" class="text-decoration-none small text-truncate text-dark">عرض المرفق</a>
-                                                </div>
+                                                <a href="{{ msg.file_path }}" target="_blank" class="btn btn-sm btn-light">📁 عرض المرفق</a>
                                             {% endif %}
                                         </div>
                                     {% endif %}
@@ -53,12 +48,11 @@
                     <form id="chatForm" class="d-flex gap-2 align-items-center">
                         <label for="fileInput" class="btn btn-light rounded-circle shadow-sm mb-0" style="width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
                             <i class="fas fa-paperclip text-primary"></i>
-                            <input type="file" id="fileInput" name="file" hidden onchange="document.getElementById('file-info').style.display='block'; document.getElementById('file-info').innerText='📎 ' + this.files[0].name;">
+                            <input type="file" id="fileInput" name="file" hidden>
                         </label>
                         <input type="text" id="msgInput" class="form-control rounded-pill border-0 bg-light px-4" placeholder="اكتب رسالتك..." autocomplete="off">
                         <button type="submit" id="sendBtn" class="btn btn-primary rounded-circle shadow" style="width: 48px; height: 48px;"><i class="fas fa-paper-plane"></i></button>
                     </form>
-                    <small id="file-info" class="text-primary mt-1 ms-5 fw-bold" style="display:none;"></small>
                 </div>
             </div>
         </div>
@@ -66,54 +60,44 @@
 </div>
 
 <script>
-    const chatWindow = document.getElementById("chatWindow");
-    const msgInput = document.getElementById("msgInput");
-    const fileInput = document.getElementById("fileInput");
-    const typingIndicator = document.getElementById("typing-indicator");
-    const sendBtn = document.getElementById("sendBtn");
-    const recipient_id = "{{ recipient.id }}";
-    let lastMsgCount = {{ messages|length }};
-
-    function scrollBottom() { chatWindow.scrollTop = chatWindow.scrollHeight; }
-    scrollBottom();
-
-    document.getElementById('chatForm').onsubmit = async (e) => {
-        e.preventDefault();
-        const body = msgInput.value.trim();
-        const file = fileInput.files[0];
-        if(!body && !file) return;
-
-        sendBtn.disabled = true;
-        sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-
-        const formData = new FormData();
-        if(body) formData.append('message', body);
-        if(file) formData.append('file', file);
-
-        await fetch(window.location.href, { method: 'POST', body: formData });
-
-        msgInput.value = '';
-        fileInput.value = '';
-        document.getElementById('file-info').style.display='none';
-        sendBtn.disabled = false;
-        sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
-        updateChat();
-    };
+    let lastMsgId = {% if messages %}{{ messages[-1].id }}{% else %}0{% endif %};
+    const currentUserId = {{ current_user.id }};
 
     async function updateChat() {
         const res = await fetch(window.location.href + '?json=1');
         const data = await res.json();
-        typingIndicator.style.display = data.is_typing ? 'block' : 'none';
-        const dot = document.getElementById('status-dot');
-        dot.className = `position-absolute bottom-0 start-0 p-1 border border-2 border-white rounded-circle ${data.is_online ? 'bg-success' : 'bg-secondary'}`;
-        document.getElementById('last-seen-text').innerText = data.is_online ? 'نشط الآن' : 'غير متصل';
+        
+        // تحديث حالة الظهور
+        document.getElementById('status-dot').className = `position-absolute bottom-0 start-0 p-1 border border-2 border-white rounded-circle ${data.is_online ? 'bg-success' : 'bg-secondary'}`;
+        document.getElementById('typing-indicator').style.display = data.is_typing ? 'block' : 'none';
 
-        if (data.messages.length > lastMsgCount) {
-            location.reload();
+        // صوت التنبيه وتحديث الصفحة عند وجود رسالة جديدة
+        if (data.messages.length > 0) {
+            const latestMsg = data.messages[data.messages.length - 1];
+            if (latestMsg.id > lastMsgId) {
+                if (latestMsg.sender_id !== currentUserId) {
+                    if(typeof playNotify === "function") playNotify();
+                }
+                location.reload(); 
+            }
         }
     }
 
-    msgInput.oninput = () => { fetch(`/chat/typing/${recipient_id}`, {method: 'POST'}); };
-    setInterval(updateChat, 3500);
+    document.getElementById('chatForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const msg = document.getElementById("msgInput").value;
+        const file = document.getElementById("fileInput").files[0];
+        if(!msg && !file) return;
+
+        const formData = new FormData();
+        if(msg) formData.append('message', msg);
+        if(file) formData.append('file', file);
+
+        await fetch(window.location.href, { method: 'POST', body: formData });
+        location.reload();
+    };
+
+    setInterval(updateChat, 4000);
+    document.getElementById("chatWindow").scrollTop = document.getElementById("chatWindow").scrollHeight;
 </script>
 {% endblock %}
