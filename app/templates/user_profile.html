@@ -7,7 +7,7 @@
         <div class="col-md-9">
             <div class="card border-0 shadow-sm rounded-4 mb-4">
                 <div class="card-body text-center p-5">
-                    <img src="{{ user.avatar or 'https://ui-avatars.com/api/?name=' + (user.username|urlencode) }}"
+                    <img src="{{ user.get_avatar() }}"
                          class="rounded-circle border mb-3 shadow-sm" width="120" height="120" style="object-fit: cover;">
                     <h3 class="fw-bold mb-1">{{ user.full_name or user.username }}</h3>
                     <p class="text-primary mb-3">{{ user.headline or 'مهني في جوبيني' }}</p>

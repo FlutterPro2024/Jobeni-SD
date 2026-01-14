@@ -10,7 +10,7 @@
                 <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
                         <div class="position-relative ms-3">
-                            <img src="{{ recipient.avatar or 'https://ui-avatars.com/api/?name=' + recipient.username }}" class="rounded-circle border" width="48" height="48">
+                            <img src="{{ recipient.get_avatar() }}" class="rounded-circle border" width="48" height="48">
                             <span id="status-dot" class="position-absolute bottom-0 start-0 p-1 bg-secondary border border-2 border-white rounded-circle" style="width: 14px; height: 14px;"></span>
                         </div>
                         <div>
@@ -19,7 +19,7 @@
                             <small id="last-seen-text" class="text-muted small">جاري التحقق...</small>
                         </div>
                     </div>
-                    <a href="{{ url_for('community.messages') }}" class="btn btn-light rounded-pill btn-sm"><i class="fas fa-arrow-left"></i></a>
+                    <a href="{{ url_for('community.index') }}" class="btn btn-light rounded-pill btn-sm"><i class="fas fa-arrow-left"></i></a>
                 </div>
 
                 <div class="card-body overflow-auto p-4" id="chatWindow" style="flex: 1; background: #eef2f7;">
@@ -66,19 +66,17 @@
     async function updateChat() {
         const res = await fetch(window.location.href + '?json=1');
         const data = await res.json();
-        
-        // تحديث حالة الظهور
+
         document.getElementById('status-dot').className = `position-absolute bottom-0 start-0 p-1 border border-2 border-white rounded-circle ${data.is_online ? 'bg-success' : 'bg-secondary'}`;
         document.getElementById('typing-indicator').style.display = data.is_typing ? 'block' : 'none';
 
-        // صوت التنبيه وتحديث الصفحة عند وجود رسالة جديدة
         if (data.messages.length > 0) {
             const latestMsg = data.messages[data.messages.length - 1];
             if (latestMsg.id > lastMsgId) {
                 if (latestMsg.sender_id !== currentUserId) {
                     if(typeof playNotify === "function") playNotify();
                 }
-                location.reload(); 
+                location.reload();
             }
         }
     }
