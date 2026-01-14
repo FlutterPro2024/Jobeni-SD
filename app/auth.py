@@ -16,7 +16,10 @@ IMGBB_API_KEY = "673cbd292e4b734899cf1d846ff9f40b"
 def update_last_seen():
     if current_user.is_authenticated:
         current_user.last_seen = datetime.utcnow()
-        db.session.commit()
+        try:
+            db.session.commit()
+        except:
+            db.session.rollback()
 
 @auth_bp.route('/')
 def index():
@@ -71,7 +74,7 @@ def dashboard():
     if current_user.role == 'employer':
         jobs = Job.query.filter_by(user_id=current_user.id).all()
         return render_template('dashboard_employer.html', jobs=jobs)
-    
+
     recent_apps = Application.query.filter_by(user_id=current_user.id).order_by(Application.applied_at.desc()).limit(5).all()
     reports = InterviewReport.query.filter_by(user_id=current_user.id).all()
     chart_labels = [r.created_at.strftime('%m/%d') for r in reports] if reports else ["بدء"]
@@ -80,8 +83,30 @@ def dashboard():
         m = re.search(r'(\d+)', str(r.score))
         chart_scores.append(int(m.group(1)) if m else 0)
     if not chart_scores: chart_scores = [0]
-    
+
     return render_template('dashboard.html', cvs=current_user.cvs, recent_applications=recent_apps, chart_labels=chart_labels, chart_scores=chart_scores)
+
+@auth_bp.route('/user/<string:username>')
+@login_required
+def user_profile(username):
+    user = User.query.filter_by(username=username).first_or_404()
+    posts = Post.query.filter_by(user_id=user.id).order_by(Post.timestamp.desc()).all()
+    is_online = False
+    if user.last_seen:
+        is_online = (datetime.utcnow() - user.last_seen).total_seconds() < 300
+    return render_template('user_profile.html', user=user, posts=posts, is_online=is_online)
+
+@auth_bp.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    if request.method == 'POST':
+        current_user.full_name = request.form.get('full_name')
+        current_user.bio = request.form.get('bio')
+        current_user.headline = request.form.get('headline')
+        current_user.phone = request.form.get('phone')
+        db.session.commit()
+        flash('تم تحديث الملف الشخصي بنجاح', 'success')
+    return render_template('profile.html')
 
 @auth_bp.route('/update_agent_settings', methods=['POST'])
 @login_required
@@ -98,3 +123,4 @@ def logout():
     logout_user()
     flash('تم تسجيل الخروج بنجاح.', 'info')
     return redirect(url_for('auth.login'))
+

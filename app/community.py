@@ -29,19 +29,6 @@ def index():
                            online_friends=online_friends,
                            Comment=Comment)
 
-@community_bp.route('/force-db-update-2026')
-def force_db_update():
-    """تحديث قاعدة البيانات لإضافة أعمدة الوكيل الذكي"""
-    try:
-        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_enabled BOOLEAN DEFAULT FALSE'))
-        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_query VARCHAR(255)'))
-        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_agent_run TIMESTAMP'))
-        db.session.commit()
-        return "✅ تم تحديث قاعدة البيانات بنجاح (أعمدة الوكيل مضافة).", 200
-    except Exception as e:
-        db.session.rollback()
-        return f"❌ خطأ أثناء التحديث: {str(e)}", 500
-
 @community_bp.route('/post/new', methods=['POST'])
 @login_required
 def new_post():
@@ -55,6 +42,19 @@ def new_post():
         except Exception:
             db.session.rollback()
             flash('حدث خطأ أثناء النشر.', 'danger')
+    return redirect(url_for('community.index'))
+
+@community_bp.route('/post/delete/<int:post_id>', methods=['POST'])
+@login_required
+def delete_post(post_id):
+    post = Post.query.get_or_404(post_id)
+    if post.user_id != current_user.id:
+        flash('غير مسموح لك بحذف هذا المنشور.', 'danger')
+        return redirect(url_for('community.index'))
+    
+    db.session.delete(post)
+    db.session.commit()
+    flash('تم حذف المنشور بنجاح.', 'info')
     return redirect(url_for('community.index'))
 
 @community_bp.route('/like/<int:post_id>', methods=['POST'])
@@ -91,3 +91,38 @@ def add_comment(post_id):
             db.session.add(notif)
         db.session.commit()
     return redirect(url_for('community.index'))
+
+# --- الدالة الهامة جداً لزر المتابعة في البروفايل ---
+@community_bp.route('/follow/<string:username>')
+@login_required
+def follow(username):
+    user = User.query.filter_by(username=username).first_or_404()
+    if user == current_user:
+        flash('لا يمكنك متابعة نفسك!', 'warning')
+        return redirect(url_for('auth.user_profile', username=username))
+    
+    if user in current_user.followed:
+        current_user.followed.remove(user)
+        flash(f'لقد ألغيت متابعة {username}', 'info')
+    else:
+        current_user.followed.append(user)
+        notif = Notification(user_id=user.id, title="متابع جديد",
+                             message=f"بدأ {current_user.username} بمتابعتك الآن!")
+        db.session.add(notif)
+        flash(f'أنت الآن تتابع {username}', 'success')
+    
+    db.session.commit()
+    return redirect(request.referrer or url_for('auth.user_profile', username=username))
+
+@community_bp.route('/force-db-update-2026')
+def force_db_update():
+    """تحديث قاعدة البيانات لإضافة أعمدة الوكيل الذكي"""
+    try:
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_enabled BOOLEAN DEFAULT FALSE'))
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_query VARCHAR(255)'))
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_agent_run TIMESTAMP'))
+        db.session.commit()
+        return "✅ تم تحديث قاعدة البيانات بنجاح.", 200
+    except Exception as e:
+        db.session.rollback()
+        return f"❌ خطأ: {str(e)}", 500

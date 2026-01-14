@@ -14,6 +14,7 @@
         .logo-text { font-size: 22px; font-weight: 800; background: var(--gradient-blue); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .nav-link { color: rgba(255,255,255,0.85) !important; transition: 0.3s; }
         .nav-link:hover { color: #0dcaf0 !important; }
+        .dropdown-menu { border-radius: 15px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body>
@@ -30,13 +31,16 @@
                 <ul class="navbar-nav ms-auto align-items-center">
                     <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('jobs.jobs_list') }}">الوظائف</a></li>
                     <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('community.index') }}">المجتمع</a></li>
+                    
                     {% if current_user.is_authenticated %}
                         <li class="nav-item">
-                            <a class="nav-link px-3" href="{{ url_for('chat.open_chat', job_id=0, recipient_id=0) }}">الرسائل</a>
+                            <a class="nav-link px-3" href="{{ url_for('chat.open_chat', job_id=0, recipient_id=0) }}">
+                                <i class="fas fa-envelope ms-1"></i> الرسائل
+                            </a>
                         </li>
                         <li class="nav-item dropdown ms-lg-3">
                             <a class="nav-link dropdown-toggle btn btn-outline-info btn-sm rounded-pill px-3 text-white" href="#" data-bs-toggle="dropdown">
-                                <img src="{{ current_user.avatar }}" width="20" height="20" class="rounded-circle me-1"> {{ current_user.username }}
+                                <img src="{{ current_user.avatar or 'https://ui-avatars.com/api/?name=' + current_user.username }}" width="20" height="20" class="rounded-circle me-1"> {{ current_user.username }}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end shadow border-0 text-end">
                                 <li><a class="dropdown-item small" href="{{ url_for('auth.user_profile', username=current_user.username) }}"><i class="fas fa-user-circle ms-2"></i> ملفي الشخصي</a></li>
@@ -67,7 +71,9 @@
         {% endwith %}
     </div>
 
-    <main>{% block content %}{% endblock %}</main>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
 
     <footer class="py-4 text-center mt-5 opacity-50">
         <p class="small">© 2026 Jobeni SD. صنع بكل فخر في السودان 🇸🇩</p>
