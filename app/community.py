@@ -1,9 +1,9 @@
 # ~/jobeni-sD/app/community.py
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
-from app.models import Post, db, Comment, PostLike, User, Notification
+from app.models import Post, db, Comment, PostLike, User, Notification, Message
 from datetime import datetime, timedelta
-from sqlalchemy import text
+from sqlalchemy import text, or_
 
 community_bp = Blueprint('community', __name__)
 
@@ -22,12 +22,26 @@ def index():
     suggested_users = User.query.filter(User.id != current_user.id).limit(5).all()
     ai_suggestion = "شاركنا مهارة جديدة تعلمتها اليوم لتلهم زملاءك في السودان! 🇸🇩"
 
-    return render_template('community.html', 
+    return render_template('community.html',
                            posts=posts,
                            ai_suggestion=ai_suggestion,
                            suggested_users=suggested_users,
                            online_friends=online_friends,
                            Comment=Comment)
+
+# --- الدالة المضافة لحل مشكلة الخطأ في الـ Chat ---
+@community_bp.route('/messages')
+@login_required
+def messages():
+    """عرض قائمة المحادثات الأخيرة للمستخدم"""
+    # جلب المستخدمين الذين تواصل معهم الحالي
+    sent_msgs = Message.query.filter_by(sender_id=current_user.id).all()
+    rcvd_msgs = Message.query.filter_by(recipient_id=current_user.id).all()
+    
+    user_ids = set([m.recipient_id for m in sent_msgs] + [m.sender_id for m in rcvd_msgs])
+    chat_partners = User.query.filter(User.id.in_(user_ids)).all() if user_ids else []
+    
+    return render_template('messages.html', chat_partners=chat_partners)
 
 @community_bp.route('/post/new', methods=['POST'])
 @login_required
@@ -51,7 +65,7 @@ def delete_post(post_id):
     if post.user_id != current_user.id:
         flash('غير مسموح لك بحذف هذا المنشور.', 'danger')
         return redirect(url_for('community.index'))
-    
+
     db.session.delete(post)
     db.session.commit()
     flash('تم حذف المنشور بنجاح.', 'info')
@@ -92,7 +106,6 @@ def add_comment(post_id):
         db.session.commit()
     return redirect(url_for('community.index'))
 
-# --- الدالة الهامة جداً لزر المتابعة في البروفايل ---
 @community_bp.route('/follow/<string:username>')
 @login_required
 def follow(username):
@@ -100,7 +113,7 @@ def follow(username):
     if user == current_user:
         flash('لا يمكنك متابعة نفسك!', 'warning')
         return redirect(url_for('auth.user_profile', username=username))
-    
+
     if user in current_user.followed:
         current_user.followed.remove(user)
         flash(f'لقد ألغيت متابعة {username}', 'info')
@@ -110,13 +123,12 @@ def follow(username):
                              message=f"بدأ {current_user.username} بمتابعتك الآن!")
         db.session.add(notif)
         flash(f'أنت الآن تتابع {username}', 'success')
-    
+
     db.session.commit()
     return redirect(request.referrer or url_for('auth.user_profile', username=username))
 
 @community_bp.route('/force-db-update-2026')
 def force_db_update():
-    """تحديث قاعدة البيانات لإضافة أعمدة الوكيل الذكي"""
     try:
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_enabled BOOLEAN DEFAULT FALSE'))
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_query VARCHAR(255)'))
