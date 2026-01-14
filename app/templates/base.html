@@ -14,7 +14,6 @@
         .logo-text { font-size: 22px; font-weight: 800; background: var(--gradient-blue); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .nav-link { color: rgba(255,255,255,0.85) !important; transition: 0.3s; }
         .nav-link:hover { color: #0dcaf0 !important; }
-        .notification-badge { padding: 4px 6px; font-size: 0.65rem; top: 5px !important; right: 5px !important; }
     </style>
 </head>
 <body>
@@ -24,13 +23,17 @@
                 <div class="logo-icon">J</div>
                 <span class="logo-text">Jobeni SD</span>
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"><span class="navbar-toggler-icon"></span></button>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto align-items-center">
                     <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('jobs.jobs_list') }}">الوظائف</a></li>
                     <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('community.index') }}">المجتمع</a></li>
                     {% if current_user.is_authenticated %}
-                        <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('community.messages') }}">الرسائل</a></li>
+                        <li class="nav-item">
+                            <a class="nav-link px-3" href="{{ url_for('chat.open_chat', job_id=0, recipient_id=0) }}">الرسائل</a>
+                        </li>
                         <li class="nav-item dropdown ms-lg-3">
                             <a class="nav-link dropdown-toggle btn btn-outline-info btn-sm rounded-pill px-3 text-white" href="#" data-bs-toggle="dropdown">
                                 <img src="{{ current_user.avatar }}" width="20" height="20" class="rounded-circle me-1"> {{ current_user.username }}
@@ -51,11 +54,14 @@
         </div>
     </nav>
 
-    <div class="container mt-3">
+    <div class="container mt-3 text-end">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm text-end small">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+                    <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm small">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
                 {% endfor %}
             {% endif %}
         {% endwith %}

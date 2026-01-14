@@ -6,10 +6,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from werkzeug.utils import secure_filename
-from app.models import User, Job, CV, Application, db, InterviewReport, Notification, Message, Post
-from app.serper_search import serper_searcher
-from app.notifications import send_welcome_email
+from app.models import User, Job, CV, Application, db, InterviewReport, Notification, Post
 from sqlalchemy import text
 
 auth_bp = Blueprint('auth', __name__)
@@ -24,27 +21,11 @@ def update_last_seen():
 @auth_bp.route('/')
 def index():
     try:
-        query = text("""SELECT id, title, company_name, location, description, category, salary, job_type, created_at FROM job WHERE is_active = true ORDER BY created_at DESC LIMIT 6""")
-        result = db.session.execute(query)
-        latest_jobs = result.fetchall()
+        latest_jobs = Job.query.filter_by(is_active=True).order_by(Job.created_at.desc()).limit(6).all()
     except Exception as e:
         db.session.rollback()
         latest_jobs = []
     return render_template('index.html', jobs=latest_jobs)
-
-@auth_bp.route('/user/<username>')
-@login_required
-def user_profile(username):
-    user = User.query.filter_by(username=username).first_or_404()
-    posts = Post.query.filter_by(user_id=user.id).order_by(Post.timestamp.desc()).all()
-    is_online = user.last_seen and (datetime.utcnow() - user.last_seen).total_seconds() < 300
-    return render_template('user_profile.html', user=user, posts=posts, is_online=is_online)
-
-@auth_bp.route('/run-jobs-agent')
-@login_required
-def run_jobs_agent():
-    # توجيه الطلب إلى مسار الوكيل الذكي المطور (agent_worker.py)
-    return redirect(url_for('agent.run_agent'))
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -80,8 +61,6 @@ def register():
         )
         db.session.add(new_user)
         db.session.commit()
-        try: send_welcome_email(email, username, new_user.id)
-        except: pass
         flash('تم إنشاء الحساب بنجاح!', 'success')
         return redirect(url_for('auth.login'))
     return render_template('register.html')
@@ -90,45 +69,19 @@ def register():
 @login_required
 def dashboard():
     if current_user.role == 'employer':
-        query = text("SELECT id, title, company_name, location, created_at FROM job WHERE user_id = :uid")
-        jobs = db.session.execute(query, {"uid": current_user.id}).fetchall()
+        jobs = Job.query.filter_by(user_id=current_user.id).all()
         return render_template('dashboard_employer.html', jobs=jobs)
+    
     recent_apps = Application.query.filter_by(user_id=current_user.id).order_by(Application.applied_at.desc()).limit(5).all()
-    reports = InterviewReport.query.filter_by(user_id=current_user.id).order_by(InterviewReport.created_at.asc()).all()
-    chart_labels = [r.created_at.strftime('%m/%d') for r in reports]
+    reports = InterviewReport.query.filter_by(user_id=current_user.id).all()
+    chart_labels = [r.created_at.strftime('%m/%d') for r in reports] if reports else ["بدء"]
     chart_scores = []
     for r in reports:
-        match = re.search(r'(\d+)', str(r.score))
-        chart_scores.append(int(match.group(1)) if match else 0)
+        m = re.search(r'(\d+)', str(r.score))
+        chart_scores.append(int(m.group(1)) if m else 0)
+    if not chart_scores: chart_scores = [0]
+    
     return render_template('dashboard.html', cvs=current_user.cvs, recent_applications=recent_apps, chart_labels=chart_labels, chart_scores=chart_scores)
-
-@auth_bp.route('/profile', methods=['GET', 'POST'])
-@login_required
-def profile():
-    if request.method == 'POST':
-        current_user.full_name = request.form.get('full_name')
-        current_user.bio = request.form.get('bio')
-        current_user.headline = request.form.get('headline')
-        current_user.phone = request.form.get('phone')
-        db.session.commit()
-        flash('تم تحديث البروفايل بنجاح', 'success')
-    return render_template('profile.html')
-
-@auth_bp.route('/upload_avatar', methods=['POST'])
-@login_required
-def upload_avatar():
-    file = request.files.get('avatar')
-    if file:
-        try:
-            files = {"image": (file.filename, file.read())}
-            response = requests.post("https://api.imgbb.com/1/upload", params={"key": IMGBB_API_KEY}, files=files)
-            data = response.json()
-            if data["success"]:
-                current_user.avatar = data["data"]["url"]
-                db.session.commit()
-                flash('تم تحديث الصورة بنجاح!', 'success')
-        except: flash('خطأ في الرفع للسحابة.', 'danger')
-    return redirect(url_for('auth.profile'))
 
 @auth_bp.route('/update_agent_settings', methods=['POST'])
 @login_required
@@ -136,21 +89,8 @@ def update_agent_settings():
     current_user.agent_enabled = 'agent_enabled' in request.form
     current_user.agent_query = request.form.get('agent_query')
     db.session.commit()
-    flash('تم تحديث إعدادات المستشار الذكي', 'success')
+    flash('تم تحديث إعدادات المستشار الذكي بنجاح', 'success')
     return redirect(url_for('auth.dashboard'))
-
-@auth_bp.route('/unread_count')
-@login_required
-def unread_count():
-    count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
-    return jsonify({'count': count})
-
-@auth_bp.route('/mark_notifications_read', methods=['POST'])
-@login_required
-def mark_notifications_read():
-    Notification.query.filter_by(user_id=current_user.id, is_read=False).update({Notification.is_read: True})
-    db.session.commit()
-    return jsonify({'status': 'success'})
 
 @auth_bp.route('/logout')
 @login_required
