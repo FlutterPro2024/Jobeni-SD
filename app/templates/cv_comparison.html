@@ -20,7 +20,6 @@
             overflow-x: hidden;
         }
 
-        /* رأس الصفحة المحسن */
         .header-gradient {
             background: linear-gradient(135deg, #1e40af 0%, #1e293b 100%);
             padding: 25px;
@@ -29,7 +28,6 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
 
-        /* منطقة المحرر */
         .editor {
             height: 650px;
             background: var(--bg-editor);
@@ -42,6 +40,7 @@
             box-shadow: 0 20px 40px rgba(0,0,0,0.4);
             resize: none;
             transition: all 0.3s ease;
+            text-align: right; /* دعم الكتابة العربية */
         }
 
         .editor:focus {
@@ -49,7 +48,6 @@
             outline: none;
         }
 
-        /* منطقة النص الأصلي */
         .comparison-box {
             height: 650px;
             overflow-y: auto;
@@ -60,9 +58,9 @@
             border: 1px dashed rgba(255,255,255,0.2);
             color: #cbd5e1;
             white-space: pre-wrap;
+            text-align: right;
         }
 
-        /* تنسيقات العناوين */
         .label-style {
             font-weight: 600;
             letter-spacing: 0.5px;
@@ -72,31 +70,34 @@
             justify-content: center;
         }
 
-        /* شريط الأدوات السفلي */
         .action-bar {
             background: rgba(15, 23, 42, 0.9);
             padding: 20px;
             border-top: 1px solid rgba(255,255,255,0.1);
             position: sticky;
-            bottom: 0;
+            bottom: 20px;
             z-index: 100;
+            margin: 0 auto;
+            max-width: 800px;
         }
 
         .btn-success-custom {
             background: #10b981;
             border: none;
-            padding: 12px 40px;
+            padding: 12px 60px;
             font-weight: bold;
             transition: all 0.3s ease;
+            color: white;
+            text-decoration: none;
         }
 
         .btn-success-custom:hover {
             background: #059669;
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4);
+            color: white;
         }
 
-        /* شريط تمرير أنيق */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
         ::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
@@ -105,16 +106,27 @@
 <body class="p-3 p-md-5">
 
     <div class="container-fluid">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show rounded-pill mb-4" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
         <div class="header-gradient mb-5 d-flex flex-column flex-md-row justify-content-between align-items-center">
             <div class="text-center text-md-start mb-3 mb-md-0">
-                <h2 class="fw-bold mb-1"><i class="fas fa-robot text-info me-2"></i> محرر الـ ATS الذكي</h2>
-                <p class="mb-0 opacity-75">لقد قمنا بإعادة صياغة سيرتك الذاتية لتتجاوز أنظمة الفرز بنجاح</p>
+                <h2 class="fw-bold mb-1"><i class="fas fa-magic text-info me-2"></i> محرر الـ ATS الذكي</h2>
+                <p class="mb-0 opacity-75">قمنا بإعادة صياغة سيرتك الذاتية بشكل احترافي لتناسب معايير السوق</p>
             </div>
             <div class="d-flex gap-2">
                 <button onclick="copyText()" class="btn btn-outline-info rounded-pill px-4">
                     <i class="fas fa-copy me-1"></i> نسخ النص
                 </button>
-                <a href="{{ url_for('cv.view_cv', cv_id=cv_id) }}" class="btn btn-outline-light rounded-pill px-4">إلغاء</a>
+                <a href="{{ url_for('cv.my_cvs') }}" class="btn btn-outline-light rounded-pill px-4">رجوع للقائمة</a>
             </div>
         </div>
 
@@ -122,7 +134,7 @@
             <div class="row g-4">
                 <div class="col-lg-4">
                     <div class="label-style opacity-75">
-                        <i class="fas fa-history me-2"></i> المسودة الأصلية المستخرجة
+                        <i class="fas fa-history me-2"></i> النص الأصلي
                     </div>
                     <div class="comparison-box shadow-sm">
                         {{ old_text }}
@@ -131,13 +143,13 @@
 
                 <div class="col-lg-8">
                     <div class="label-style text-info">
-                        <i class="fas fa-sparkles me-2"></i> النسخة المحسنة (قابلة للتعديل والتحرير)
+                        <i class="fas fa-sparkles me-2"></i> النسخة المحسنة بواسطة AI (يمكنك التعديل هنا)
                     </div>
                     <textarea id="optimizedEditor" name="optimized_content" class="form-control editor shadow-lg"
-                              placeholder="جاري تجهيز النص..." spellcheck="false">{{ new_text }}</textarea>
+                              placeholder="جاري معالجة النص..." spellcheck="false" dir="auto">{{ new_text }}</textarea>
 
                     <div class="d-flex justify-content-between mt-2 px-2">
-                        <small class="text-muted"><i class="fas fa-info-circle me-1"></i> ملاحظة: النص أعلاه بتنسيق Markdown احترافي.</small>
+                        <small class="text-muted"><i class="fas fa-info-circle me-1"></i> نصيحة: تأكد من مراجعة التواريخ والمهارات قبل الحفظ.</small>
                         <small id="charCount" class="text-info fw-bold">0 حرف</small>
                     </div>
                 </div>
@@ -145,18 +157,18 @@
 
             <div class="mt-5 text-center action-bar rounded-pill shadow">
                 <button type="submit" class="btn btn-success-custom rounded-pill btn-lg shadow-lg">
-                    <i class="fas fa-check-circle me-2"></i> اعتماد هذه النسخة وحفظها
+                    <i class="fas fa-file-pdf me-2"></i> تحميل السيرة كـ PDF الآن
                 </button>
-                <p class="text-muted small mt-2 mb-0">بالضغط على اعتماد، سيتم حفظ التعديلات وتجهيز السيرة للطباعة كـ PDF.</p>
+                <p class="text-muted small mt-2 mb-0">سيتم توليد ملف PDF احترافي بناءً على النص الموجود في المحرر أعلاه.</p>
             </div>
         </form>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const editor = document.getElementById('optimizedEditor');
         const charCount = document.getElementById('charCount');
 
-        // تحديث عداد الحروف
         function updateCharCount() {
             charCount.innerText = editor.value.length + " حرف";
         }
@@ -164,13 +176,18 @@
         editor.addEventListener('input', updateCharCount);
         window.onload = updateCharCount;
 
-        // وظيفة النسخ
         function copyText() {
             editor.select();
             document.execCommand('copy');
-            alert('تم نسخ النص المحسن إلى الحافظة!');
+            // استخدام تنبيه Bootstrap بسيط أو Toast بدلاً من الـ alert العادي
+            const toast = document.createElement('div');
+            toast.className = 'position-fixed bottom-0 start-50 translate-middle-x p-3 bg-success text-white rounded-pill mb-5 shadow';
+            toast.style.zIndex = '1000';
+            toast.innerText = '✅ تم نسخ النص بنجاح!';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
         }
     </script>
-
 </body>
 </html>
+

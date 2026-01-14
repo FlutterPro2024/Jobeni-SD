@@ -17,22 +17,23 @@ cv_bp = Blueprint('cv', __name__)
 @cv_bp.route('/my-cvs')
 @login_required
 def my_cvs():
+    """عرض قائمة السير الذاتية الخاصة بالمستخدم"""
     cvs = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).all()
     return render_template('my_cvs.html', cvs=cvs)
 
 @cv_bp.route('/view/<int:cv_id>')
 @login_required
 def view_cv(cv_id):
-    """الدالة التي كانت مفقودة وتسببت في انهيار الـ Dashboard"""
+    """عرض تفاصيل سيرة ذاتية محددة والتحليل الخاص بها"""
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id:
         abort(403)
-    # ملاحظة: تأكد من وجود قالب باسم view_cv.html أو سيعرض النص الخام
     return render_template('view_cv.html', cv=cv)
 
 @cv_bp.route('/upload-cv', methods=['GET', 'POST'])
 @login_required
 def upload_cv():
+    """رفع سيرة ذاتية جديدة وتحليلها فوراً بواسطة الذكاء الاصطناعي"""
     if current_user.role not in ['jobseeker', 'seeker']:
         flash('هذه الصفحة للباحثين عن عمل فقط.', 'warning')
         return redirect(url_for('auth.dashboard'))
@@ -51,19 +52,22 @@ def upload_cv():
             flash('عذراً، النظام يدعم ملفات PDF و TXT فقط.', 'danger')
             return redirect(request.url)
 
-        path = os.path.join(current_app.config['UPLOAD_FOLDER'])
+        # التأكد من وجود مجلد الرفع
+        path = current_app.config['UPLOAD_FOLDER']
         os.makedirs(path, exist_ok=True)
         file_full_path = os.path.join(path, filename)
         file.save(file_full_path)
 
         extracted_text = ""
         try:
+            # استخراج النص من PDF
             if original_ext == 'pdf':
                 with pdfplumber.open(file_full_path) as pdf:
                     for page in pdf.pages:
                         page_content = page.extract_text()
                         if page_content:
                             extracted_text += page_content + "\n"
+            # استخراج النص من TXT
             elif original_ext == 'txt':
                 for encoding in ['utf-8', 'windows-1256', 'iso-8859-1']:
                     try:
@@ -77,6 +81,7 @@ def upload_cv():
                 flash('الملف فارغ أو تعذر استخراج النص منه.', 'danger')
                 return redirect(request.url)
 
+            # إرسال النص للمحرك الذكي (OpenRouter) للتحليل الكامل
             clean_sample = " ".join(extracted_text.split())[:4000]
             analysis = openrouter_ai.analyze_cv_complete(clean_sample)
 
@@ -91,11 +96,11 @@ def upload_cv():
             db.session.add(new_cv)
             db.session.commit()
 
-            flash('تم تحليل سيرتك الذاتية بنجاح!', 'success')
+            flash('تم رفع وتحليل سيرتك الذاتية بنجاح! 🎯', 'success')
             return redirect(url_for('cv.my_cvs'))
         except Exception as e:
             db.session.rollback()
-            flash(f'خطأ: {str(e)}', 'danger')
+            flash(f'حدث خطأ أثناء المعالجة: {str(e)}', 'danger')
             return redirect(request.url)
 
     return render_template('upload_cv.html')
@@ -103,20 +108,29 @@ def upload_cv():
 @cv_bp.route('/cv/optimize/<int:cv_id>')
 @login_required
 def optimize_cv_view(cv_id):
+    """تحسين السيرة الذاتية لتكون متوافقة مع أنظمة الـ ATS باستخدام AI"""
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id: abort(403)
-    prompt = f"REWRITE the following resume to be ATS-friendly. Focus on accomplishments. Content:\n{cv.extracted_text}"
+    
+    prompt = f"REWRITE the following resume to be ATS-friendly. Focus on accomplishments and keywords. Use English for the main content. Content:\n{cv.extracted_text}"
     optimized_text = openrouter_ai.generate_improved_text(prompt)
+    
     if optimized_text:
+        # تنظيف النص من علامات الـ Markdown
         final_text = optimized_text.replace("```markdown", "").replace("```", "").strip()
-        final_text = final_text.replace("[Name]", current_user.full_name or current_user.username).replace("[Email]", current_user.email)
+        # تعويض المتغيرات ببيانات المستخدم الحقيقية
+        final_text = final_text.replace("[Name]", current_user.full_name or current_user.username)
+        final_text = final_text.replace("[Email]", current_user.email)
+        
         return render_template('cv_comparison.html', cv_id=cv.id, old_text=cv.extracted_text, new_text=final_text)
-    flash('المحرك مشغول حالياً.', 'info')
+    
+    flash('المحرك مشغول حالياً، يرجى المحاولة بعد قليل.', 'info')
     return redirect(url_for('cv.my_cvs'))
 
 @cv_bp.route('/cv/generate-pdf/<int:cv_id>', methods=['POST'])
 @login_required
 def generate_ats_pdf(cv_id):
+    """تحويل النص المحسن إلى ملف PDF احترافي يدعم العربية والانجليزية"""
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id: abort(403)
     new_content = request.form.get('optimized_content', '')
@@ -125,9 +139,10 @@ def generate_ats_pdf(cv_id):
         pdf = FPDF()
         pdf.add_page()
 
+        # محاولة تحميل خط يدعم العربية (Amiri) من مجلد الـ static
         font_path = os.path.join(current_app.root_path, 'static', 'fonts', 'Amiri-Regular.ttf')
         if os.path.exists(font_path):
-            pdf.add_font('Amiri', '', font_path)
+            pdf.add_font('Amiri', '', font_path, uni=True)
             pdf.set_font('Amiri', size=12)
             use_unicode = True
         else:
@@ -140,28 +155,41 @@ def generate_ats_pdf(cv_id):
         for line in new_content.split('\n'):
             if line.strip():
                 if use_unicode:
+                    # معالجة النص العربي ليظهر بشكل صحيح (من اليمين لليسار)
                     reshaped = reshape(line)
                     bidi_text = get_display(reshaped)
+                    # فحص إذا كان السطر يحتوي على حروف عربية لتحديد المحاذاة
                     is_arabic = any("\u0600" <= char <= "\u06FF" for char in line)
                     pdf.multi_cell(0, 8, txt=bidi_text, align='R' if is_arabic else 'L')
                 else:
                     pdf.multi_cell(0, 8, txt=line, align='L')
-            else: pdf.ln(4)
+            else: 
+                pdf.ln(4)
 
         pdf_filename = f"Optimized_CV_{cv.id}.pdf"
         pdf_path = os.path.join(current_app.config['UPLOAD_FOLDER'], pdf_filename)
         pdf.output(pdf_path)
+        
         return send_file(pdf_path, as_attachment=True)
     except Exception as e:
-        flash('حدث خطأ أثناء إنشاء الـ PDF.', 'warning')
+        flash(f'حدث خطأ أثناء إنشاء ملف الـ PDF: {str(e)}', 'warning')
         return redirect(url_for('cv.my_cvs'))
 
 @cv_bp.route('/cv/delete/<int:cv_id>', methods=['POST'])
 @login_required
 def delete_cv(cv_id):
+    """حذف السيرة الذاتية وقاعدة البيانات"""
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id: abort(403)
+    
+    # حذف الملف الفعلي من السيرفر إذا أردت (اختياري)
+    try:
+        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], cv.filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    except: pass
+
     db.session.delete(cv)
     db.session.commit()
-    flash('تم حذف السيرة الذاتية.', 'info')
+    flash('تم حذف السيرة الذاتية بنجاح.', 'info')
     return redirect(url_for('cv.my_cvs'))

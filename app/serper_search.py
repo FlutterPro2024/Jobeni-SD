@@ -10,25 +10,25 @@ class SerperSearcher:
     def __init__(self):
         # بياخد المفتاح من Environment Variables في فيرسيل أو المحلي
         self.api_key = os.getenv("SERPER_API_KEY")
-        self.url = "https://google.serper.dev/search"      
-    
+        self.url = "https://google.serper.dev/search"
+
     def search_jobs(self, query):
         if not self.api_key:
             print("⚠️ SERPER_API_KEY is missing!")
             return {"jobs": []}
 
-        # تحسين الاستعلام لجلب نتائج توظيف حقيقية
-        refined_query = f"{query} hiring career opportunities 2026"
+        # تحسين الاستعلام لجلب نتائج عالمية وتوظيف حقيقي 2026
+        refined_query = f"{query} hiring career opportunities remote worldwide 2026"
 
         headers = {
             'X-API-KEY': self.api_key,
             'Content-Type': 'application/json'
-        }                                                  
+        }
         payload = json.dumps({
             "q": refined_query,
-            "gl": "us", 
-            "hl": "ar", 
-            "num": 12
+            "gl": "us", # البحث العالمي يبدأ من النطاق الأمريكي للأرشفة الأسرع
+            "hl": "ar",
+            "num": 20 # زيادة عدد النتائج
         })
 
         try:
@@ -41,7 +41,7 @@ class SerperSearcher:
                 for item in organic:
                     link = item.get('link', '')
                     if not link: continue
-                    
+
                     # استخراج اسم الموقع بأمان لتجنب الـ Index Error
                     try:
                         domain_parts = link.split('/')[2].replace('www.', '').split('.')

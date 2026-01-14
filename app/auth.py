@@ -15,7 +15,6 @@ from sqlalchemy import text
 auth_bp = Blueprint('auth', __name__)
 IMGBB_API_KEY = "673cbd292e4b734899cf1d846ff9f40b"
 
-# --- تحديث حالة المستخدم (نشط الآن) تلقائياً ---
 @auth_bp.before_app_request
 def update_last_seen():
     if current_user.is_authenticated:
@@ -33,45 +32,19 @@ def index():
         latest_jobs = []
     return render_template('index.html', jobs=latest_jobs)
 
-# مسار عرض الملف الشخصي العام لأي مستخدم
 @auth_bp.route('/user/<username>')
 @login_required
 def user_profile(username):
     user = User.query.filter_by(username=username).first_or_404()
     posts = Post.query.filter_by(user_id=user.id).order_by(Post.timestamp.desc()).all()
-    # التحقق من حالة الاتصال (أقل من 5 دقائق)
     is_online = user.last_seen and (datetime.utcnow() - user.last_seen).total_seconds() < 300
     return render_template('user_profile.html', user=user, posts=posts, is_online=is_online)
 
 @auth_bp.route('/run-jobs-agent')
 @login_required
 def run_jobs_agent():
-    try:
-        query_text = current_user.agent_query or "وظائف في السودان"
-        results = serper_searcher.search_jobs(query_text)
-        if isinstance(results, str):
-            flash(f'تنبيه من المحرك: {results}', 'info')
-            return redirect(url_for('auth.dashboard'))
-        new_jobs_count = 0
-        if results and isinstance(results, list):
-            for job_data in results:
-                if not isinstance(job_data, dict): continue
-                title = job_data.get('title')
-                company = job_data.get('company')
-                if not title or not company: continue
-                exists = Job.query.filter_by(title=title, company_name=company).first()
-                if not exists:
-                    new_job = Job(title=title, company_name=company, location=job_data.get('location', 'ريموت'), description=job_data.get('description', ''), link=job_data.get('link', ''), source='الرادار الآلي', is_active=True)
-                    db.session.add(new_job)
-                    new_jobs_count += 1
-            db.session.commit()
-            flash(f'تم تشغيل الرادار بنجاح! وجدنا {new_jobs_count} وظائف جديدة.', 'success')
-        else:
-            flash('لم يتم العثور على نتائج حالياً.', 'info')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'حدث خطأ أثناء تشغيل الرادار: {str(e)}', 'danger')
-    return redirect(url_for('auth.dashboard'))
+    # توجيه الطلب إلى مسار الوكيل الذكي المطور (agent_worker.py)
+    return redirect(url_for('agent.run_agent'))
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -82,7 +55,6 @@ def login():
         user = User.query.filter_by(email=email).first()
         if user and check_password_hash(user.password, password):
             login_user(user, remember=True)
-            # تحديث الحالة فور الدخول
             user.last_seen = datetime.utcnow()
             db.session.commit()
             return redirect(url_for('auth.dashboard'))
@@ -98,15 +70,12 @@ def register():
         if User.query.filter((User.email == email) | (User.username == username)).first():
             flash('البريد أو المستخدم مسجل مسبقاً.', 'warning')
             return redirect(url_for('auth.register'))
-        
-        avatar_url = f"https://ui-avatars.com/api/?name={username}&background=random&color=fff"
         new_user = User(
-            username=username, 
-            email=email, 
-            full_name=request.form.get('full_name', '').strip(), 
-            password=generate_password_hash(request.form.get('password'), method='pbkdf2:sha256'), 
-            role=request.form.get('role', 'jobseeker'), 
-            avatar=avatar_url,
+            username=username, email=email,
+            full_name=request.form.get('full_name', '').strip(),
+            password=generate_password_hash(request.form.get('password'), method='pbkdf2:sha256'),
+            role=request.form.get('role', 'jobseeker'),
+            avatar=f"https://ui-avatars.com/api/?name={username}&background=random&color=fff",
             last_seen=datetime.utcnow()
         )
         db.session.add(new_user)
@@ -124,16 +93,13 @@ def dashboard():
         query = text("SELECT id, title, company_name, location, created_at FROM job WHERE user_id = :uid")
         jobs = db.session.execute(query, {"uid": current_user.id}).fetchall()
         return render_template('dashboard_employer.html', jobs=jobs)
-    
     recent_apps = Application.query.filter_by(user_id=current_user.id).order_by(Application.applied_at.desc()).limit(5).all()
     reports = InterviewReport.query.filter_by(user_id=current_user.id).order_by(InterviewReport.created_at.asc()).all()
-    
     chart_labels = [r.created_at.strftime('%m/%d') for r in reports]
     chart_scores = []
     for r in reports:
         match = re.search(r'(\d+)', str(r.score))
         chart_scores.append(int(match.group(1)) if match else 0)
-    
     return render_template('dashboard.html', cvs=current_user.cvs, recent_applications=recent_apps, chart_labels=chart_labels, chart_scores=chart_scores)
 
 @auth_bp.route('/profile', methods=['GET', 'POST'])
@@ -161,8 +127,7 @@ def upload_avatar():
                 current_user.avatar = data["data"]["url"]
                 db.session.commit()
                 flash('تم تحديث الصورة بنجاح!', 'success')
-            else: flash('فشل الرفع للسحاب.', 'danger')
-        except Exception as e: flash(f'خطأ في الرفع: {str(e)}', 'danger')
+        except: flash('خطأ في الرفع للسحابة.', 'danger')
     return redirect(url_for('auth.profile'))
 
 @auth_bp.route('/update_agent_settings', methods=['POST'])
