@@ -92,6 +92,28 @@ def add_comment(post_id):
         db.session.commit()
     return redirect(url_for('community.index'))
 
+# --- الدالة المفقودة التي تم إضافتها لإصلاح الـ BuildError ---
+@community_bp.route('/follow/<path:username>')
+@login_required
+def follow(username):
+    user = User.query.filter_by(username=username).first_or_404()
+    if user == current_user:
+        flash('لا يمكنك متابعة نفسك!', 'warning')
+        return redirect(url_for('community.index'))
+    
+    if user in current_user.followed:
+        current_user.followed.remove(user)
+        flash(f'ألغيت متابعة {username}', 'info')
+    else:
+        current_user.followed.append(user)
+        notif = Notification(user_id=user.id, title="متابع جديد",
+                             message=f"بدأ {current_user.username} بمتابعتك الآن!")
+        db.session.add(notif)
+        flash(f'أنت الآن تتابع {username}', 'success')
+    
+    db.session.commit()
+    return redirect(request.referrer or url_for('community.index'))
+
 @community_bp.route('/delete_post/<int:post_id>', methods=['POST'])
 @login_required
 def delete_post(post_id):
