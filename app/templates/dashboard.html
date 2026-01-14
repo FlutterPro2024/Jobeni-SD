@@ -17,7 +17,7 @@
     <div class="card border-0 text-white shadow-lg rounded-4 mb-4" style="background: linear-gradient(135deg, #1a1d20 0%, #0d6efd 100%);">
         <div class="card-body p-4 p-md-5">
             <h2 class="fw-bold mb-2">أهلاً بك، {{ current_user.full_name or current_user.username }}! 👋</h2>
-            <p class="lead mb-0 opacity-75 small">مرحباً بك في منصة جوبيني الذكية للتطوير المهني. إليك ملخص نشاطك اليوم.</p>
+            <p class="lead mb-0 opacity-75 small">مرحباً بك في منصة جوبيني الذكية. إليك ملخص نشاطك المهني في السودان 🇸🇩</p>
         </div>
     </div>
 
@@ -25,14 +25,14 @@
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
                 <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
-                    <a href="#" class="small text-decoration-none">مركز الإشعارات</a>
+                    <a href="#" class="small text-decoration-none">مشاهدة الكل</a>
                     <h5 class="fw-bold mb-0 text-dark small-md"><i class="fas fa-bell text-warning ms-2"></i> آخر التنبيهات</h5>
                 </div>
                 <div class="card-body p-3">
                     {% for n in (current_user.notifications|sort(attribute='created_at', reverse=True))[:3] %}
                     <div class="p-3 mb-2 {% if not n.is_read %}bg-light border-start border-primary border-4{% else %}bg-white border-bottom{% endif %} rounded-3">
                         <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span class="x-small text-muted" style="font-size: 0.7rem;">{{ n.created_at.strftime('%I:%M %p') }}</span>
+                            <span class="x-small text-muted" style="font-size: 0.7rem;">{{ n.created_at.strftime('%Y-%m-%d') }}</span>
                             <h6 class="fw-bold mb-0 small">{{ n.title }}</h6>
                         </div>
                         <p class="small text-secondary mb-0" style="font-size: 0.8rem;">{{ n.message }}</p>
@@ -54,14 +54,14 @@
                     <form action="{{ url_for('auth.update_agent_settings') }}" method="POST" class="row align-items-end g-3">
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-muted">المجال الوظيفي المستهدف:</label>
-                            <input type="text" name="agent_query" class="form-control rounded-pill border-2 text-end" placeholder="مثلاً: Software Engineer" value="{{ current_user.agent_query or '' }}">
+                            <input type="text" name="agent_query" class="form-control rounded-pill border-2 text-end" 
+                                   placeholder="مثلاً: Software Engineer" value="{{ current_user.agent_query or '' }}">
                         </div>
                         <div class="col-md-4 py-2 text-center text-md-end">
                             <div class="form-check form-switch d-inline-block">
-                                <input class="form-check-input" type="checkbox" name="agent_enabled" id="agentSwitch" 
-                                       {% if current_user.agent_enabled %}checked{% endif %} 
-                                       onclick="window.location.href='/agent/toggle-agent';">
-                                <label class="form-check-label small fw-bold me-2" for="agentSwitch">تفعيل المراقبة</label>
+                                <input class="form-check-input" type="checkbox" name="agent_enabled" id="agent_enabled"
+                                       {% if current_user.agent_enabled %}checked{% endif %}>
+                                <label class="form-check-label small fw-bold me-2" for="agent_enabled">تفعيل المراقبة</label>
                             </div>
                         </div>
                         <div class="col-md-2">
@@ -69,8 +69,8 @@
                         </div>
                     </form>
                     {% if not current_user.telegram_id %}
-                    <div class="mt-3 p-2 bg-danger-subtle text-danger rounded-3 small text-center">
-                        <i class="fas fa-exclamation-circle me-1"></i> الرادار يحتاج ربط حسابك بـ <b>تليجرام</b> ليرسل لك الوظائف.
+                    <div class="mt-3 p-2 bg-warning-subtle text-dark rounded-3 small text-center">
+                        <i class="fas fa-info-circle me-1"></i> نصيحة: اربط حسابك بـ <b>تليجرام</b> لتصلك إشعارات الوظائف فورياً.
                     </div>
                     {% endif %}
                 </div>
@@ -78,7 +78,7 @@
 
             <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
                 <div class="card-header bg-white border-0 pt-4 px-4 text-start">
-                    <h5 class="fw-bold mb-0 text-dark small-md"><i class="fas fa-chart-line text-primary ms-2"></i> مؤشر تطور الأداء المهني</h5>
+                    <h5 class="fw-bold mb-0 text-dark small-md"><i class="fas fa-chart-line text-primary ms-2"></i> مؤشر تطور الأداء المهني (ATS)</h5>
                 </div>
                 <div class="card-body p-4">
                     <canvas id="performanceChart" style="max-height: 250px; width: 100%;"></canvas>
@@ -90,31 +90,34 @@
             <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
                 <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
                     <a href="{{ url_for('cv.my_cvs') }}" class="btn btn-sm btn-link text-decoration-none p-0">إدارة الكل</a>
-                    <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-folder-open text-primary ms-2"></i> ملفاتك ({{ current_user.cvs|length }})</h6>
+                    <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-file-alt text-primary ms-2"></i> ملفاتك ({{ current_user.cvs|length }})</h6>
                 </div>
                 <div class="card-body p-3">
                     {% if current_user.cvs %}
                         {% for cv in (current_user.cvs|sort(attribute='created_at', reverse=True))[:3] %}
-                        <div class="d-flex align-items-center p-3 mb-2 bg-light rounded-3">
-                            <a href="{{ url_for('cv.view_cv', cv_id=cv.id) }}" class="text-primary ms-auto"><i class="fas fa-eye"></i></a>
-                            <div class="flex-grow-1 small fw-bold text-truncate text-end mx-2">{{ cv.profession or 'نسخة غير مصنفة' }}</div>
-                            <i class="fas fa-file-pdf text-danger"></i>
+                        <div class="d-flex align-items-center p-3 mb-2 bg-light rounded-3 border-end border-primary border-3">
+                            <a href="{{ url_for('cv.view_cv', cv_id=cv.id) }}" class="text-primary ms-auto"><i class="fas fa-external-link-alt"></i></a>
+                            <div class="flex-grow-1 small fw-bold text-truncate text-end mx-2">{{ cv.profession or 'سيرة ذاتية' }}</div>
+                            <i class="fas fa-file-pdf text-danger fa-lg"></i>
                         </div>
                         {% endfor %}
                     {% else %}
                         <p class="text-center text-muted small py-3">لا توجد ملفات مرفوعة بعد.</p>
                     {% endif %}
-                    <a href="{{ url_for('cv.upload_cv') }}" class="btn btn-outline-primary btn-sm w-100 rounded-pill mt-2">
-                        <i class="fas fa-plus-circle me-1"></i> رفع سيرة جديدة
+                    <a href="{{ url_for('cv.upload_cv') }}" class="btn btn-primary btn-sm w-100 rounded-pill mt-2 py-2">
+                        <i class="fas fa-upload me-1"></i> رفع سيرة جديدة
                     </a>
                 </div>
             </div>
 
             <div class="col-12 mb-4">
-                <a href="{{ url_for('chat.open_chat', job_id=0, recipient_id=0) }}" class="card border-0 shadow-lg rounded-4 p-4 text-decoration-none ai-card text-center text-white h-100">
-                    <i class="fas fa-robot fa-3x mb-3"></i>
+                <a href="{{ url_for('chat.open_chat', job_id=0, recipient_id=0) }}" 
+                   class="card border-0 shadow-lg rounded-4 p-4 text-decoration-none ai-card text-center text-white h-100">
+                    <div class="pulse-icon mb-3">
+                        <i class="fas fa-robot fa-3x"></i>
+                    </div>
                     <h5 class="fw-bold mb-1">مساعد جوبيني الذكي</h5>
-                    <p class="opacity-75 small mb-0">ابدأ محادثة ذكية لتحليل فرصك وتطوير مهاراتك</p>
+                    <p class="opacity-75 small mb-0">ابدأ محادثة ذكية لتحليل فرصك وتطوير مهاراتك باستخدام الذكاء الاصطناعي</p>
                 </a>
             </div>
         </div>
@@ -125,30 +128,32 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const ctx = document.getElementById('performanceChart').getContext('2d');
-        const scores = {{ chart_scores|tojson if chart_scores else '[0, 0, 0]' }};
-        const labels = {{ chart_labels|tojson if chart_labels else '["بداية", "حالياً", "هدف"]' }};
+        const scores = {{ chart_scores|tojson if chart_scores else '[0, 20, 10]' }};
+        const labels = {{ chart_labels|tojson if chart_labels else '["بداية", "مرحلة 1", "اليوم"]' }};
+        
         new Chart(ctx, {
             type: 'line',
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'درجة ATS %',
+                    label: 'درجة القبول %',
                     data: scores,
                     borderColor: '#0d6efd',
                     backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                    borderWidth: 4,
+                    borderWidth: 3,
                     fill: true,
                     tension: 0.4,
-                    pointRadius: 6,
-                    pointHoverRadius: 8,
-                    pointBackgroundColor: '#0d6efd'
+                    pointRadius: 4,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#0d6efd',
+                    pointBorderWidth: 2
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    y: { beginAtZero: true, max: 100, grid: { color: 'rgba(0,0,0,0.05)' } },
+                    y: { beginAtZero: true, max: 100, ticks: { stepSize: 20 } },
                     x: { grid: { display: false } }
                 },
                 plugins: { legend: { display: false } }
@@ -158,9 +163,23 @@
 </script>
 
 <style>
-    .ai-card { background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%); transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); border: none; }
-    .ai-card:hover { transform: translateY(-8px); box-shadow: 0 15px 30px rgba(13, 110, 253, 0.3) !important; }
-    .x-small { font-size: 0.75rem; }
-    @media (max-width: 576px) { .small-md { font-size: 0.9rem; } }
+    .ai-card { 
+        background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%); 
+        transition: all 0.3s ease; 
+        border: none; 
+    }
+    .ai-card:hover { 
+        transform: translateY(-8px); 
+        box-shadow: 0 20px 40px rgba(13, 110, 253, 0.4) !important; 
+    }
+    .pulse-icon {
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.1); opacity: 0.8; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    .x-small { font-size: 0.7rem; }
 </style>
 {% endblock %}
