@@ -1,16 +1,13 @@
 # ~/jobeni-sD/app/auth.py
 import os
 import re
-import requests
 from datetime import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.models import User, Job, CV, Application, db, InterviewReport, Notification, Post
-from sqlalchemy import text
 
 auth_bp = Blueprint('auth', __name__)
-IMGBB_API_KEY = "673cbd292e4b734899cf1d846ff9f40b"
 
 @auth_bp.before_app_request
 def update_last_seen():
@@ -77,6 +74,7 @@ def dashboard():
 
     recent_apps = Application.query.filter_by(user_id=current_user.id).order_by(Application.applied_at.desc()).limit(5).all()
     reports = InterviewReport.query.filter_by(user_id=current_user.id).all()
+    
     chart_labels = [r.created_at.strftime('%m/%d') for r in reports] if reports else ["بدء"]
     chart_scores = []
     for r in reports:
@@ -123,4 +121,3 @@ def logout():
     logout_user()
     flash('تم تسجيل الخروج بنجاح.', 'info')
     return redirect(url_for('auth.login'))
-

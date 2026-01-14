@@ -3,6 +3,7 @@ from app import db
 from flask_login import UserMixin
 from datetime import datetime
 
+# جدول المتابعين (Many-to-Many)
 followers = db.Table('followers',
     db.Column('follower_id', db.Integer, db.ForeignKey('user.id')),
     db.Column('followed_id', db.Integer, db.ForeignKey('user.id'))
@@ -29,6 +30,7 @@ class User(db.Model, UserMixin):
     agent_query = db.Column(db.String(200))
     last_agent_run = db.Column(db.DateTime)
 
+    # العلاقات (Relationships)
     cvs = db.relationship('CV', backref='owner', lazy=True, cascade="all, delete-orphan")
     jobs = db.relationship('Job', back_populates='employer_user', lazy=True, foreign_keys='Job.user_id')
     applications = db.relationship('Application', backref='applicant', lazy=True)
@@ -88,6 +90,21 @@ class Application(db.Model):
     match_score = db.Column(db.Integer)
     match_explanation = db.Column(db.Text)
     applied_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class InterviewSession(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    skill_name = db.Column(db.String(100))
+    questions_content = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class InterviewReport(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    job_title = db.Column(db.String(100))
+    score = db.Column(db.String(20))
+    full_report = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
