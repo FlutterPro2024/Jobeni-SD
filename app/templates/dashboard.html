@@ -23,22 +23,40 @@
 
     <div class="row g-4">
         <div class="col-lg-8">
-            <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+            <div class="card border-0 shadow-sm rounded-4 bg-white mb-4 overflow-hidden">
                 <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
-                    <a href="#" class="small text-decoration-none">مشاهدة الكل</a>
-                    <h5 class="fw-bold mb-0 text-dark small-md"><i class="fas fa-bell text-warning ms-2"></i> آخر التنبيهات</h5>
+                    <a href="{{ url_for('applications.my_applications') }}" class="small text-decoration-none">إدارة الطلبات</a>
+                    <h5 class="fw-bold mb-0 text-dark small-md">
+                        <span class="badge bg-danger-subtle text-danger ms-2 animate-pulse">جديد</span>
+                        <i class="fas fa-magic text-primary ms-2"></i> مقترحات الرادار الذكي
+                    </h5>
                 </div>
                 <div class="card-body p-3">
-                    {% for n in (current_user.notifications|sort(attribute='created_at', reverse=True))[:3] %}
-                    <div class="p-3 mb-2 {% if not n.is_read %}bg-light border-start border-primary border-4{% else %}bg-white border-bottom{% endif %} rounded-3">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span class="x-small text-muted" style="font-size: 0.7rem;">{{ n.created_at.strftime('%Y-%m-%d') }}</span>
-                            <h6 class="fw-bold mb-0 small">{{ n.title }}</h6>
+                    {% set matches = current_user.applications|selectattr('status', 'equalto', 'suggested')|sort(attribute='applied_at', reverse=True) %}
+                    {% for match in matches[:3] %}
+                    <div class="p-3 mb-2 bg-light rounded-3 position-relative border-end border-primary border-4">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="text-start">
+                                <span class="badge {% if match.match_score >= 75 %}bg-success{% else %}bg-warning text-dark{% endif %} rounded-pill mb-2">
+                                    {{ match.match_score }}% تطابق
+                                </span>
+                            </div>
+                            <div class="text-end">
+                                <h6 class="fw-bold mb-1">{{ match.job.title }}</h6>
+                                <p class="text-muted small mb-2"><i class="fas fa-building me-1"></i> {{ match.job.company_name }}</p>
+                            </div>
                         </div>
-                        <p class="small text-secondary mb-0" style="font-size: 0.8rem;">{{ n.message }}</p>
+                        <p class="x-small text-secondary mb-3">{{ match.match_explanation[:150] }}...</p>
+                        <div class="d-flex gap-2">
+                            <a href="{{ url_for('jobs.job_detail', job_id=match.job_id) }}" class="btn btn-primary btn-sm rounded-pill px-3">تفاصيل</a>
+                            <a href="{{ url_for('chat.open_chat', job_id=match.job_id) }}" class="btn btn-outline-primary btn-sm rounded-pill px-3">ناقش المساعد</a>
+                        </div>
                     </div>
                     {% else %}
-                    <p class="text-center text-muted py-3 small">لا توجد إشعارات جديدة حالياً.</p>
+                    <div class="text-center py-4">
+                        <i class="fas fa-search-location fa-2x text-light mb-2"></i>
+                        <p class="text-muted small">الرادار يبحث الآن عن فرص تناسبك.. تأكد من تفعيل الوكيل أدناه.</p>
+                    </div>
                     {% endfor %}
                 </div>
             </div>
@@ -51,10 +69,16 @@
                     <h5 class="fw-bold mb-0 text-dark small-md"><i class="fas fa-satellite-dish text-primary ms-2"></i> الرادار الوظيفي الآلي</h5>
                 </div>
                 <div class="card-body p-4 text-end">
+                    <form action="{{ url_for('agent.toggle_agent') }}" method="POST" class="mb-3">
+                        <button type="submit" class="btn {% if current_user.agent_enabled %}btn-danger{% else %}btn-success{% endif %} btn-sm rounded-pill px-4 shadow-sm mb-3">
+                            {{ 'إيقاف الرادار' if current_user.agent_enabled else 'تشغيل الرادار الآن' }}
+                        </button>
+                    </form>
+                    
                     <form action="{{ url_for('auth.update_agent_settings') }}" method="POST" class="row align-items-end g-3">
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-muted">المجال الوظيفي المستهدف:</label>
-                            <input type="text" name="agent_query" class="form-control rounded-pill border-2 text-end" 
+                            <input type="text" name="agent_query" class="form-control rounded-pill border-2 text-end"
                                    placeholder="مثلاً: Software Engineer" value="{{ current_user.agent_query or '' }}">
                         </div>
                         <div class="col-md-4 py-2 text-center text-md-end">
@@ -73,6 +97,26 @@
                         <i class="fas fa-info-circle me-1"></i> نصيحة: اربط حسابك بـ <b>تليجرام</b> لتصلك إشعارات الوظائف فورياً.
                     </div>
                     {% endif %}
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+                <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                    <a href="#" class="small text-decoration-none">مشاهدة الكل</a>
+                    <h5 class="fw-bold mb-0 text-dark small-md"><i class="fas fa-bell text-warning ms-2"></i> آخر التنبيهات</h5>
+                </div>
+                <div class="card-body p-3">
+                    {% for n in (current_user.notifications|sort(attribute='created_at', reverse=True))[:3] %}
+                    <div class="p-3 mb-2 {% if not n.is_read %}bg-light border-start border-primary border-4{% else %}bg-white border-bottom{% endif %} rounded-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="x-small text-muted" style="font-size: 0.7rem;">{{ n.created_at.strftime('%Y-%m-%d') }}</span>
+                            <h6 class="fw-bold mb-0 small">{{ n.title }}</h6>
+                        </div>
+                        <p class="small text-secondary mb-0" style="font-size: 0.8rem;">{{ n.message }}</p>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted py-3 small">لا توجد إشعارات جديدة حالياً.</p>
+                    {% endfor %}
                 </div>
             </div>
 
@@ -111,7 +155,7 @@
             </div>
 
             <div class="col-12 mb-4">
-                <a href="{{ url_for('chat.open_chat', job_id=0, recipient_id=0) }}" 
+                <a href="{{ url_for('chat.open_chat', job_id=0, recipient_id=0) }}"
                    class="card border-0 shadow-lg rounded-4 p-4 text-decoration-none ai-card text-center text-white h-100">
                     <div class="pulse-icon mb-3">
                         <i class="fas fa-robot fa-3x"></i>
@@ -130,7 +174,7 @@
         const ctx = document.getElementById('performanceChart').getContext('2d');
         const scores = {{ chart_scores|tojson if chart_scores else '[0, 20, 10]' }};
         const labels = {{ chart_labels|tojson if chart_labels else '["بداية", "مرحلة 1", "اليوم"]' }};
-        
+
         new Chart(ctx, {
             type: 'line',
             data: {
@@ -163,14 +207,14 @@
 </script>
 
 <style>
-    .ai-card { 
-        background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%); 
-        transition: all 0.3s ease; 
-        border: none; 
+    .ai-card {
+        background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%);
+        transition: all 0.3s ease;
+        border: none;
     }
-    .ai-card:hover { 
-        transform: translateY(-8px); 
-        box-shadow: 0 20px 40px rgba(13, 110, 253, 0.4) !important; 
+    .ai-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 40px rgba(13, 110, 253, 0.4) !important;
     }
     .pulse-icon {
         animation: pulse 2s infinite;
@@ -179,6 +223,12 @@
         0% { transform: scale(1); opacity: 1; }
         50% { transform: scale(1.1); opacity: 0.8; }
         100% { transform: scale(1); opacity: 1; }
+    }
+    .animate-pulse {
+        animation: blinker 1.5s linear infinite;
+    }
+    @keyframes blinker {
+        50% { opacity: 0.5; }
     }
     .x-small { font-size: 0.7rem; }
 </style>

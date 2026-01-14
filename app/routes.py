@@ -1,10 +1,10 @@
-# app/auth/routes.py
+# ~/jobeni-sD/app/auth/routes.py
 from flask import render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, current_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
 from app.auth import bp
-from app.models import User
+from app.models import User, Application # أضفنا استيراد Application
 
 @bp.route('/register', methods=['GET', 'POST'])
 def register():
@@ -51,6 +51,28 @@ def login():
         return redirect(url_for('main.dashboard'))
     return render_template('auth/login.html')
 
+# --- الجزء المحدث لعرض الـ Dashboard ---
+@bp.route('/dashboard')
+@login_required
+def dashboard():
+    """عرض لوحة التحكم مع بيانات الشارت والمطابقات"""
+    # جلب آخر 5 طلبات أو مطابقات لبناء الشارت
+    recent_apps = Application.query.filter_by(user_id=current_user.id)\
+        .order_by(Application.applied_at.asc())\
+        .limit(5).all()
+    
+    chart_scores = [app.match_score if app.match_score else 0 for app in recent_apps]
+    chart_labels = [app.applied_at.strftime('%m/%d') for app in recent_apps]
+    
+    # بيانات افتراضية إذا كانت الجداول فارغة
+    if not chart_scores:
+        chart_scores = [0, 20, 50]
+        chart_labels = ["بداية", "مرحلة 1", "اليوم"]
+
+    return render_template('dashboard.html', 
+                           chart_scores=chart_scores, 
+                           chart_labels=chart_labels)
+
 @bp.route('/profile/update', methods=['POST'])
 @login_required
 def update_profile():
@@ -60,7 +82,6 @@ def update_profile():
     current_user.phone = request.form.get('phone')
     current_user.location_name = request.form.get('location_name')
     current_user.telegram_id = request.form.get('telegram_id')
-    
     db.session.commit()
     flash('تم تحديث بيانات ملفك الشخصي بنجاح.', 'success')
     return redirect(url_for('main.profile'))
@@ -71,7 +92,6 @@ def update_agent_settings():
     """تحديث إعدادات الرادار الوظيفي"""
     current_user.agent_query = request.form.get('agent_query')
     current_user.agent_enabled = True if request.form.get('agent_enabled') == 'on' else False
-    
     db.session.commit()
     flash('تم تحديث إعدادات الرادار بنجاح.', 'info')
     return redirect(url_for('main.dashboard'))
