@@ -1,4 +1,3 @@
-# ~/jobeni-sD/app/auth.py
 import os
 import re
 from datetime import datetime
@@ -80,7 +79,7 @@ def dashboard():
     for r in reports:
         m = re.search(r'(\d+)', str(r.score))
         chart_scores.append(int(m.group(1)) if m else 0)
-    if not chart_scores: chart_scores = [0]
+    if not chart_scores: chart_scores = [0, 20, 10]
 
     return render_template('dashboard.html', cvs=current_user.cvs, recent_applications=recent_apps, chart_labels=chart_labels, chart_scores=chart_scores)
 
