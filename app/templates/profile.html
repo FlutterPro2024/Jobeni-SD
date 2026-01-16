@@ -59,6 +59,23 @@
                                 <label class="form-label small fw-bold text-muted">النبذة (Bio)</label>
                                 <textarea name="bio" class="form-control rounded-3 bg-light border-0" rows="4">{{ current_user.bio or '' }}</textarea>
                             </div>
+
+                            <div class="col-12 text-end">
+                                <hr class="my-4">
+                                <label class="form-label small fw-bold text-muted">حالة الاتصال بتليجرام</label>
+                                <div class="p-3 rounded-3 {% if current_user.telegram_id %}bg-success-subtle{% else %}bg-warning-subtle{% endif %} d-flex justify-content-between align-items-center">
+                                    {% if current_user.telegram_id %}
+                                        <span class="text-success fw-bold small"><i class="fas fa-check-circle me-1"></i> حسابك مرتبط برقم تليجرام</span>
+                                        <span class="badge bg-success rounded-pill px-3">متصل بنجاح</span>
+                                    {% else %}
+                                        <span class="text-dark fw-bold small"><i class="fas fa-exclamation-triangle text-warning me-1"></i> لم يتم ربط تليجرام</span>
+                                        <a href="https://t.me/JOBENISDbot?start={{ current_user.id }}" target="_blank" class="btn btn-warning btn-sm rounded-pill px-3 fw-bold">
+                                            <i class="fab fa-telegram me-1"></i> ربط الآن
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+
                             <div class="col-12 mt-4 text-start">
                                 <button type="submit" class="btn btn-primary px-5 rounded-pill shadow-sm fw-bold">حفظ التغييرات</button>
                                 <a href="{{ url_for('community.index') }}" class="btn btn-light px-4 rounded-pill border ms-2">إلغاء</a>

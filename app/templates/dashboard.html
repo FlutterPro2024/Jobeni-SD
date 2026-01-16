@@ -8,7 +8,7 @@
         {% for category, message in messages %}
           <div class="alert alert-{{ category }} alert-dismissible fade show rounded-pill mb-4 shadow-sm" role="alert">
             {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-alert="alert" aria-label="Close"></button>
           </div>
         {% endfor %}
       {% endif %}
@@ -20,6 +20,20 @@
             <p class="lead mb-0 opacity-75 small">مرحباً بك في منصة جوبيني الذكية. إليك ملخص نشاطك المهني في السودان 🇸🇩</p>
         </div>
     </div>
+
+    {% if not current_user.telegram_id %}
+    <div class="card border-0 shadow-sm rounded-4 bg-primary text-white mb-4 overflow-hidden shadow">
+        <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap">
+            <div class="text-end mb-2 mb-md-0">
+                <h6 class="fw-bold mb-1"><i class="fab fa-telegram-plane ms-2"></i> فعل التنبيهات على تليجرام</h6>
+                <p class="small mb-0 opacity-75">ليصلك إشعار فوري عند توفر وظيفة تناسبك وإجراء المقابلات الذكية.</p>
+            </div>
+            <a href="https://t.me/JOBENISDbot?start={{ current_user.id }}" target="_blank" class="btn btn-light rounded-pill px-4 fw-bold">
+                ربط الحساب الآن
+            </a>
+        </div>
+    </div>
+    {% endif %}
 
     <div class="row g-4">
         <div class="col-lg-8">
@@ -34,7 +48,6 @@
                 <div class="card-body p-3">
                     {% set matches = current_user.applications|selectattr('status', 'equalto', 'suggested')|sort(attribute='applied_at', reverse=True) %}
                     {% for match in matches[:3] %}
-                    {# تم تعديل match.job إلى match.job_ref ليطابق الـ Model #}
                     {% if match.job_ref %}
                     <div class="p-3 mb-2 bg-light rounded-3 position-relative border-end border-primary border-4">
                         <div class="d-flex justify-content-between align-items-start">
@@ -51,7 +64,6 @@
                         <p class="x-small text-secondary mb-3">{{ match.match_explanation[:150] }}...</p>
                         <div class="d-flex gap-2">
                             <a href="{{ url_for('jobs.job_detail', job_id=match.job_id) }}" class="btn btn-primary btn-sm rounded-pill px-3">تفاصيل</a>
-                            {# التعديل هنا لضمان عمل الرابط بشكل صحيح مع استدعاء الـ recipient_id #}
                             <a href="{{ url_for('chat.open_chat', job_id=match.job_id, recipient_id=(match.job_ref.user_id or 0)) }}" class="btn btn-outline-primary btn-sm rounded-pill px-3">ناقش المساعد</a>
                         </div>
                     </div>
