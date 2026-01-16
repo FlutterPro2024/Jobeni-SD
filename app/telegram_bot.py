@@ -3,11 +3,11 @@ import requests, os, re
 from flask import Blueprint, request, jsonify, current_app
 from app.openrouter_ai import openrouter_ai
 
-# توكين البوت الخاص بك
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN") or "8560156074:AAH2cBxEmjRkBAcnUjcaWbZEwZ7RTFJEn2c"
+# توكين البوت (يتم سحبه من Vercel أو استخدام الجديد كافتراضي)
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN") or "8428928079:AAE9adzjOfMPj3k-WHuzmZc3uDM7KyBw8zA"
 telegram_bp = Blueprint('telegram', __name__)
 
-# مخزن مؤقت لجلسات المقابلات (In-memory session management)
+# مخزن مؤقت لجلسات المقابلات
 interview_sessions = {}
 
 def send_message(chat_id, text, reply_markup=None):
@@ -73,12 +73,12 @@ def handle_telegram_webhook(data):
             else:
                 send_message(chat_id, "🤖 أهلاً بك في جوبيني! لربط حسابك، اضغط على زر 'ربط تليجرام' في ملفك الشخصي بالمنصة.")
 
-        # 2. تشغيل المقابلة الذكية (أمر جديد)
+        # 2. تشغيل المقابلة الذكية
         elif text.startswith("/interview") or "مقابلة" in text:
             from app.models import User
             user = User.query.filter_by(telegram_id=str(chat_id)).first()
             job_title = user.agent_query if (user and user.agent_query) else "مهندس اتصالات"
-            
+
             interview_sessions[chat_id] = {
                 "job": job_title,
                 "history": [],
@@ -105,43 +105,34 @@ def handle_interview_logic(chat_id, text):
     """إدارة المقابلة الوهمية مع الذكاء الاصطناعي عبر تليجرام"""
     session = interview_sessions[chat_id]
 
-    # إنهاء الجلسة وإصدار التقرير
     if text.lower() in ["إنهاء", "خروج", "تم", "stop", "end", "خلاص"]:
         send_message(chat_id, "⏳ جاري تحليل إجاباتك وإعداد التقرير النهائي...")
-        
         history_str = "\n".join(session.get('history', []))
         report_prompt = f"حلل ردود هذا الشخص لوظيفة {session.get('job')}:\n{history_str}\nأعط تقرير مفصل باللغة العربية يشمل: نقاط القوة، نقاط الضعف، ونسبة مئوية للملاءمة."
-        
         report = openrouter_ai.get_ai_response(report_prompt)
         send_message(chat_id, f"📊 <b>تقرير أداء المقابلة:</b>\n\n{report}")
         del interview_sessions[chat_id]
-
-    # استمرار المقابلة بطرح أسئلة
     else:
         if 'history' not in session: session['history'] = []
         session['history'].append(f"User: {text}")
-
         ai_prompt = (
             f"أنت الآن مدير توظيف خبير. المتقدم لوظيفة {session.get('job')} أجاب بالتالي: '{text}'.\n"
             "قيم الإجابة في سرك ثم اطرح السؤال التالي (سؤال واحد فقط) لتقييم مهاراته التقنية أو السلوكية."
         )
         ai_reply = openrouter_ai.get_ai_response(ai_prompt)
-
         session['history'].append(f"AI: {ai_reply}")
         send_message(chat_id, ai_reply)
 
 def send_document(chat_id, document_path, caption=None):
-    """إرسال ملفات (مثل السيرة الذاتية PDF) إلى المستخدم"""
+    """إرسال ملفات"""
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
     if not os.path.exists(document_path):
         return None
-
     try:
         with open(document_path, 'rb') as doc:
             files = {'document': doc}
             data = {'chat_id': chat_id, 'parse_mode': 'HTML'}
-            if caption:
-                data['caption'] = caption
+            if caption: data['caption'] = caption
             res = requests.post(url, data=data, files=files, timeout=20)
             return res.json()
     except Exception as e:

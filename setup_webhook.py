@@ -2,13 +2,13 @@
 import requests
 import json
 
-# التوكين الرسمي الجديد
-TOKEN = "8560156074:AAH2cBxEmjRkBAcnUjcaWbZEwZ7RTFJEn2c"
+# التوكين الرسمي الجديد (تم التحديث)
+TOKEN = "8428928079:AAE9adzjOfMPj3k-WHuzmZc3uDM7KyBw8zA"
 # رابط الـ Webhook الخاص بمشروعك على Vercel
 WEBHOOK_URL = "https://jobeni-sd.vercel.app/telegram/webhook"
 
 def set_webhook():
-    print(f"🚀 البدء في تنشيط البوت الذكي جوبيني...")
+    print(f"🚀 البدء في تنشيط البوت الذكي جوبيني (JOBENISDbot)... ")
     print(f"📡 الرابط المستهدف: {WEBHOOK_URL}")
     print(f"🔑 التوكين المستخدم يبدأ بـ: {TOKEN[:10]}...")
 
@@ -30,12 +30,11 @@ def set_webhook():
         result = response.json()
 
         if result.get("ok"):
-            print(f"✅ نجاح باهر! تم ربط البوت بنجاح.")
+            print(f"✅ نجاح باهر! تم ربط البوت الجديد بنجاح.")
             print(f"📝 رسالة تليجرام: {result.get('description')}")
         else:
             print(f"❌ فشل الربط!")
             print(f"⚠️ السبب: {result.get('description')}")
-            print(f"💡 نصيحة: تأكد أن التوكين صحيح ولم يتم تغييره من BotFather.")
 
         # 3. فحص الحالة النهائية للتأكد من الاتصال
         print("\n📊 فحص حالة الاتصال:")
