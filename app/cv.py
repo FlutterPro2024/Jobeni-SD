@@ -2,7 +2,8 @@
 import os
 import pdfplumber
 import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, abort, send_file
+import json
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, abort, send_file, session
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from app.models import CV, db
@@ -28,7 +29,18 @@ def view_cv(cv_id):
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id:
         abort(403)
-    return render_template('view_cv.html', cv=cv)
+    
+    # محاولة جلب التحليل العميق (المهارات الناقصة) من الجلسة أو إعادة توليدها
+    analysis_key = f'analysis_{cv.id}'
+    analysis = session.get(analysis_key)
+    
+    if not analysis:
+        # إذا لم يكن التحليل موجوداً في الجلسة، نقوم بعمل تحليل سريع للروابط
+        clean_sample = " ".join(cv.extracted_text.split())[:3000]
+        analysis = openrouter_ai.analyze_cv_complete(clean_sample)
+        session[analysis_key] = analysis
+
+    return render_template('view_cv.html', cv=cv, analysis=analysis)
 
 @cv_bp.route('/upload-cv', methods=['GET', 'POST'])
 @login_required
@@ -96,8 +108,11 @@ def upload_cv():
             db.session.add(new_cv)
             db.session.commit()
 
-            flash('تم رفع وتحليل سيرتك الذاتية بنجاح! 🎯', 'success')
-            return redirect(url_for('cv.my_cvs'))
+            # حفظ التحليل الكامل (بما فيه المهارات الناقصة) في الجلسة لعرضه فوراً
+            session[f'analysis_{new_cv.id}'] = analysis
+
+            flash('تم رفع وتحليل سيرتك الذاتية بنجاح! 🎯 تم تحديد مسار تطوير مهاراتك.', 'success')
+            return redirect(url_for('cv.view_cv', cv_id=new_cv.id))
         except Exception as e:
             db.session.rollback()
             flash(f'حدث خطأ أثناء المعالجة: {str(e)}', 'danger')
@@ -111,19 +126,19 @@ def optimize_cv_view(cv_id):
     """تحسين السيرة الذاتية لتكون متوافقة مع أنظمة الـ ATS باستخدام AI"""
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id: abort(403)
-    
+
     prompt = f"REWRITE the following resume to be ATS-friendly. Focus on accomplishments and keywords. Use English for the main content. Content:\n{cv.extracted_text}"
     optimized_text = openrouter_ai.generate_improved_text(prompt)
-    
+
     if optimized_text:
         # تنظيف النص من علامات الـ Markdown
         final_text = optimized_text.replace("```markdown", "").replace("```", "").strip()
         # تعويض المتغيرات ببيانات المستخدم الحقيقية
         final_text = final_text.replace("[Name]", current_user.full_name or current_user.username)
         final_text = final_text.replace("[Email]", current_user.email)
-        
+
         return render_template('cv_comparison.html', cv_id=cv.id, old_text=cv.extracted_text, new_text=final_text)
-    
+
     flash('المحرك مشغول حالياً، يرجى المحاولة بعد قليل.', 'info')
     return redirect(url_for('cv.my_cvs'))
 
@@ -155,21 +170,19 @@ def generate_ats_pdf(cv_id):
         for line in new_content.split('\n'):
             if line.strip():
                 if use_unicode:
-                    # معالجة النص العربي ليظهر بشكل صحيح (من اليمين لليسار)
                     reshaped = reshape(line)
                     bidi_text = get_display(reshaped)
-                    # فحص إذا كان السطر يحتوي على حروف عربية لتحديد المحاذاة
                     is_arabic = any("\u0600" <= char <= "\u06FF" for char in line)
                     pdf.multi_cell(0, 8, txt=bidi_text, align='R' if is_arabic else 'L')
                 else:
                     pdf.multi_cell(0, 8, txt=line, align='L')
-            else: 
+            else:
                 pdf.ln(4)
 
         pdf_filename = f"Optimized_CV_{cv.id}.pdf"
         pdf_path = os.path.join(current_app.config['UPLOAD_FOLDER'], pdf_filename)
         pdf.output(pdf_path)
-        
+
         return send_file(pdf_path, as_attachment=True)
     except Exception as e:
         flash(f'حدث خطأ أثناء إنشاء ملف الـ PDF: {str(e)}', 'warning')
@@ -181,8 +194,7 @@ def delete_cv(cv_id):
     """حذف السيرة الذاتية وقاعدة البيانات"""
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id: abort(403)
-    
-    # حذف الملف الفعلي من السيرفر إذا أردت (اختياري)
+
     try:
         file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], cv.filename)
         if os.path.exists(file_path):

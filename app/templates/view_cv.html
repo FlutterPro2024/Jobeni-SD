@@ -2,13 +2,18 @@
 {% block content %}
 <div class="container py-5 text-end" dir="rtl">
     <div class="card border-0 shadow-lg rounded-4 overflow-hidden mb-4">
-        <div class="card-body p-4 bg-primary text-white d-flex justify-content-between align-items-center">
+        <div class="card-body p-4 bg-primary text-white d-flex justify-content-between align-items-center flex-wrap gap-3">
             <div>
                 <h2 class="fw-bold mb-0">{{ cv.profession or 'متخصص' }}</h2>
                 <p class="mb-0 opacity-75">تحليل الذكاء الاصطناعي للسيرة الذاتية</p>
             </div>
             {% if current_user.id == cv.user_id %}
-                <a href="{{ url_for('cv.optimize_cv_view', cv_id=cv.id) }}" class="btn btn-warning rounded-pill px-4 fw-bold">تحسين الـ ATS ✨</a>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('cv.optimize_cv_view', cv_id=cv.id) }}" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm">تحسين الـ ATS ✨</a>
+                    <form action="{{ url_for('cv.delete_cv', cv_id=cv.id) }}" method="POST" onsubmit="return confirm('هل أنت متأكد من حذف هذه السيرة؟');">
+                        <button type="submit" class="btn btn-outline-light rounded-pill px-3"><i class="fas fa-trash"></i></button>
+                    </form>
+                </div>
             {% else %}
                 <a href="{{ url_for('chat.open_chat', job_id=0, recipient_id=cv.user_id) }}" class="btn btn-light rounded-pill px-4 fw-bold">تواصل مع المرشح</a>
             {% endif %}
@@ -17,17 +22,84 @@
 
     <div class="row g-4">
         <div class="col-md-4">
-            <div class="card shadow-sm border-0 rounded-4 p-4 text-center">
-                <h6 class="text-muted mb-3">قوة السيرة</h6>
-                <h1 class="display-4 fw-bold text-primary">{{ cv.score }}%</h1>
+            <div class="card shadow-sm border-0 rounded-4 p-4 text-center mb-4">
+                <h6 class="text-muted mb-3">قوة السيرة الذاتية</h6>
+                <div class="position-relative d-inline-block">
+                    <h1 class="display-4 fw-bold text-primary mb-0">{{ cv.score }}%</h1>
+                    <div class="progress mt-2" style="height: 8px;">
+                        <div class="progress-bar bg-primary" role="progressbar" style="width: {{ cv.score }}%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 rounded-4 overflow-hidden" style="background: #fdfcfe; border-right: 5px solid #ffc107 !important;">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="fw-bold text-dark"><i class="fas fa-rocket text-warning me-2"></i>مستشار المهارات</h5>
+                    <p class="small text-muted">مهارات مقترحة بناءً على ملفك:</p>
+                </div>
+                <div class="card-body pt-0">
+                    {% if analysis and analysis.missing_skills %}
+                        {% for item in analysis.missing_skills %}
+                        <div class="p-3 mb-3 rounded-3 border bg-white shadow-sm">
+                            <h6 class="fw-bold text-primary mb-1">{{ item.skill }}</h6>
+                            <p class="small text-secondary mb-2" style="font-size: 0.8rem;">{{ item.reason }}</p>
+                            <a href="{{ item.learning_link }}" target="_blank" class="btn btn-sm btn-outline-danger w-100 rounded-pill">
+                                <i class="fab fa-youtube me-1"></i> شاهد الكورس المجاني
+                            </a>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-check-circle text-success mb-2" style="font-size: 2rem;"></i>
+                            <p class="small">مهاراتك ممتازة وتغطي أغلب المتطلبات!</p>
+                        </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
+
         <div class="col-md-8">
+            <div class="card shadow-sm border-0 rounded-4 p-4 mb-4" style="background: #eef7ff;">
+                <h5 class="fw-bold mb-2"><i class="fas fa-comment-dots me-2 text-primary"></i>نصيحة الخبير الذكي</h5>
+                <p class="mb-0 text-dark">{{ analysis.feedback if analysis else 'جاري تحليل البيانات...' }}</p>
+            </div>
+
+            <div class="card shadow-sm border-0 rounded-4 p-4 mb-4">
+                <h5 class="fw-bold mb-3">المهارات المكتشفة</h5>
+                <div class="d-flex flex-wrap gap-2">
+                    {% if cv.skills %}
+                        {% for skill in cv.skills %}
+                            <span class="badge bg-light text-primary border px-3 py-2 rounded-pill fw-medium"># {{ skill }}</span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted small">لم يتم تحديد مهارات محددة.</span>
+                    {% endif %}
+                </div>
+            </div>
+
             <div class="card shadow-sm border-0 rounded-4 p-4">
-                <h5 class="fw-bold border-bottom pb-2">النص المستخلص</h5>
-                <pre class="bg-light p-3 rounded" style="white-space: pre-wrap; font-size: 0.9rem;">{{ cv.extracted_text }}</pre>
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                    <h5 class="fw-bold mb-0">النص المستخلص من الملف</h5>
+                    <button class="btn btn-sm btn-link text-decoration-none" onclick="copyText()">نسخ النص <i class="fas fa-copy ms-1"></i></button>
+                </div>
+                <pre id="cvText" class="bg-light p-3 rounded" style="white-space: pre-wrap; font-size: 0.85rem; max-height: 500px; overflow-y: auto; font-family: 'Courier New', Courier, monospace;">{{ cv.extracted_text }}</pre>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+function copyText() {
+    var text = document.getElementById("cvText").innerText;
+    navigator.clipboard.writeText(text).then(() => {
+        alert("تم نسخ النص إلى الحافظة!");
+    });
+}
+</script>
+
+<style>
+    .badge:hover { background-color: #0d6efd !important; color: white !important; transition: 0.3s; }
+    pre::-webkit-scrollbar { width: 6px; }
+    pre::-webkit-scrollbar-thumb { background: #ccc; border-radius: 10px; }
+</style>
 {% endblock %}
