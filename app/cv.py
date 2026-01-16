@@ -29,11 +29,11 @@ def view_cv(cv_id):
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id:
         abort(403)
-    
+
     # محاولة جلب التحليل العميق (المهارات الناقصة) من الجلسة أو إعادة توليدها
     analysis_key = f'analysis_{cv.id}'
     analysis = session.get(analysis_key)
-    
+
     if not analysis:
         # إذا لم يكن التحليل موجوداً في الجلسة، نقوم بعمل تحليل سريع للروابط
         clean_sample = " ".join(cv.extracted_text.split())[:3000]
@@ -127,10 +127,12 @@ def optimize_cv_view(cv_id):
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id: abort(403)
 
-    prompt = f"REWRITE the following resume to be ATS-friendly. Focus on accomplishments and keywords. Use English for the main content. Content:\n{cv.extracted_text}"
+    # برومبت محسن ليعطي نتائج أفضل مع نظام الـ 100 نموذج
+    prompt = f"REWRITE the following resume professionally for ATS. Focus on achievements, use dynamic verbs, and keep it in English. Format with clear bullet points. Content:\n{cv.extracted_text[:3000]}"
+    
     optimized_text = openrouter_ai.generate_improved_text(prompt)
 
-    if optimized_text:
+    if optimized_text and len(optimized_text) > 100:
         # تنظيف النص من علامات الـ Markdown
         final_text = optimized_text.replace("```markdown", "").replace("```", "").strip()
         # تعويض المتغيرات ببيانات المستخدم الحقيقية
@@ -139,8 +141,8 @@ def optimize_cv_view(cv_id):
 
         return render_template('cv_comparison.html', cv_id=cv.id, old_text=cv.extracted_text, new_text=final_text)
 
-    flash('المحرك مشغول حالياً، يرجى المحاولة بعد قليل.', 'info')
-    return redirect(url_for('cv.my_cvs'))
+    flash('جميع المحركات مشغولة حالياً، جاري محاولة التبديل التلقائي.. يرجى إعادة المحاولة.', 'info')
+    return redirect(url_for('cv.view_cv', cv_id=cv.id))
 
 @cv_bp.route('/cv/generate-pdf/<int:cv_id>', methods=['POST'])
 @login_required
