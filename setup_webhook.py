@@ -1,40 +1,55 @@
 # ~/jobeni-sD/setup_webhook.py
 import requests
+import json
 
-# توكين البوت الخاص بك
+# التوكين الرسمي الجديد
 TOKEN = "8560156074:AAH2cBxEmjRkBAcnUjcaWbZEwZ7RTFJEn2c"
-# الرابط الحقيقي للموقع على Vercel مع المسار الصحيح للـ Webhook
-# تأكد دائماً أن المسار ينتهي بـ /telegram/webhook كما هو معرف في Blueprint
+# رابط الـ Webhook الخاص بمشروعك على Vercel
 WEBHOOK_URL = "https://jobeni-sd.vercel.app/telegram/webhook"
 
 def set_webhook():
-    print(f"🔄 البدء في تهيئة Webhook للبوت...")
+    print(f"🚀 البدء في تنشيط البوت الذكي جوبيني...")
+    print(f"📡 الرابط المستهدف: {WEBHOOK_URL}")
+    print(f"🔑 التوكين المستخدم يبدأ بـ: {TOKEN[:10]}...")
 
-    # 1. حذف الـ Webhook القديم أولاً لتنظيف أي إعدادات سابقة
-    delete_url = f"https://api.telegram.org/bot{TOKEN}/deleteWebhook"
-    requests.post(delete_url)
-    print("🧹 تم حذف الإعدادات القديمة.")
+    # 1. تنظيف أي جلسات معلقة قديمة
+    print("🧹 جاري تنظيف الجلسات السابقة...")
+    del_url = f"https://api.telegram.org/bot{TOKEN}/deleteWebhook"
+    requests.post(del_url, json={"drop_pending_updates": True})
 
-    # 2. ضبط الـ Webhook الجديد
+    # 2. إعداد الـ Webhook الجديد بمواصفات كاملة
     set_url = f"https://api.telegram.org/bot{TOKEN}/setWebhook"
     payload = {
         "url": WEBHOOK_URL,
-        "allowed_updates": ["message", "callback_query"],
-        "drop_pending_updates": True  # تجاهل أي رسائل قديمة كانت معلقة
+        "allowed_updates": ["message", "callback_query", "chat_member"],
+        "drop_pending_updates": True
     }
-    
-    response = requests.post(set_url, json=payload)
-    result = response.json()
 
-    if result.get("ok"):
-        print(f"✅ نجاح! تم ربط البوت بالرابط: {WEBHOOK_URL}")
-    else:
-        print(f"❌ فشل الربط: {result.get('description')}")
+    try:
+        response = requests.post(set_url, json=payload, timeout=15)
+        result = response.json()
 
-    # 3. التحقق النهائي من الحالة
-    info_url = f"https://api.telegram.org/bot{TOKEN}/getWebhookInfo"
-    info_res = requests.get(info_url).json()
-    print(f"📊 معلومات الاتصال الحالية: {info_res.get('result')}")
+        if result.get("ok"):
+            print(f"✅ نجاح باهر! تم ربط البوت بنجاح.")
+            print(f"📝 رسالة تليجرام: {result.get('description')}")
+        else:
+            print(f"❌ فشل الربط!")
+            print(f"⚠️ السبب: {result.get('description')}")
+            print(f"💡 نصيحة: تأكد أن التوكين صحيح ولم يتم تغييره من BotFather.")
+
+        # 3. فحص الحالة النهائية للتأكد من الاتصال
+        print("\n📊 فحص حالة الاتصال:")
+        status_url = f"https://api.telegram.org/bot{TOKEN}/getWebhookInfo"
+        status_res = requests.get(status_url).json()
+        if status_res.get("ok"):
+            info = status_res.get("result")
+            print(f"🌐 الرابط المسجل: {info.get('url')}")
+            print(f"⏳ الرسائل المنتظرة: {info.get('pending_update_count')}")
+            if info.get('last_error_message'):
+                print(f"❗ آخر خطأ مسجل: {info.get('last_error_message')}")
+        
+    except Exception as e:
+        print(f"💥 حدث خطأ غير متوقع: {e}")
 
 if __name__ == "__main__":
     set_webhook()
