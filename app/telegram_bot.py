@@ -1,41 +1,46 @@
 # ~/jobeni-sD/app/telegram_bot.py
-import requests, os, re
+import requests, os, re, json
 from flask import Blueprint, request, jsonify, current_app
 from app.openrouter_ai import openrouter_ai
 
-# توكين البوت (يتم سحبه من Vercel أو استخدام الجديد كافتراضي)
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN") or "8428928079:AAE9adzjOfMPj3k-WHuzmZc3uDM7KyBw8zA"
+# توكن البوت الجديد (مباشر ومفعل)
+BOT_TOKEN = "8428928079:AAE9adzjOfMPj3k-WHuzmZc3uDM7KyBw8zA"
 telegram_bp = Blueprint('telegram', __name__)
 
-# مخزن مؤقت لجلسات المقابلات
-interview_sessions = {}
+# مخزن مؤقت لجلسات الذكاء الاصطناعي والمقابلات
+user_sessions = {}
 
 def send_message(chat_id, text, reply_markup=None):
-    """إرسال رسالة نصية بسيطة عبر البوت"""
+    """إرسال رسالة نصية مدعومة بـ HTML وأزرار"""
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
+    payload = {
+        "chat_id": chat_id, 
+        "text": text, 
+        "parse_mode": "HTML",
+        "disable_web_page_preview": False
+    }
     if reply_markup:
         payload["reply_markup"] = reply_markup
     try:
         res = requests.post(url, json=payload, timeout=10)
         return res.json()
     except Exception as e:
-        print(f"❌ Error sending message: {e}")
+        print(f"❌ Telegram Send Error: {e}")
         return None
 
 def notify_new_message(telegram_id, sender_name, job_title, message_body):
-    """تنبيه المستخدم عند استلام رسالة جديدة في المنصة"""
+    """تنبيه فوري للمستخدم عند استلام رسالة بالمنصة"""
     text = (
-        f"💬 <b>رسالة جديدة!</b>\n"
-        f"من: {sender_name}\n"
-        f"بخصوص: {job_title}\n\n"
-        f"الرسالة: {message_body[:100]}..."
+        f"💬 <b>رسالة جديدة في جوبيني!</b>\n"
+        f"👤 <b>من:</b> {sender_name}\n"
+        f"📂 <b>بخصوص:</b> {job_title}\n\n"
+        f"📝 <b>المحتوى:</b>\n<i>{message_body[:150]}...</i>"
     )
     return send_message(telegram_id, text)
 
 @telegram_bp.route('/webhook', methods=['POST'])
 def telegram_webhook():
-    """نقطة استقبال البيانات من تليجرام"""
+    """المستقبل الرئيسي لإشارات تليجرام"""
     data = request.get_json()
     if not data:
         return jsonify({"status": "no data"}), 200
@@ -44,16 +49,16 @@ def telegram_webhook():
     return jsonify({"status": "success"}), 200
 
 def handle_telegram_webhook(data):
-    """معالجة الرسائل الواردة للبوت"""
+    """معالجة كافة أنواع التفاعلات (نصوص، أوامر، مقابلات)"""
     if "message" in data:
         message = data["message"]
         chat_id = message["chat"]["id"]
         text = message.get("text", "")
+        user_info = message.get("from", {})
 
-        if not text:
-            return
+        if not text: return
 
-        # 1. أمر البداية وربط الحساب
+        # 1. أمر البداية والربط الذكي
         if text.startswith("/start"):
             parts = text.split(" ")
             if len(parts) > 1:
@@ -64,70 +69,72 @@ def handle_telegram_webhook(data):
                     if user:
                         user.telegram_id = str(chat_id)
                         db.session.commit()
-                        send_message(chat_id, f"✅ تم ربط حسابك بنجاح يا <b>{user.username}</b>!\nستصلك الآن تنبيهات الوظائف والمقابلات هنا.")
+                        welcome = (
+                            f"✅ <b>تم الربط بنجاح يا {user.username}!</b>\n\n"
+                            "أنا الآن وكيلك الشخصي في جوبيني السودان 🇸🇩\n"
+                            "سأقوم بـ:\n"
+                            "• جلب أحدث الوظائف التي تناسبك.\n"
+                            "• إجراء مقابلات تدريبية معك.\n"
+                            "• تنبيهك فور قبول طلباتك."
+                        )
+                        send_message(chat_id, welcome)
                     else:
-                        send_message(chat_id, "❌ لم نتمكن من العثور على هذا المستخدم.")
-                except Exception as e:
+                        send_message(chat_id, "❌ خطأ: لم أستطع العثور على حسابك.")
+                except:
                     db.session.rollback()
-                    send_message(chat_id, "⚠️ حدث خطأ أثناء عملية الربط.")
+                    send_message(chat_id, "⚠️ عذراً، حدث خلل أثناء الربط.")
             else:
-                send_message(chat_id, "🤖 أهلاً بك في جوبيني! لربط حسابك، اضغط على زر 'ربط تليجرام' في ملفك الشخصي بالمنصة.")
+                send_message(chat_id, "🤖 أهلاً بك! أنا بوت جوبيني الذكي. يرجى الضغط على 'ربط تليجرام' من داخل المنصة لتفعيل خدماتي.")
 
-        # 2. تشغيل المقابلة الذكية
+        # 2. تشغيل المقابلة الذكية (الوكيل الشخصي)
         elif text.startswith("/interview") or "مقابلة" in text:
-            from app.models import User
+            from app.models import User, CV
             user = User.query.filter_by(telegram_id=str(chat_id)).first()
-            job_title = user.agent_query if (user and user.agent_query) else "مهندس اتصالات"
+            cv = CV.query.filter_by(user_id=user.id).first() if user else None
+            job_name = user.agent_query if (user and user.agent_query) else "مهندس"
 
-            interview_sessions[chat_id] = {
-                "job": job_title,
+            user_sessions[chat_id] = {
+                "mode": "interview",
+                "job": job_name,
                 "history": [],
-                "user_name": user.username if user else "باحث عن عمل"
+                "cv_context": cv.extracted_text[:1000] if cv else "خبرة عامة"
             }
-            start_msg = f"🚀 <b>بدء المقابلة الذكية</b>\nالوظيفة: {job_title}\n\nأهلاً بك، أنا مدير التوظيف الذكي. لنبدأ:\n<b>س1: عرفني بنفسك باختصار وما هي أكبر إنجازاتك المهنية؟</b>"
-            send_message(chat_id, start_msg)
+            
+            start_prompt = f"أنت الآن مدير توظيف. رحب بالمرشح {user.username if user else ''} لوظيفة {job_name} واطرح أول سؤال بناءً على خبرته."
+            ai_q = openrouter_ai.get_ai_response(start_prompt)
+            send_message(chat_id, f"🚀 <b>بدء المقابلة الافتراضية</b>\n📌 الوظيفة: {job_name}\n" + "—" * 10 + f"\n\n{ai_q}")
 
-        # 3. إدارة جلسة المقابلة المستمرة
-        elif chat_id in interview_sessions:
-            handle_interview_logic(chat_id, text)
+        # 3. إدارة جلسات الحوار النشطة (مقابلة أو دردشة ذكية)
+        elif chat_id in user_sessions:
+            session = user_sessions[chat_id]
+            
+            # خيار الإنهاء
+            if text.lower() in ["إنهاء", "خروج", "خلاص", "stop", "end"]:
+                send_message(chat_id, "📊 <b>جاري تحليل أدائك... انتظر قليلاً</b>")
+                report_prompt = f"حلل حوار المقابلة هذا:\n{session['history']}\nأعطِ تقييماً من 10 ونقاط قوة وضعف بالعربية."
+                final_report = openrouter_ai.get_ai_response(report_prompt)
+                send_message(chat_id, f"✅ <b>التقرير النهائي:</b>\n\n{final_report}")
+                del user_sessions[chat_id]
+            
+            # متابعة المقابلة
+            else:
+                session['history'].append(f"Candidate: {text}")
+                ai_next_prompt = f"السجل: {session['history']}\nالوظيفة: {session['job']}\nقيم الإجابة واطرح السؤال التالي."
+                ai_next_q = openrouter_ai.get_ai_response(ai_next_prompt)
+                session['history'].append(f"AI: {ai_next_q}")
+                send_message(chat_id, ai_next_q)
 
-        # 4. رد عام للمساعدة
+        # 4. الاستفسارات العامة (الوكيل يرد على أي شيء)
         else:
-            help_text = (
-                "💡 <b>أوامر متاحة:</b>\n"
-                "/start - ربط الحساب\n"
-                "مقابلة - لبدء مقابلة تجريبية مع AI\n"
-                "إنهاء - لختم المقابلة والحصول على التقرير"
-            )
-            send_message(chat_id, help_text)
-
-def handle_interview_logic(chat_id, text):
-    """إدارة المقابلة الوهمية مع الذكاء الاصطناعي عبر تليجرام"""
-    session = interview_sessions[chat_id]
-
-    if text.lower() in ["إنهاء", "خروج", "تم", "stop", "end", "خلاص"]:
-        send_message(chat_id, "⏳ جاري تحليل إجاباتك وإعداد التقرير النهائي...")
-        history_str = "\n".join(session.get('history', []))
-        report_prompt = f"حلل ردود هذا الشخص لوظيفة {session.get('job')}:\n{history_str}\nأعط تقرير مفصل باللغة العربية يشمل: نقاط القوة، نقاط الضعف، ونسبة مئوية للملاءمة."
-        report = openrouter_ai.get_ai_response(report_prompt)
-        send_message(chat_id, f"📊 <b>تقرير أداء المقابلة:</b>\n\n{report}")
-        del interview_sessions[chat_id]
-    else:
-        if 'history' not in session: session['history'] = []
-        session['history'].append(f"User: {text}")
-        ai_prompt = (
-            f"أنت الآن مدير توظيف خبير. المتقدم لوظيفة {session.get('job')} أجاب بالتالي: '{text}'.\n"
-            "قيم الإجابة في سرك ثم اطرح السؤال التالي (سؤال واحد فقط) لتقييم مهاراته التقنية أو السلوكية."
-        )
-        ai_reply = openrouter_ai.get_ai_response(ai_prompt)
-        session['history'].append(f"AI: {ai_reply}")
-        send_message(chat_id, ai_reply)
+            send_message(chat_id, "⏳ <i>جاري التفكير...</i>")
+            agent_response = openrouter_ai.get_ai_response(f"رد كمساعد ذكي لمنصة جوبيني السودان: {text}")
+            help_footer = "\n\n💡 <i>يمكنك قول 'مقابلة' للتدريب أو 'إنهاء' لختم الجلسة.</i>"
+            send_message(chat_id, f"🤖 {agent_response}" + help_footer)
 
 def send_document(chat_id, document_path, caption=None):
-    """إرسال ملفات"""
+    """إرسال السير الذاتية أو التقارير كملفات"""
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
-    if not os.path.exists(document_path):
-        return None
+    if not os.path.exists(document_path): return None
     try:
         with open(document_path, 'rb') as doc:
             files = {'document': doc}
@@ -136,5 +143,5 @@ def send_document(chat_id, document_path, caption=None):
             res = requests.post(url, data=data, files=files, timeout=20)
             return res.json()
     except Exception as e:
-        print(f"❌ Error sending document: {e}")
+        print(f"❌ File Send Error: {e}")
         return None
