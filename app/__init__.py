@@ -31,7 +31,7 @@ def create_app(config_name='default'):
     with app.app_context():
         from app.models import User, Notification, Job, CV, Message, Post
 
-        # استيراد الـ Blueprints
+        # استيراد الـ Blueprints الأساسية
         from app.auth import auth_bp
         from app.jobs import jobs_bp
         from app.chat import chat_bp
@@ -39,6 +39,13 @@ def create_app(config_name='default'):
         from app.telegram_bot import telegram_bp
         from app.notifications import notifications_bp
         from app.agent_worker import agent_bp
+        
+        # --- إضافة الـ API Blueprint الجديد لربط المنصة خارجياً ---
+        try:
+            from app.api import api_bp
+            app.register_blueprint(api_bp) # الـ prefix محدد داخل ملف api.py بـ /api/v1
+        except ImportError:
+            app.logger.error("⚠️ لم يتم العثور على ملف api.py")
 
         # تسجيل Blueprints (ترتيب استراتيجي لمنع تضارب الروابط)
         app.register_blueprint(auth_bp) # المسارات الجذرية /
