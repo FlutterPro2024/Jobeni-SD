@@ -17,7 +17,7 @@
     <div class="card border-0 text-white shadow-lg rounded-4 mb-4" style="background: linear-gradient(135deg, #1a1d20 0%, #0d6efd 100%);">
         <div class="card-body p-4 p-md-5">
             <h2 class="fw-bold mb-2">أهلاً بك، {{ current_user.full_name or current_user.username }}! 👋</h2>
-            <p class="lead mb-0 opacity-75 small">مرحباً بك في منصة جوبيني الذكية. إليك ملخص نشاطك المهني في السودان 🇸🇩</p>
+            <p class="lead mb-0 opacity-75 small">مرحباً بك في منصة جوبيني الذكية. إليك ملخص نشاطك المهني العالمي والمحلي 🇸🇩🌎</p>
         </div>
     </div>
 
@@ -112,28 +112,8 @@
             </div>
 
             <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
-                <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
-                    <a href="#" class="small text-decoration-none">مشاهدة الكل</a>
-                    <h5 class="fw-bold mb-0 text-dark small-md"><i class="fas fa-bell text-warning ms-2"></i> آخر التنبيهات</h5>
-                </div>
-                <div class="card-body p-3">
-                    {% for n in (current_user.notifications|sort(attribute='created_at', reverse=True))[:3] %}
-                    <div class="p-3 mb-2 {% if not n.is_read %}bg-light border-start border-primary border-4{% else %}bg-white border-bottom{% endif %} rounded-3">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span class="x-small text-muted" style="font-size: 0.7rem;">{{ n.created_at.strftime('%Y-%m-%d') }}</span>
-                            <h6 class="fw-bold mb-0 small">{{ n.title }}</h6>
-                        </div>
-                        <p class="small text-secondary mb-0" style="font-size: 0.8rem;">{{ n.message }}</p>
-                    </div>
-                    {% else %}
-                    <p class="text-center text-muted py-3 small">لا توجد إشعارات جديدة حالياً.</p>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
                 <div class="card-header bg-white border-0 pt-4 px-4 text-start">
-                    <h5 class="fw-bold mb-0 text-dark small-md"><i class="fas fa-chart-line text-primary ms-2"></i> مؤشر تطور الأداء المهني (ATS)</h5>
+                    <h5 class="fw-bold mb-0 text-dark small-md"><i class="fas fa-chart-line text-primary ms-2"></i> مؤشر تطور الملاءمة المهنية (ATS)</h5>
                 </div>
                 <div class="card-body p-4">
                     <canvas id="performanceChart" style="max-height: 250px; width: 100%;"></canvas>
@@ -172,22 +152,23 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const ctx = document.getElementById('performanceChart').getContext('2d');
-        const scores = {{ chart_scores|tojson if chart_scores else '[0, 20, 10]' }};
-        const labels = {{ chart_labels|tojson if chart_labels else '["بداية", "مرحلة 1", "اليوم"]' }};
+        // استقبال البيانات الحقيقية من السيرفر
+        const scores = {{ chart_scores|tojson }};
+        const labels = {{ chart_labels|tojson }};
 
         new Chart(ctx, {
             type: 'line',
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'درجة القبول %',
+                    label: 'نسبة الملاءمة %',
                     data: scores,
                     borderColor: '#0d6efd',
                     backgroundColor: 'rgba(13, 110, 253, 0.1)',
                     borderWidth: 3,
                     fill: true,
                     tension: 0.4,
-                    pointRadius: 4,
+                    pointRadius: 6,
                     pointBackgroundColor: '#fff',
                     pointBorderColor: '#0d6efd',
                     pointBorderWidth: 2
@@ -207,29 +188,8 @@
 </script>
 
 <style>
-    .ai-card {
-        background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%);
-        transition: all 0.3s ease;
-        border: none;
-    }
-    .ai-card:hover {
-        transform: translateY(-8px);
-        box-shadow: 0 20px 40px rgba(13, 110, 253, 0.4) !important;
-    }
-    .pulse-icon {
-        animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-        0% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.1); opacity: 0.8; }
-        100% { transform: scale(1); opacity: 1; }
-    }
-    .animate-pulse {
-        animation: blinker 1.5s linear infinite;
-    }
-    @keyframes blinker {
-        50% { opacity: 0.5; }
-    }
-    .x-small { font-size: 0.7rem; }
+    .animate-pulse { animation: blinker 1.5s linear infinite; }
+    @keyframes blinker { 50% { opacity: 0.5; } }
+    .x-small { font-size: 0.75rem; }
 </style>
 {% endblock %}

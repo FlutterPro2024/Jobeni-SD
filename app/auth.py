@@ -1,3 +1,4 @@
+# ~/jobeni-sD/app/auth.py
 import os
 import re
 from datetime import datetime
@@ -67,21 +68,36 @@ def register():
 @auth_bp.route('/dashboard')
 @login_required
 def dashboard():
+    """لوحة التحكم - عرض بيانات الرادار والمؤشر المهني"""
     if current_user.role == 'employer':
         jobs = Job.query.filter_by(user_id=current_user.id).all()
         return render_template('dashboard_employer.html', jobs=jobs)
 
-    recent_apps = Application.query.filter_by(user_id=current_user.id).order_by(Application.applied_at.desc()).limit(5).all()
-    reports = InterviewReport.query.filter_by(user_id=current_user.id).all()
+    # جلب آخر الطلبات (المقترحة والمقدمة)
+    recent_apps = Application.query.filter_by(user_id=current_user.id)\
+        .order_by(Application.applied_at.desc()).limit(10).all()
 
-    chart_labels = [r.created_at.strftime('%m/%d') for r in reports] if reports else ["بدء"]
-    chart_scores = []
-    for r in reports:
-        m = re.search(r'(\d+)', str(r.score))
-        chart_scores.append(int(m.group(1)) if m else 0)
-    if not chart_scores: chart_scores = [0, 20, 10]
+    # بناء بيانات الرسم البياني (ATS Performance)
+    # نأخذ آخر 7 اقتراحات قام بها الرادار
+    radar_data = Application.query.filter_by(user_id=current_user.id, status='suggested')\
+        .order_by(Application.applied_at.desc()).limit(7).all()
+    
+    # عكس القائمة لتظهر من الأقدم للأحدث في الرسم البياني
+    radar_data.reverse()
+    
+    chart_labels = [a.applied_at.strftime('%m/%d') for a in radar_data]
+    chart_scores = [a.match_score for a in radar_data]
 
-    return render_template('dashboard.html', cvs=current_user.cvs, recent_applications=recent_apps, chart_labels=chart_labels, chart_scores=chart_scores)
+    # بيانات افتراضية في حال لم يبدأ الرادار بعد
+    if not chart_scores:
+        chart_labels = ["البداية", "جاري الفحص"]
+        chart_scores = [0, 10]
+
+    return render_template('dashboard.html', 
+                           cvs=current_user.cvs, 
+                           recent_applications=recent_apps, 
+                           chart_labels=chart_labels, 
+                           chart_scores=chart_scores)
 
 @auth_bp.route('/user/<path:username>')
 @login_required
