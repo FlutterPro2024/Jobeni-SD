@@ -6,7 +6,7 @@ import json
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, abort, send_file, session
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
-from app.models import CV, db
+from app.models import CV, db, Application, Job  # أضفنا Application و Job للتحقق من الصلاحيات
 from app.openrouter_ai import openrouter_ai
 from fpdf import FPDF
 from arabic_reshaper import reshape
@@ -22,20 +22,51 @@ def my_cvs():
     cvs = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).all()
     return render_template('my_cvs.html', cvs=cvs)
 
+@cv_bp.route('/view-cv/<int:user_id>')
+@login_required
+def view_cv_by_user(user_id):
+    """يسمح لصاحب العمل برؤية الـ CV الخاص بالمتقدم لوظائفه عبر الـ User ID"""
+    # التأكد من أن المشاهد هو صاحب الـ CV نفسه أو صاحب عمل قدم له هذا المستخدم
+    is_candidate = Application.query.join(Job).filter(
+        Application.user_id == user_id,
+        Job.employer_id == current_user.id
+    ).first()
+
+    if not is_candidate and current_user.id != user_id:
+        flash("غير مسموح لك باستعراض هذه السيرة الذاتية.", "danger")
+        return redirect(url_for('auth.dashboard'))
+
+    cv = CV.query.filter_by(user_id=user_id).order_by(CV.created_at.desc()).first_or_404()
+    
+    # جلب التحليل من الجلسة أو توليده
+    analysis_key = f'analysis_{cv.id}'
+    analysis = session.get(analysis_key)
+    if not analysis:
+        clean_sample = " ".join(cv.extracted_text.split())[:3000]
+        analysis = openrouter_ai.analyze_cv_complete(clean_sample)
+        session[analysis_key] = analysis
+
+    return render_template('view_cv.html', cv=cv, analysis=analysis)
+
 @cv_bp.route('/view/<int:cv_id>')
 @login_required
 def view_cv(cv_id):
-    """عرض تفاصيل سيرة ذاتية محددة والتحليل الخاص بها"""
+    """عرض تفاصيل سيرة ذاتية محددة والتحليل الخاص بها (معدلة للصلاحيات)"""
     cv = CV.query.get_or_404(cv_id)
-    if cv.user_id != current_user.id:
+    
+    # السماح لصاحب الـ CV أو لصاحب العمل المرتبط بتقديم
+    is_employer_of_user = Application.query.join(Job).filter(
+        Application.user_id == cv.user_id,
+        Job.employer_id == current_user.id
+    ).first()
+
+    if cv.user_id != current_user.id and not is_employer_of_user:
         abort(403)
 
-    # محاولة جلب التحليل العميق (المهارات الناقصة) من الجلسة أو إعادة توليدها
     analysis_key = f'analysis_{cv.id}'
     analysis = session.get(analysis_key)
 
     if not analysis:
-        # إذا لم يكن التحليل موجوداً في الجلسة، نقوم بعمل تحليل سريع للروابط
         clean_sample = " ".join(cv.extracted_text.split())[:3000]
         analysis = openrouter_ai.analyze_cv_complete(clean_sample)
         session[analysis_key] = analysis
@@ -64,7 +95,6 @@ def upload_cv():
             flash('عذراً، النظام يدعم ملفات PDF و TXT فقط.', 'danger')
             return redirect(request.url)
 
-        # التأكد من وجود مجلد الرفع
         path = current_app.config['UPLOAD_FOLDER']
         os.makedirs(path, exist_ok=True)
         file_full_path = os.path.join(path, filename)
@@ -72,14 +102,12 @@ def upload_cv():
 
         extracted_text = ""
         try:
-            # استخراج النص من PDF
             if original_ext == 'pdf':
                 with pdfplumber.open(file_full_path) as pdf:
                     for page in pdf.pages:
                         page_content = page.extract_text()
                         if page_content:
                             extracted_text += page_content + "\n"
-            # استخراج النص من TXT
             elif original_ext == 'txt':
                 for encoding in ['utf-8', 'windows-1256', 'iso-8859-1']:
                     try:
@@ -93,7 +121,6 @@ def upload_cv():
                 flash('الملف فارغ أو تعذر استخراج النص منه.', 'danger')
                 return redirect(request.url)
 
-            # إرسال النص للمحرك الذكي (OpenRouter) للتحليل الكامل
             clean_sample = " ".join(extracted_text.split())[:4000]
             analysis = openrouter_ai.analyze_cv_complete(clean_sample)
 
@@ -108,7 +135,6 @@ def upload_cv():
             db.session.add(new_cv)
             db.session.commit()
 
-            # حفظ التحليل الكامل (بما فيه المهارات الناقصة) في الجلسة لعرضه فوراً
             session[f'analysis_{new_cv.id}'] = analysis
 
             flash('تم رفع وتحليل سيرتك الذاتية بنجاح! 🎯 تم تحديد مسار تطوير مهاراتك.', 'success')
@@ -127,21 +153,18 @@ def optimize_cv_view(cv_id):
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id: abort(403)
 
-    # برومبت محسن ليعطي نتائج أفضل مع نظام الـ 100 نموذج
     prompt = f"REWRITE the following resume professionally for ATS. Focus on achievements, use dynamic verbs, and keep it in English. Format with clear bullet points. Content:\n{cv.extracted_text[:3000]}"
-    
+
     optimized_text = openrouter_ai.generate_improved_text(prompt)
 
     if optimized_text and len(optimized_text) > 100:
-        # تنظيف النص من علامات الـ Markdown
         final_text = optimized_text.replace("```markdown", "").replace("```", "").strip()
-        # تعويض المتغيرات ببيانات المستخدم الحقيقية
         final_text = final_text.replace("[Name]", current_user.full_name or current_user.username)
         final_text = final_text.replace("[Email]", current_user.email)
 
         return render_template('cv_comparison.html', cv_id=cv.id, old_text=cv.extracted_text, new_text=final_text)
 
-    flash('جميع المحركات مشغولة حالياً، جاري محاولة التبديل التلقائي.. يرجى إعادة المحاولة.', 'info')
+    flash('جميع المحركات مشغولة حالياً، يرجى إعادة المحاولة.', 'info')
     return redirect(url_for('cv.view_cv', cv_id=cv.id))
 
 @cv_bp.route('/cv/generate-pdf/<int:cv_id>', methods=['POST'])
@@ -156,7 +179,6 @@ def generate_ats_pdf(cv_id):
         pdf = FPDF()
         pdf.add_page()
 
-        # محاولة تحميل خط يدعم العربية (Amiri) من مجلد الـ static
         font_path = os.path.join(current_app.root_path, 'static', 'fonts', 'Amiri-Regular.ttf')
         if os.path.exists(font_path):
             pdf.add_font('Amiri', '', font_path, uni=True)
