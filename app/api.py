@@ -37,7 +37,7 @@ def get_platform_stats():
                 "total_users": User.query.count(),
                 "total_applications": Application.query.count(),
                 "platform_name": "Jobeni SD",
-                "version": "1.2.0" 
+                "version": "1.3.0" 
             }
         }
         return jsonify(stats), 200
@@ -71,7 +71,7 @@ def create_job_via_api():
     """إضافة وظيفة جديدة لقاعدة البيانات عبر طلب JSON خارجي"""
     data = request.get_json()
     
-    # 1. التحقق من وجود البيانات المطلوبة
+    # التحقق من وجود البيانات المطلوبة
     if not data or not data.get('title') or not data.get('company'):
         return jsonify({
             "status": "error", 
@@ -79,7 +79,6 @@ def create_job_via_api():
         }), 400
     
     try:
-        # 2. إنشاء كائن الوظيفة الجديد
         new_job = Job(
             title=data.get('title'),
             company_name=data.get('company'),
@@ -89,7 +88,6 @@ def create_job_via_api():
             is_active=True
         )
         
-        # 3. الحفظ في قاعدة البيانات
         db.session.add(new_job)
         db.session.commit()
         
@@ -98,6 +96,32 @@ def create_job_via_api():
             "message": "Job successfully created!",
             "job_id": new_job.id
         }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# --- ميزة حذف وظيفة عبر الـ API (DELETE Method) ---
+
+@api_bp.route('/jobs/delete/<int:job_id>', methods=['DELETE'])
+@require_api_key
+def delete_job_via_api(job_id):
+    """حذف وظيفة محددة باستخدام الـ ID الخاص بها"""
+    try:
+        job = Job.query.get(job_id)
+        if not job:
+            return jsonify({
+                "status": "error", 
+                "message": f"Job with ID {job_id} not found."
+            }), 404
+        
+        db.session.delete(job)
+        db.session.commit()
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Job #{job_id} deleted successfully."
+        }), 200
         
     except Exception as e:
         db.session.rollback()
