@@ -1,13 +1,14 @@
 # ~/jobeni-sD/app/applications.py
 from flask import Blueprint, request, redirect, url_for, flash, render_template
 from flask_login import login_required, current_user
-from app.models import Application, Job, CV, db
+from app.models import Application, Job, CV, db, User
 from app.notifications import send_application_status_email
 from app.telegram_bot import send_message
 from app.openrouter_ai import openrouter_ai
 
 apps_bp = Blueprint('applications', __name__)
 
+# --- جزء الباحث عن عمل (موجود مسبقاً) ---
 @apps_bp.route('/my-applications')
 @login_required
 def my_applications():
@@ -47,6 +48,42 @@ def apply_local(job_id):
 
     flash(f"✅ تم التقديم! المطابقة: {score}%", "success")
     return redirect(url_for('applications.my_applications'))
+
+# --- الجزء الجديد: إدارة المرشحين (لصاحب العمل) ---
+
+@apps_bp.route('/manage-candidates')
+@login_required
+def manage_candidates():
+    if current_user.role != 'employer':
+        flash("هذه الصفحة مخصصة لأصحاب العمل فقط.", "danger")
+        return redirect(url_for('auth.dashboard'))
+    
+    # جلب التقديمات الخاصة بالوظائف التي نشرها صاحب العمل الحالي فقط
+    candidates = Application.query.join(Job).filter(Job.employer_id == current_user.id).order_by(Application.applied_at.desc()).all()
+    
+    return render_template('employer_applications.html', applications=candidates)
+
+@apps_bp.route('/status-update/<int:app_id>', methods=['POST'])
+@login_required
+def update_status(app_id):
+    app = db.session.get(Application, app_id)
+    if not app or app.job.employer_id != current_user.id:
+        flash("غير مسموح لك بتعديل هذا الطلب.", "danger")
+        return redirect(url_for('applications.manage_candidates'))
+
+    new_status = request.form.get('status')
+    if new_status in ['accepted', 'rejected', 'pending']:
+        app.status = new_status
+        db.session.commit()
+        
+        # إشعار الباحث عن عمل (إيميل أو داخل المنصة)
+        try:
+            send_application_status_email(app.user.email, app.job.title, new_status)
+        except: pass
+        
+        flash(f"تم تحديث حالة الطلب إلى: {new_status}", "success")
+    
+    return redirect(url_for('applications.manage_candidates'))
 
 @apps_bp.route('/auto-apply-global', methods=['POST'])
 @login_required
