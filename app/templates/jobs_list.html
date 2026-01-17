@@ -85,9 +85,18 @@
                             <i class="fas fa-globe ms-1"></i> المصدر: {{ g_job.company }}
                         </p>
                         <p class="text-muted small mb-4 text-truncate-2">{{ g_job.snippet }}</p>
-                        <a href="{{ g_job.link }}" target="_blank" class="btn btn-dark w-100 rounded-pill btn-sm">
-                            التقديم عبر المصدر <i class="fas fa-external-link-alt me-1"></i>
-                        </a>
+                        
+                        <div class="d-grid gap-2">
+                            {% if current_user.is_authenticated and current_user.role in ['jobseeker', 'seeker'] %}
+                            <a href="{{ url_for('agent.smart_analyze', title=g_job.title, company=g_job.company) }}" 
+                               class="btn btn-primary rounded-pill btn-sm fw-bold">
+                               التقديم عبر الخبير الذكي ✨
+                            </a>
+                            {% endif %}
+                            <a href="{{ g_job.link }}" target="_blank" class="btn btn-outline-dark w-100 rounded-pill btn-sm">
+                                التقديم عبر المصدر <i class="fas fa-external-link-alt me-1"></i>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>

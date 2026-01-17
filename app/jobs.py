@@ -74,11 +74,15 @@ def add_job():
 
     return render_template('add_job.html')
 
-# بقية الدوال (التقديم، الحذف، إلخ) تبقى كما هي لأنها تستخدم ID الوظيفة مباشرة
+# التعديل هنا لضمان قبول حسابك (باحث عن عمل) بمرونة كاملة
 @jobs_bp.route('/job/apply/<int:job_id>', methods=['POST'])
 @login_required
 def apply_to_job(job_id):
-    if current_user.role != 'jobseeker':
+    # تحويل الرتبة لنص صغير لضمان المطابقة مهما كانت حالة الأحرف
+    user_role = str(current_user.role).lower().strip()
+    
+    # قبول كلاً من 'jobseeker' و 'seeker' كباحث عن عمل
+    if user_role not in ['jobseeker', 'seeker']:
         flash('يجب أن يكون نوع حسابك "باحث عن عمل" لتتمكن من التقديم.', 'warning')
         return redirect(url_for('auth.dashboard'))
 
@@ -144,7 +148,7 @@ def update_application_status(app_id):
 
     if job.user_id != current_user.id:
         abort(403)
-
+    
     new_status = request.form.get('status')
     application.status = new_status
     db.session.commit()
