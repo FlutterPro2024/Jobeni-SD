@@ -3,6 +3,10 @@ import os
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'jobeni-sd-secret-key-2026-v3'
+    
+    # --- إضافة مفتاح الأمان السري للـ API ---
+    # هذا المفتاح هو "كلمة السر" التي يجب إرسالها في الهيدر للوصول لبيانات الـ API
+    API_KEY = os.environ.get('JOBENI_API_KEY') or 'jobeni_secret_key_2026_sd'
 
     # جلب رابط قاعدة البيانات من Vercel أو Neon
     DATABASE_URL = os.environ.get('POSTGRES_URL') or os.environ.get('DATABASE_URL')
