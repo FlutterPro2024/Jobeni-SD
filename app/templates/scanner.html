@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}الماسح الذكي - Jobeni SD{% endblock %}
+
+{% block content %}
+<div class="container py-5 text-center" dir="rtl">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden bg-white">
+                <div class="card-header bg-primary text-white py-3">
+                    <h5 class="mb-0 fw-bold"><i class="fas fa-expand ms-2"></i> رادار جوبيني الضوئي</h5>
+                </div>
+                <div class="card-body p-0 position-relative">
+                    <div id="reader" style="width: 100%;"></div>
+                    
+                    <div id="scan-overlay" class="position-absolute top-50 start-50 translate-middle w-75 h-50 border border-primary border-3 rounded-4" style="pointer-events: none; opacity: 0.5; box-shadow: 0 0 0 1000px rgba(0,0,0,0.3);"></div>
+                </div>
+                <div class="card-footer bg-light p-4">
+                    <p class="small text-muted mb-0">وجه الكاميرا نحو الرمز الخاص بصديقك أو صاحب العمل للانتقال لملفه فوراً.</p>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <a href="{{ url_for('auth.dashboard') }}" class="btn btn-light rounded-pill px-4 shadow-sm border">رجوع للوحة التحكم</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script>
+    function onScanSuccess(decodedText, decodedResult) {
+        // إذا كان الرابط يخص منصتنا
+        if (decodedText.includes('jobeni-sd.com')) {
+            window.location.href = decodedText;
+        } else {
+            alert("هذا الرمز لا يتبع لمنصة جوبيني!");
+        }
+    }
+
+    let html5QrcodeScanner = new Html5QrcodeScanner(
+        "reader", { 
+            fps: 20, 
+            qrbox: {width: 250, height: 250},
+            aspectRatio: 1.0
+        });
+    html5QrcodeScanner.render(onScanSuccess);
+</script>
+
+<style>
+    /* تحسين شكل زر تشغيل الكاميرا الافتراضي للمكتبة */
+    #reader__dashboard_section_csr button {
+        background-color: #0d6efd !important;
+        color: white !important;
+        border-radius: 50px !important;
+        border: none !important;
+        padding: 8px 20px !important;
+        font-weight: bold !important;
+    }
+</style>
+{% endblock %}

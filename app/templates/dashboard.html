@@ -4,14 +4,14 @@
 {% block content %}
 <div class="container py-4 text-end" dir="rtl">
     {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ category }} alert-dismissible fade show rounded-pill mb-4 shadow-sm" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-alert="alert" aria-label="Close"></button>
-          </div>
-        {% endfor %}
-      {% endif %}
+        {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} alert-dismissible fade show rounded-pill mb-4 shadow-sm" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+        {% endif %}
     {% endwith %}
 
     <div class="card border-0 text-white shadow-lg rounded-4 mb-4" style="background: linear-gradient(135deg, #1a1d20 0%, #0d6efd 100%);">
@@ -144,6 +144,21 @@
                     </a>
                 </div>
             </div>
+
+            <div class="card border-0 shadow-sm rounded-4 bg-white mb-4 overflow-hidden">
+                <div class="card-body p-4 text-center">
+                    <h6 class="fw-bold mb-3 text-dark"><i class="fas fa-qrcode text-primary ms-2"></i> هويتك الرقمية</h6>
+                    <div class="p-3 bg-light rounded-4 d-inline-block mb-3 shadow-sm border border-primary border-opacity-25">
+                        <img src="data:image/png;base64,{{ user_qr }}" alt="My QR Code" class="img-fluid" style="max-width: 140px;">
+                    </div>
+                    <p class="x-small text-muted mb-3">شارك الرمز مع أصحاب العمل للوصول المباشر لملفك المهني في جوبيني.</p>
+                    <div class="d-grid">
+                        <a href="{{ url_for('auth.scanner') }}" class="btn btn-outline-primary btn-sm rounded-pill">
+                            <i class="fas fa-camera ms-1"></i> فتح الماسح الذكي
+                        </a>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -152,7 +167,6 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const ctx = document.getElementById('performanceChart').getContext('2d');
-        // استقبال البيانات الحقيقية من السيرفر
         const scores = {{ chart_scores|tojson }};
         const labels = {{ chart_labels|tojson }};
 
@@ -191,5 +205,7 @@
     .animate-pulse { animation: blinker 1.5s linear infinite; }
     @keyframes blinker { 50% { opacity: 0.5; } }
     .x-small { font-size: 0.75rem; }
+    /* تحسين شكل كارت الـ QR */
+    .bg-light.rounded-4 img { mix-blend-mode: multiply; }
 </style>
 {% endblock %}
