@@ -25,3 +25,4 @@ app/static/uploads/cvs/*
 .DS_Store
 .vscode/
 .idea/
+.env
