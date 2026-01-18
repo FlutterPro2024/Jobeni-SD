@@ -49,6 +49,22 @@ def new_post():
             flash('حدث خطأ أثناء النشر.', 'danger')
     return redirect(url_for('community.index'))
 
+@community_bp.route('/post/<int:post_id>/edit', methods=['POST'])
+@login_required
+def edit_post(post_id):
+    """دالة تعديل المنشور - تم إضافتها لحل BuildError"""
+    post = Post.query.get_or_404(post_id)
+    if post.user_id != current_user.id:
+        flash('لا تملك صلاحية تعديل هذا المنشور.', 'danger')
+        return redirect(url_for('community.index'))
+    
+    new_body = request.form.get('body')
+    if new_body:
+        post.body = new_body
+        db.session.commit()
+        flash('تم تحديث المنشور بنجاح! ✨', 'success')
+    return redirect(url_for('community.index'))
+
 @community_bp.route('/like/<int:post_id>', methods=['POST'])
 @login_required
 def like_post(post_id):
@@ -72,7 +88,7 @@ def like_post(post_id):
 @community_bp.route('/post/<int:post_id>/comment', methods=['POST'])
 @login_required
 def add_comment(post_id):
-    content = request.form.get('comment_body')
+    content = request.form.get('comment_body') or request.form.get('body')
     parent_id = request.form.get('parent_id', type=int)
 
     if content:
@@ -98,7 +114,7 @@ def follow(username):
     if user == current_user:
         flash('لا يمكنك متابعة نفسك!', 'warning')
         return redirect(url_for('community.index'))
-    
+
     if user in current_user.followed:
         current_user.followed.remove(user)
         flash(f'ألغيت متابعة {username}', 'info')
@@ -108,15 +124,17 @@ def follow(username):
                              message=f"بدأ {current_user.username} بمتابعتك الآن!")
         db.session.add(notif)
         flash(f'أنت الآن تتابع {username}', 'success')
-    
+
     db.session.commit()
     return redirect(request.referrer or url_for('community.index'))
 
 @community_bp.route('/delete_post/<int:post_id>', methods=['POST'])
 @login_required
 def delete_post(post_id):
+    """تم تعديلها لتتوافق مع استدعاء الـ HTML"""
     post = Post.query.get_or_404(post_id)
     if post.user_id == current_user.id or current_user.role == 'admin':
+        # حذف الإعجابات والتعليقات المرتبطة أولاً لضمان عدم وجود أخطاء Integrity
         Comment.query.filter_by(post_id=post_id).delete()
         PostLike.query.filter_by(post_id=post_id).delete()
         db.session.delete(post)
