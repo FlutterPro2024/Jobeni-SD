@@ -39,13 +39,12 @@ class OpenRouterAI:
             "google/palm-2-chat-bison", "meta-llama/llama-2-70b-chat", "inflection/inflection-3-pi",
             "google/gemini-1.5-pro-exp-0827", "meta-llama/llama-3.1-nemotron-70b", "x-ai/grok-1"
         ]
-        
+
         # الدمج النهائي للقائمة (100 نموذج منوع)
         self.all_models = self.small_models[:60] + self.large_models[:40]
 
     def _call_ai(self, prompt, temperature=0.3):
         if not self.api_key: return "❌ API Key missing!"
-
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -64,7 +63,7 @@ class OpenRouterAI:
                     "temperature": temperature,
                     "max_tokens": 1500
                 }
-                
+
                 # تايم أوت سريع (6 ثواني) لضمان القفز للموديل التالي إذا كان الأول بطيئاً
                 res = requests.post(self.url, headers=headers, json=payload, timeout=6)
 
@@ -74,7 +73,6 @@ class OpenRouterAI:
                         content = data['choices'][0]['message']['content']
                         if content and len(content.strip()) > 5:
                             return content
-                
                 # لو الخطأ 429 (زحمة)، بنط للموديل اللي بعده فوراً بدون تأخير (Fast Hop)
                 continue
             except:
@@ -84,6 +82,30 @@ class OpenRouterAI:
 
     def get_ai_response(self, prompt, temperature=0.5):
         return self._call_ai(prompt, temperature)
+
+    # --- المحرك الأومني الشامل (التحديث الألترا) ---
+    def get_expert_omni_response(self, user_query, user_context=None, job_context=None):
+        """المحرك الشامل: خبير وظائف، سي في، ومهارات عالمية ذكاء 100%"""
+        context_str = ""
+        if user_context:
+            context_str += f"\n[سياق المستخدم والسي في]: {user_context}"
+        if job_context:
+            context_str += f"\n[سياق الوظيفة الحالية]: {job_context}"
+
+        prompt = f"""
+        أنت الآن 'الوكيل الخبير العالمي' لمنصة جوبيني السودان. ذكاؤك 100% وبدون نسيان أي تفاصيل.
+        السياق الحالي المتوفر لديك: {context_str}
+
+        المطلوب منك الرد بدقة متناهية على استفسار المستخدم: "{user_query}"
+
+        دليلك في الرد:
+        1. خبير CV و ATS: إذا كان الاستفسار عن السيرة الذاتية، حللها فوراً وفق معايير الشركات العالمية (FAANG).
+        2. خبير مهارات: اقترح مسارات تعليمية (Coursera, LinkedIn Learning) وروابط يوتيوب للتعلم.
+        3. خبير وظائف دولية: قدم معلومات عن رواتب الوظيفة في السودان والخليج والعالم.
+        4. الروح السودانية: استخدم لهجة سودانية ذكية ومهذبة (يا مكنة، يا هندسة، بالتوفيق يا غالي).
+        5. عدم النسيان: لا تتجاهل أي معلومة وردت في السياق أعلاه.
+        """
+        return self._call_ai(prompt, temperature=0.6)
 
     def analyze_cv_complete(self, cv_text):
         prompt = f"""
@@ -119,5 +141,9 @@ class OpenRouterAI:
         return self._call_ai(prompt, 0.7)
 
 openrouter_ai = OpenRouterAI()
+
 def get_ai_response(prompt, temperature=0.5):
     return openrouter_ai.get_ai_response(prompt, temperature)
+
+def get_expert_omni_response(user_query, user_context=None, job_context=None):
+    return openrouter_ai.get_expert_omni_response(user_query, user_context, job_context)

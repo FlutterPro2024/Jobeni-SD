@@ -4,7 +4,7 @@ import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from app.models import Message, User, Job, CV, db, Application, Notification
-from app.openrouter_ai import openrouter_ai
+from app.openrouter_ai import openrouter_ai, get_expert_omni_response
 from datetime import datetime, timedelta
 from sqlalchemy import or_, and_
 
@@ -49,15 +49,15 @@ def my_messages():
     # 2. نظام رسائل الأصدقاء
     bot_user = User.query.filter(User.username.ilike('%bot%')).first()
     bot_id = bot_user.id if bot_user else 1
-    
+
     partners_ids = db.session.query(Message.sender_id).filter(
-        Message.recipient_id == current_user.id, 
-        Message.job_id == None, 
+        Message.recipient_id == current_user.id,
+        Message.job_id == None,
         Message.sender_id != bot_id
     ).union(
         db.session.query(Message.recipient_id).filter(
-            Message.sender_id == current_user.id, 
-            Message.job_id == None, 
+            Message.sender_id == current_user.id,
+            Message.job_id == None,
             Message.recipient_id != bot_id
         )
     ).all()
@@ -94,7 +94,7 @@ def open_chat(job_id, recipient_id):
     is_ai_agent = (recipient_id == 0)
     bot_user = User.query.filter(User.username.ilike('%bot%')).first()
     bot_id = bot_user.id if bot_user else 1
-    
+
     if is_ai_agent:
         recipient = User(id=0, username="ai_assistant", full_name="مساعد جوبيني الذكي 🤖")
         job = None
@@ -108,7 +108,7 @@ def open_chat(job_id, recipient_id):
         body = request.form.get('message')
         file = request.files.get('file')
         file_url = None
-        
+
         if file:
             try:
                 img_data = file.read()
@@ -130,7 +130,7 @@ def open_chat(job_id, recipient_id):
             )
             db.session.add(new_msg)
             
-            # إضافة إشعار تلقائي للمستلم (نظام الإشعارات التلقائية)
+            # إضافة إشعار تلقائي للمستلم
             if not is_ai_agent:
                 from app.notifications import add_notification
                 add_notification(
@@ -144,13 +144,29 @@ def open_chat(job_id, recipient_id):
             db.session.commit()
 
             if is_ai_agent:
+                # تجميع السياق الكامل للذكاء الاصطناعي (ذاكرة 100%)
                 user_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
-                cv_text = user_cv.extracted_text if user_cv else "لا توجد سيرة ذاتية."
-                ai_prompt = f"المستخدم: {current_user.full_name}. السيرة: {cv_text[:500]}.\nالسؤال: {body}"
-                ai_response = openrouter_ai.get_ai_response(ai_prompt)
-                bot_msg = Message(sender_id=bot_id, recipient_id=current_user.id, body=ai_response, job_id=None)
+                current_job = Job.query.get(job_id) if job_id != 0 else None
+                
+                u_context = f"المستخدم: {current_user.full_name}. "
+                if user_cv: u_context += f"السيرة الذاتية: {user_cv.extracted_text[:1000]}"
+                
+                j_context = "استشارة مهنية عامة"
+                if current_job:
+                    j_context = f"الوظيفة الحالية: {current_job.title}. الوصف: {current_job.description[:500]}"
+
+                # استخدام المحرك الأومني المطور
+                ai_response = get_expert_omni_response(body, user_context=u_context, job_context=j_context)
+                
+                bot_msg = Message(
+                    sender_id=bot_id, 
+                    recipient_id=current_user.id, 
+                    body=ai_response, 
+                    job_id=job_id if job_id != 0 else None
+                )
                 db.session.add(bot_msg)
                 db.session.commit()
+                
             elif recipient.telegram_id:
                 notify_new_message(recipient.telegram_id, current_user.username, job.title if job else "تواصل عام", body or "أرسل ملفاً")
 
@@ -171,7 +187,7 @@ def open_chat(job_id, recipient_id):
         is_typing = False
         if not is_ai_agent and recipient.is_typing_now:
             is_typing = recipient.is_typing_now > (datetime.utcnow() - timedelta(seconds=5))
-        
+
         is_online = False
         if not is_ai_agent and recipient.last_seen:
             is_online = recipient.last_seen >= (datetime.utcnow() - timedelta(minutes=5))
@@ -180,17 +196,17 @@ def open_chat(job_id, recipient_id):
             "is_online": is_online,
             "is_typing": is_typing,
             "messages": [{
-                "id": m.id, 
-                "body": m.body, 
-                "file_path": m.file_path, 
+                "id": m.id,
+                "body": m.body,
+                "file_path": m.file_path,
                 "sender_id": m.sender_id,
                 "timestamp": m.timestamp.strftime('%I:%M %p')
             } for m in messages[-20:]]
         })
 
-    return render_template('chat.html', 
-                           messages=messages, 
-                           recipient=recipient, 
-                           job=job, 
-                           is_ai_agent=is_ai_agent, 
+    return render_template('chat.html',
+                           messages=messages,
+                           recipient=recipient,
+                           job=job,
+                           is_ai_agent=is_ai_agent,
                            utcnow=datetime.utcnow())
