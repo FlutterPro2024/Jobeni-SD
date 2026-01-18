@@ -4,7 +4,10 @@ from flask_login import login_user, logout_user, current_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
 from app.auth import bp
-from app.models import User, Application # أضفنا استيراد Application
+from app.models import User, Application
+import qrcode
+import base64
+from io import BytesIO
 
 @bp.route('/register', methods=['GET', 'POST'])
 def register():
@@ -46,32 +49,51 @@ def login():
         if not user or not check_password_hash(user.password, password):
             flash('خطأ في البريد الإلكتروني أو كلمة المرور.', 'danger')
             return redirect(url_for('auth.login'))
-
+        
         login_user(user, remember=remember)
         return redirect(url_for('main.dashboard'))
     return render_template('auth/login.html')
 
-# --- الجزء المحدث لعرض الـ Dashboard ---
+# --- الجزء المحدث لعرض الـ Dashboard مع دعم الـ QR ---
 @bp.route('/dashboard')
 @login_required
 def dashboard():
-    """عرض لوحة التحكم مع بيانات الشارت والمطابقات"""
+    """عرض لوحة التحكم مع بيانات الشارت والمطابقات وتوليد QR المستخدم"""
     # جلب آخر 5 طلبات أو مطابقات لبناء الشارت
     recent_apps = Application.query.filter_by(user_id=current_user.id)\
         .order_by(Application.applied_at.asc())\
         .limit(5).all()
-    
+
     chart_scores = [app.match_score if app.match_score else 0 for app in recent_apps]
     chart_labels = [app.applied_at.strftime('%m/%d') for app in recent_apps]
-    
+
     # بيانات افتراضية إذا كانت الجداول فارغة
     if not chart_scores:
         chart_scores = [0, 20, 50]
         chart_labels = ["بداية", "مرحلة 1", "اليوم"]
-
+    
+    # --- توليد QR Code الشخصي للمستخدم لعرضه في لوحة التحكم ---
+    # الرابط الذي سيوجه إليه الماسح (رابط البروفايل العام)
+    qr_link = url_for('main.view_profile', user_id=current_user.id, _external=True)
+    qr = qrcode.QRCode(version=1, box_size=5, border=2)
+    qr.add_data(qr_link)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="#0d6efd", back_color="white")
+    
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    user_qr_base64 = base64.b64encode(buffered.getvalue()).decode()
+       
     return render_template('dashboard.html', 
-                           chart_scores=chart_scores, 
-                           chart_labels=chart_labels)
+                           chart_scores=chart_scores,
+                           chart_labels=chart_labels,
+                           user_qr=user_qr_base64)
+
+@bp.route('/scanner')
+@login_required
+def scanner():
+    """فتح صفحة الكاميرا لمسح رموز QR الآخرين"""
+    return render_template('scanner.html')
 
 @bp.route('/profile/update', methods=['POST'])
 @login_required

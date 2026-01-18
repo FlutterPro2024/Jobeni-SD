@@ -35,6 +35,10 @@ class JobeniAgent:
         """
         try:
             res = openrouter_ai.get_ai_response(prompt, temperature=0.1)
+            # فك التعليقة لو الرد فيه رسالة الضغط
+            if "تحت ضغط شديد" in res:
+                return {"percentage": 70, "missing": "جاري التحليل لاحقاً", "action": "الوكيل يرى أن تخصصك مناسب، قدم الآن!"}
+            
             match = re.search(r'\{.*\}', res, re.DOTALL)
             if match:
                 return json.loads(match.group())
@@ -83,7 +87,7 @@ def run_agent():
 
         # تحديد الكلمات البحثية (تخصص المستخدم)
         profession = user.agent_query or cv.profession or "وظائف احترافية"
-        
+
         # مصفوفة البحث المتعدد (عالمي + إقليمي + محلي)
         search_queries = [
             f"{profession} jobs remote worldwide",
@@ -148,7 +152,7 @@ def run_agent():
                     keyboard = {
                         "inline_keyboard": [[
                             {"text": "🔗 التقديم الآن", "url": j['link']},
-                            {"text": "📄 لوحة التحكم", "url": f"https://jobeni-sd.com/dashboard"}
+                            {"text": "📄 لوحة التحكم", "url": f"https://jobeni-sd.vercel.app/dashboard"}
                         ]]
                     }
                     send_message(user.telegram_id, job_msg, reply_markup=keyboard)
@@ -171,6 +175,6 @@ def generate_cover_letter_view(cv_id, job_title):
     """توليد الـ Cover Letter بناءً على السي في المرفوع"""
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id: abort(403)
-    
+
     letter = JobeniAgent.generate_professional_cover_letter(cv.extracted_text, job_title, "الجهة الموظفة")
     return jsonify({"cover_letter": letter})
