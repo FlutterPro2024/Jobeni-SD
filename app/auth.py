@@ -98,7 +98,7 @@ def dashboard():
     qr.add_data(user_link)
     qr.make(fit=True)
     img = qr.make_image(fill_color="black", back_color="white")
-    
+
     buffered = io.BytesIO()
     img.save(buffered, format="PNG")
     user_qr_base64 = base64.b64encode(buffered.getvalue()).decode()
@@ -146,6 +146,16 @@ def update_agent_settings():
 def scanner():
     """فتح صفحة الماسح الضوئي للكاميرا"""
     return render_template('scanner.html')
+
+@auth_bp.route('/deploy/upgrade')
+def deploy_upgrade():
+    """رابط تحديث قاعدة البيانات من المتصفح مباشرة"""
+    try:
+        from flask_migrate import upgrade
+        upgrade()
+        return "✅ تم تحديث قاعدة البيانات (Database Migrated) بنجاح!"
+    except Exception as e:
+        return f"❌ فشل التحديث: {str(e)}"
 
 @auth_bp.route('/logout')
 @login_required
