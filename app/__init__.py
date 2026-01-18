@@ -39,7 +39,7 @@ def create_app(config_name='default'):
         from app.telegram_bot import telegram_bp
         from app.notifications import notifications_bp
         from app.agent_worker import agent_bp
-        
+
         # --- إضافة الـ API Blueprint الجديد لربط المنصة خارجياً ---
         try:
             from app.api import api_bp
