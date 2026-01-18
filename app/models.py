@@ -3,6 +3,7 @@ from app import db
 from flask_login import UserMixin
 from datetime import datetime
 from flask import url_for
+import uuid  # أضفنا هذا لتوليد مفاتيح QR فريدة
 
 # جدول المتابعين (Many-to-Many)
 followers = db.Table('followers',
@@ -18,7 +19,7 @@ class User(db.Model, UserMixin):
     full_name = db.Column(db.String(100))
     role = db.Column(db.String(20), default='jobseeker')
     phone = db.Column(db.String(20))
-    avatar = db.Column(db.String(200)) # تم تعديله ليكون مرناً
+    avatar = db.Column(db.String(200)) 
     headline = db.Column(db.String(200))
     bio = db.Column(db.Text)
     location_name = db.Column(db.String(100))
@@ -30,6 +31,9 @@ class User(db.Model, UserMixin):
     agent_enabled = db.Column(db.Boolean, default=False)
     agent_query = db.Column(db.String(200))
     last_agent_run = db.Column(db.DateTime)
+    
+    # حقل الـ QR الفريد (لزيادة الأمان عند المسح)
+    qr_code_key = db.Column(db.String(50), unique=True, default=lambda: str(uuid.uuid4())[:8])
 
     # العلاقات (Relationships)
     cvs = db.relationship('CV', backref='owner', lazy=True, cascade="all, delete-orphan")
@@ -61,7 +65,6 @@ class Message(db.Model):
     file_path = db.Column(db.String(300), nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     is_read = db.Column(db.Boolean, default=False)
-    # --- الإضافة الجديدة والمهمة لربط الرسالة بوظيفة معينة ---
     job_id = db.Column(db.Integer, db.ForeignKey('job.id'), nullable=True)
 
 class Job(db.Model):
@@ -135,13 +138,11 @@ class Comment(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     post_id = db.Column(db.Integer, db.ForeignKey('post.id'))
-
     parent_id = db.Column(db.Integer, db.ForeignKey('comment.id'))
     replies = db.relationship(
         'Comment', backref=db.backref('parent', remote_side=[id]),
         lazy='dynamic', cascade="all, delete-orphan"
     )
-
     user = db.relationship('User', backref='comments_ref')
 
 class Notification(db.Model):
