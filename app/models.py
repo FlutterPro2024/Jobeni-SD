@@ -2,7 +2,7 @@
 from app import db
 from flask_login import UserMixin
 from datetime import datetime
-from flask import url_for  # استيراد مهم جداً للروابط الديناميكية
+from flask import url_for
 
 # جدول المتابعين (Many-to-Many)
 followers = db.Table('followers',
@@ -42,7 +42,6 @@ class User(db.Model, UserMixin):
         secondaryjoin=(followers.c.followed_id == id),
         backref=db.backref('followers', lazy='dynamic'), lazy='dynamic')
 
-    # الدالة السحرية لعرض الصورة الشخصية بدون أخطاء 404
     def get_avatar(self):
         if self.avatar:
             if self.avatar.startswith('http'):
@@ -62,6 +61,8 @@ class Message(db.Model):
     file_path = db.Column(db.String(300), nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     is_read = db.Column(db.Boolean, default=False)
+    # --- الإضافة الجديدة والمهمة لربط الرسالة بوظيفة معينة ---
+    job_id = db.Column(db.Integer, db.ForeignKey('job.id'), nullable=True)
 
 class Job(db.Model):
     __tablename__ = 'job'
@@ -134,14 +135,12 @@ class Comment(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     post_id = db.Column(db.Integer, db.ForeignKey('post.id'))
-    
-    # --- التعديل الجوهري لحل مشكلة AttributeError ---
+
     parent_id = db.Column(db.Integer, db.ForeignKey('comment.id'))
     replies = db.relationship(
         'Comment', backref=db.backref('parent', remote_side=[id]),
         lazy='dynamic', cascade="all, delete-orphan"
     )
-    # -----------------------------------------------
 
     user = db.relationship('User', backref='comments_ref')
 
