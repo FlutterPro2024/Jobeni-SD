@@ -1,6 +1,9 @@
 # ~/jobeni-sD/app/auth.py
 import os
 import re
+import base64
+import io
+import qrcode
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
@@ -78,26 +81,34 @@ def dashboard():
         .order_by(Application.applied_at.desc()).limit(10).all()
 
     # بناء بيانات الرسم البياني (ATS Performance)
-    # نأخذ آخر 7 اقتراحات قام بها الرادار
     radar_data = Application.query.filter_by(user_id=current_user.id, status='suggested')\
         .order_by(Application.applied_at.desc()).limit(7).all()
-    
-    # عكس القائمة لتظهر من الأقدم للأحدث في الرسم البياني
     radar_data.reverse()
-    
+
     chart_labels = [a.applied_at.strftime('%m/%d') for a in radar_data]
     chart_scores = [a.match_score for a in radar_data]
 
-    # بيانات افتراضية في حال لم يبدأ الرادار بعد
     if not chart_scores:
         chart_labels = ["البداية", "جاري الفحص"]
         chart_scores = [0, 10]
 
-    return render_template('dashboard.html', 
-                           cvs=current_user.cvs, 
-                           recent_applications=recent_apps, 
-                           chart_labels=chart_labels, 
-                           chart_scores=chart_scores)
+    # توليد الـ QR Code الخاص بالمستخدم
+    user_link = url_for('auth.user_profile', username=current_user.username, _external=True)
+    qr = qrcode.QRCode(version=1, box_size=10, border=2)
+    qr.add_data(user_link)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    buffered = io.BytesIO()
+    img.save(buffered, format="PNG")
+    user_qr_base64 = base64.b64encode(buffered.getvalue()).decode()
+
+    return render_template('dashboard.html',
+                           cvs=current_user.cvs,
+                           recent_applications=recent_apps,
+                           chart_labels=chart_labels,
+                           chart_scores=chart_scores,
+                           user_qr=user_qr_base64)
 
 @auth_bp.route('/user/<path:username>')
 @login_required
@@ -129,6 +140,12 @@ def update_agent_settings():
     db.session.commit()
     flash('تم تحديث إعدادات المستشار الذكي بنجاح', 'success')
     return redirect(url_for('auth.dashboard'))
+
+@auth_bp.route('/scanner')
+@login_required
+def scanner():
+    """فتح صفحة الماسح الضوئي للكاميرا"""
+    return render_template('scanner.html')
 
 @auth_bp.route('/logout')
 @login_required
