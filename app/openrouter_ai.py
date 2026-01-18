@@ -9,39 +9,32 @@ class OpenRouterAI:
         self.api_key = os.getenv("OPENROUTER_API_KEY")
         self.url = "https://openrouter.ai/api/v1/chat/completions"
 
-        # --- مجموعة الـ 60 نموذجاً الصغير والسريع (Small & Fast) ---
+        # --- مجموعة الـ 60 نموذجاً الصغير والسريع (تبدأ بها الأولوية) ---
         self.small_models = [
-            "google/gemini-2.0-flash-exp:free", "google/gemini-flash-1.5-8b",
+            "google/gemini-2.0-flash-exp:free", "google/gemini-flash-1.5-8b:free",
             "meta-llama/llama-3.2-3b-instruct:free", "meta-llama/llama-3.2-1b-instruct:free",
-            "qwen/qwen-2.5-7b-instruct:free", "qwen/qwen-2-7b-instruct:free",
-            "mistralai/mistral-7b-instruct:free", "microsoft/phi-3-mini-128k-instruct:free",
-            "microsoft/phi-3-mini-4k-instruct:free", "google/gemini-flash-1.5-8b-exp",
-            "google/gemini-2.0-flash-001", "meta-llama/llama-3.1-8b-instruct:free",
-            "meta-llama/llama-3-8b-instruct:free", "huggingfaceh4/zephyr-7b-beta:free",
-            "undi95/toppy-m-7b:free", "upstage/solar-10-7b-instruct:free",
-            "phind/phind-codellama-34b:free", "01-ai/yi-large", "mistralai/mistral-nemo",
-            "liquid/lfm-40b:free", "google/palm-2-chat-bison-tiny", "meta-llama/llama-2-7b-chat:free",
-            "qwen/qwen-2.5-3b-instruct:free", "nvidia/llama-3.1-nemotron-70b-instruct:free",
-            "mistralai/pixtral-12b:free", "nousresearch/hermes-3-llama-3.1-8b",
-            "open-theory/gryphe-mythomax-l2-13b:free", "runtastic/llama-3-8b-instruct",
-            "migtissera/synthia-7b", "jondurbin/airoboros-l2-7b", "microsoft/phi-3-medium-128k-instruct:free"
-        ] * 2  # تكرار لضمان العدد الكلي
-
-        # --- مجموعة الـ 40 نموذجاً المتوسط والكبير (Medium & Large) ---
-        self.large_models = [
-            "google/gemini-pro-1.5", "google/gemini-ultra-1.0", "anthropic/claude-3.5-sonnet",
-            "anthropic/claude-3-haiku", "openai/gpt-4o-mini", "openai/gpt-4o",
-            "openai/gpt-3.5-turbo", "meta-llama/llama-3.1-70b-instruct:free",
-            "meta-llama/llama-3.1-405b-instruct", "cohere/command-r", "cohere/command-r-plus",
-            "databricks/dbrx-instruct", "qwen/qwen-2.5-72b-instruct", "cognitivecomputations/dolphin-mixtral-8x7b",
-            "perplexity/llama-3-sonar-large-32k-chat", "deepseek/deepseek-chat", "mistralai/mixtral-8x7b-instruct:free",
-            "gryphe/mythomax-l2-13b", "sophosympathizer/rogue-rose-103b-v0.2:free", "alpindale/magnum-72b-v2:free",
-            "google/palm-2-chat-bison", "meta-llama/llama-2-70b-chat", "inflection/inflection-3-pi",
-            "google/gemini-1.5-pro-exp-0827", "meta-llama/llama-3.1-nemotron-70b", "x-ai/grok-1"
+            "qwen/qwen-2.5-7b-instruct:free", "mistralai/mistral-7b-instruct:free",
+            "microsoft/phi-3-mini-128k-instruct:free", "meta-llama/llama-3.1-8b-instruct:free",
+            "google/gemini-2.0-flash-001", "qwen/qwen-2-7b-instruct:free",
+            "huggingfaceh4/zephyr-7b-beta:free", "undi95/toppy-m-7b:free",
+            "upstage/solar-10-7b-instruct:free", "mistralai/mistral-nemo",
+            "liquid/lfm-40b:free", "meta-llama/llama-2-7b-chat:free",
+            "qwen/qwen-2.5-3b-instruct:free", "mistralai/pixtral-12b:free",
+            "nousresearch/hermes-3-llama-3.1-8b", "open-theory/gryphe-mythomax-l2-13b:free",
+            "microsoft/phi-3-medium-128k-instruct:free"
         ]
 
-        # الدمج النهائي للقائمة (100 نموذج منوع)
-        self.all_models = self.small_models[:60] + self.large_models[:40]
+        # --- مجموعة الـ 40 نموذجاً المتوسط والكبير (احتياطي عالي الجودة) ---
+        self.large_models = [
+            "google/gemini-pro-1.5", "openai/gpt-4o-mini", "openai/gpt-4o",
+            "anthropic/claude-3.5-sonnet", "anthropic/claude-3-haiku",
+            "meta-llama/llama-3.1-70b-instruct:free", "cohere/command-r",
+            "deepseek/deepseek-chat", "mistralai/mixtral-8x7b-instruct:free",
+            "google/gemini-1.5-pro-exp-0827", "meta-llama/llama-3.1-405b-instruct"
+        ]
+
+        # الترتيب الذكي: الصغير أولاً ثم الكبير
+        self.ordered_models = self.small_models + self.large_models
 
     def _call_ai(self, prompt, temperature=0.3):
         if not self.api_key: return "❌ API Key missing!"
@@ -52,10 +45,8 @@ class OpenRouterAI:
             "X-Title": "Jobeni AI Mega-Engine"
         }
 
-        # نخلط النماذج عشوائياً في كل مرة لضمان توزيع الضغط (Smart Load Balancing)
-        shuffled_list = random.sample(self.all_models, len(self.all_models))
-
-        for model in shuffled_list:
+        # نحاول المرور على النماذج بالترتيب (من الأصغر للأكبر)
+        for model in self.ordered_models:
             try:
                 payload = {
                     "model": model,
@@ -64,8 +55,8 @@ class OpenRouterAI:
                     "max_tokens": 1500
                 }
 
-                # تايم أوت سريع (6 ثواني) لضمان القفز للموديل التالي إذا كان الأول بطيئاً
-                res = requests.post(self.url, headers=headers, json=payload, timeout=6)
+                # تايم أوت 7 ثواني (كافية جداً للنماذج الصغيرة)
+                res = requests.post(self.url, headers=headers, json=payload, timeout=7)
 
                 if res.status_code == 200:
                     data = res.json()
@@ -73,7 +64,8 @@ class OpenRouterAI:
                         content = data['choices'][0]['message']['content']
                         if content and len(content.strip()) > 5:
                             return content
-                # لو الخطأ 429 (زحمة)، بنط للموديل اللي بعده فوراً بدون تأخير (Fast Hop)
+                
+                # إذا كان الموديل مشغولاً (429) أو به خطأ، ننتقل فوراً للذي يليه
                 continue
             except:
                 continue
@@ -83,34 +75,21 @@ class OpenRouterAI:
     def get_ai_response(self, prompt, temperature=0.5):
         return self._call_ai(prompt, temperature)
 
-    # --- المحرك الأومني الشامل (التحديث الألترا) ---
     def get_expert_omni_response(self, user_query, user_context=None, job_context=None):
-        """المحرك الشامل: خبير وظائف، سي في، ومهارات عالمية ذكاء 100%"""
         context_str = ""
-        if user_context:
-            context_str += f"\n[سياق المستخدم والسي في]: {user_context}"
-        if job_context:
-            context_str += f"\n[سياق الوظيفة الحالية]: {job_context}"
+        if user_context: context_str += f"\n[سياق المستخدم]: {user_context}"
+        if job_context: context_str += f"\n[سياق الوظيفة]: {job_context}"
 
         prompt = f"""
-        أنت الآن 'الوكيل الخبير العالمي' لمنصة جوبيني السودان. ذكاؤك 100% وبدون نسيان أي تفاصيل.
-        السياق الحالي المتوفر لديك: {context_str}
-
-        المطلوب منك الرد بدقة متناهية على استفسار المستخدم: "{user_query}"
-
-        دليلك في الرد:
-        1. خبير CV و ATS: إذا كان الاستفسار عن السيرة الذاتية، حللها فوراً وفق معايير الشركات العالمية (FAANG).
-        2. خبير مهارات: اقترح مسارات تعليمية (Coursera, LinkedIn Learning) وروابط يوتيوب للتعلم.
-        3. خبير وظائف دولية: قدم معلومات عن رواتب الوظيفة في السودان والخليج والعالم.
-        4. الروح السودانية: استخدم لهجة سودانية ذكية ومهذبة (يا مكنة، يا هندسة، بالتوفيق يا غالي).
-        5. عدم النسيان: لا تتجاهل أي معلومة وردت في السياق أعلاه.
+        أنت 'الوكيل الخبير العالمي' لمنصة جوبيني السودان. 
+        استخدم السياق التالي: {context_str}
+        أجب بدقة ومهنية وباللهجة السودانية المهذبة على: "{user_query}"
         """
         return self._call_ai(prompt, temperature=0.6)
 
     def analyze_cv_complete(self, cv_text):
         prompt = f"""
-        Act as an Expert Career Consultant in Sudan. Analyze this Resume.
-        Return ONLY a JSON object.
+        Analyze this Resume and return ONLY a valid JSON object.
         Structure:
         {{
             "skills": ["Skill1", "Skill2"],
@@ -121,27 +100,27 @@ class OpenRouterAI:
                 {{"skill": "Skill Name", "reason": "Why needed", "learning_link": "YouTube Link"}}
             ]
         }}
-        Note: For learning_link, generate: https://www.youtube.com/results?search_query=learn+skillname
         Text: {cv_text[:2500]}
         """
         res = self._call_ai(prompt, 0.1)
         try:
+            # تنظيف الرد لاستخراج الـ JSON فقط في حال وجود نص إضافي
             clean = re.search(r'\{.*\}', res, re.DOTALL).group()
             return json.loads(clean)
         except:
             return {
                 "skills": ["تحليل ذكي"], "profession": "متخصص", "overall_score": 55,
-                "feedback": "تم استلام البيانات، جرب تحديث الصفحة لرؤية الروابط.",
+                "feedback": "يا مكنة، الـ AI تعب شوية، جرب ترفع الملف مرة تانية أو تأكد من جودة النص.",
                 "missing_skills": []
             }
 
     def generate_improved_text(self, cv_content):
-        # التحسين يحتاج صياغة احترافية، نستخدم برومبت دقيق
         prompt = f"Optimize this resume for ATS in English. Focus on achievements. Content: {cv_content[:2000]}"
         return self._call_ai(prompt, 0.7)
 
 openrouter_ai = OpenRouterAI()
 
+# دالات التوافق مع الملفات الأخرى
 def get_ai_response(prompt, temperature=0.5):
     return openrouter_ai.get_ai_response(prompt, temperature)
 
