@@ -1,5 +1,5 @@
 # ~/jobeni-sD/app/jobs.py
-from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, jsonify
 from flask_login import login_required, current_user
 from app.models import Job, Application, CV, User, db, Notification
 from app.openrouter_ai import openrouter_ai
@@ -80,7 +80,7 @@ def add_job():
 def apply_to_job(job_id):
     # تحويل الرتبة لنص صغير لضمان المطابقة مهما كانت حالة الأحرف
     user_role = str(current_user.role).lower().strip()
-    
+
     # قبول كلاً من 'jobseeker' و 'seeker' كباحث عن عمل
     if user_role not in ['jobseeker', 'seeker']:
         flash('يجب أن يكون نوع حسابك "باحث عن عمل" لتتمكن من التقديم.', 'warning')
@@ -148,7 +148,7 @@ def update_application_status(app_id):
 
     if job.user_id != current_user.id:
         abort(403)
-    
+
     new_status = request.form.get('status')
     application.status = new_status
     db.session.commit()
@@ -168,3 +168,17 @@ def delete_job(job_id):
 
     flash('تم حذف الوظيفة نهائياً.', 'info')
     return redirect(url_for('auth.dashboard'))
+
+# --- الدالة الجديدة المضافة لدعم أيقونة العين وعرض السي في ---
+@jobs_bp.route('/api/get_cv/<int:user_id>')
+@login_required
+def get_cv_api(user_id):
+    # جلب آخر سيرة ذاتية مرفوعة للمستخدم
+    cv = CV.query.filter_by(user_id=user_id).order_by(CV.created_at.desc()).first()
+    if cv:
+        return jsonify({
+            'parsed_text': cv.extracted_text or "لا يوجد نص مستخلص للسيرة الذاتية.",
+            'skills': cv.skills if hasattr(cv, 'skills') else [],
+            'created_at': cv.created_at.strftime('%Y-%m-%d')
+        })
+    return jsonify({'error': 'No CV found'}), 404
