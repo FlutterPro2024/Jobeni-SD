@@ -28,6 +28,22 @@ def send_message(chat_id, text, reply_markup=None):
         print(f"❌ Telegram Send Error: {e}")
         return None
 
+def send_photo(chat_id, photo_path, caption=None):
+    """إرسال صور (مثل الـ QR Code)"""
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
+    if not os.path.exists(photo_path):
+        return None
+    try:
+        with open(photo_path, 'rb') as photo:
+            files = {'photo': photo}
+            data = {'chat_id': chat_id, 'parse_mode': 'HTML'}
+            if caption: data['caption'] = caption
+            res = requests.post(url, data=data, files=files, timeout=20)
+            return res.json()
+    except Exception as e:
+        print(f"❌ Photo Send Error: {e}")
+        return None
+
 def notify_new_message(telegram_id, sender_name, job_title, message_body):
     """تنبيه فوري للمستخدم عند استلام رسالة بالمنصة"""
     text = (
@@ -53,8 +69,6 @@ def handle_telegram_webhook(data):
         message = data["message"]
         chat_id = message["chat"]["id"]
         text = message.get("text", "")
-        user_info = message.get("from", {})
-
         if not text: return
 
         from app.models import User, CV, Application, Job, db
@@ -72,11 +86,7 @@ def handle_telegram_webhook(data):
                         welcome = (
                             f"✅ <b>تم الربط بنجاح يا {user.username}!</b>\n\n"
                             "أنا الآن وكيلك الشخصي والخبير العالمي في جوبيني 🇸🇩🌎\n"
-                            "سأقوم بـ:\n"
-                            "• جلب أحدث الوظائف العالمية والمحلية.\n"
-                            "• تحليل سيرتك الذاتية بمعايير FAANG.\n"
-                            "• تدريبك على المقابلات الشخصية.\n"
-                            "• الرد على أي استفسار مهني بذكاء 100%."
+                            "• جلب أحدث الوظائف.\n• تدريب مقابلات.\n• استشارات ذكية."
                         )
                         send_message(chat_id, welcome)
                     else:
@@ -87,7 +97,14 @@ def handle_telegram_webhook(data):
             else:
                 send_message(chat_id, "🤖 أهلاً بك! أنا بوت جوبيني الذكي. يرجى الضغط على 'ربط تليجرام' من داخل المنصة لتفعيل خدماتي.")
 
-        # 2. تشغيل المقابلة الذكية (الوكيل الشخصي)
+        # 2. أمر الـ QR Code الجديد
+        elif text.startswith("/qr") or any(word in text for word in ["رابط", "تطبيق", "باركود"]):
+            qr_path = os.path.join(current_app.root_path, 'static', 'img', 'App_qr.png')
+            caption = "🔗 <b>رابط منصة جوبيني السودان</b>\n\nامسح الرمز ضوئياً للوصول السريع للمنصة، أو شاركه مع أصدقائك لمساعدتهم في رحلة البحث عن عمل! 🇸🇩"
+            if not send_photo(chat_id, qr_path, caption=caption):
+                send_message(chat_id, "🔗 يمكنك زيارة المنصة عبر الرابط: https://jobeni-sd.com")
+
+        # 3. تشغيل المقابلة الذكية
         elif text.startswith("/interview") or "مقابلة" in text:
             user = User.query.filter_by(telegram_id=str(chat_id)).first()
             cv = CV.query.filter_by(user_id=user.id).order_by(CV.created_at.desc()).first() if user else None
@@ -100,47 +117,38 @@ def handle_telegram_webhook(data):
                 "cv_context": cv.extracted_text[:1000] if cv else "خبرة عامة"
             }
 
-            start_prompt = f"أنت الآن مدير توظيف عالمي. رحب بالمرشح {user.username if user else ''} لوظيفة {job_name} واطرح أول سؤال احترافي بناءً على سياق خبرته: {user_sessions[chat_id]['cv_context']}"
+            start_prompt = f"أنت الآن مدير توظيف عالمي. رحب بالمرشح {user.username if user else ''} لوظيفة {job_name} واطرح أول سؤال احترافي."
             ai_q = openrouter_ai.get_ai_response(start_prompt)
             send_message(chat_id, f"🚀 <b>بدء المقابلة الافتراضية</b>\n📌 الوظيفة: {job_name}\n" + "—" * 10 + f"\n\n{ai_q}")
 
-        # 3. إدارة جلسات الحوار النشطة (مقابلة أو دردشة ذكية)
+        # 4. إدارة جلسات الحوار النشطة
         elif chat_id in user_sessions:
             session = user_sessions[chat_id]
             if text.lower() in ["إنهاء", "خروج", "خلاص", "stop", "end"]:
-                send_message(chat_id, "📊 <b>جاري تحليل أدائك بمعايير عالمية...</b>")
-                report_prompt = f"حلل حوار المقابلة هذا:\n{session['history']}\nأعطِ تقييماً من 10 ونقاط قوة وضعف ونصيحة لتطوير المسار المهني بالعربية."
+                send_message(chat_id, "📊 <b>جاري تحليل أدائك...</b>")
+                report_prompt = f"حلل حوار المقابلة هذا:\n{session['history']}\nأعطِ تقييم من 10 بالعربية."
                 final_report = openrouter_ai.get_ai_response(report_prompt)
                 send_message(chat_id, f"✅ <b>التقرير النهائي:</b>\n\n{final_report}")
                 del user_sessions[chat_id]
             else:
                 session['history'].append(f"Candidate: {text}")
-                ai_next_prompt = f"السجل: {session['history']}\nالوظيفة: {session['job']}\nقيم الإجابة تقنياً واطرح السؤال التالي بذكاء."
+                ai_next_prompt = f"السجل: {session['history']}\nالوظيفة: {session['job']}\nقيم الإجابة واطرح السؤال التالي."
                 ai_next_q = openrouter_ai.get_ai_response(ai_next_prompt)
                 session['history'].append(f"AI: {ai_next_q}")
                 send_message(chat_id, ai_next_q)
 
-        # 4. الاستفسارات الشاملة (ذكاء 100% مع ذاكرة الوظائف والسي في)
+        # 5. الاستفسارات العامة
         else:
             user = User.query.filter_by(telegram_id=str(chat_id)).first()
             if user:
-                # جلب سياق المستخدم كاملاً
                 cv = CV.query.filter_by(user_id=user.id).order_by(CV.created_at.desc()).first()
-                last_app = Application.query.filter_by(user_id=user.id).order_by(Application.applied_at.desc()).first()
-                
-                u_context = f"الاسم: {user.full_name}, التخصص: {user.agent_query or 'عام'}. "
-                if cv: u_context += f"سيرة ذاتية: {cv.extracted_text[:1000]}"
-                
-                j_context = "لا توجد وظيفة حالية"
-                if last_app and last_app.job_ref:
-                    j_context = f"آخر وظيفة مهتم بها: {last_app.job_ref.title} في {last_app.job_ref.company_name}. الوصف: {last_app.job_ref.description[:500]}"
-
-                send_message(chat_id, "⏳ <i>جاري تحليل استفسارك بعناية...</i>")
-                agent_response = openrouter_ai.get_expert_omni_response(text, user_context=u_context, job_context=j_context)
+                u_context = f"الاسم: {user.full_name}. " + (f"سيرة: {cv.extracted_text[:500]}" if cv else "")
+                send_message(chat_id, "⏳ <i>جاري التفكير...</i>")
+                agent_response = openrouter_ai.get_expert_omni_response(text, user_context=u_context, job_context="استشارة عامة")
             else:
                 agent_response = openrouter_ai.get_ai_response(f"رد كمساعد ذكي لمنصة جوبيني السودان: {text}")
 
-            help_footer = "\n\n💡 <i>قل 'مقابلة' للتدريب، أو اسألني عن أي مهارة عالمية!</i>"
+            help_footer = "\n\n💡 <i>اكتب /qr للرابط أو 'مقابلة' للتدريب!</i>"
             send_message(chat_id, f"🤖 {agent_response}" + help_footer)
 
 def send_document(chat_id, document_path, caption=None):
