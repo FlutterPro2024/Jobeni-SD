@@ -3,7 +3,7 @@ import requests, os, re, json, time
 from flask import Blueprint, request, jsonify, current_app
 from app.openrouter_ai import openrouter_ai
 
-# توكن البوت
+# توكن البوت (مفعل)
 BOT_TOKEN = "8428928079:AAE9adzjOfMPj3k-WHuzmZc3uDM7KyBw8zA"
 telegram_bp = Blueprint('telegram', __name__)
 
@@ -29,30 +29,30 @@ def send_message(chat_id, text, reply_markup=None):
         return None
 
 def send_photo(chat_id, photo_path, caption=None):
-    """إرسال صور (مثل الـ QR Code)"""
+    """إرسال صور (دعم مسارات محلية وروابط خارجية)"""
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
-    
-    # محاولة إرسال الصورة سواء كانت مساراً محلياً أو رابطاً
     data = {'chat_id': chat_id, 'parse_mode': 'HTML'}
     if caption: data['caption'] = caption
 
+    # إذا كان المسار عبارة عن رابط ويب
     if photo_path.startswith('http'):
         data['photo'] = photo_path
         try:
             res = requests.post(url, data=data, timeout=20)
             return res.json()
         except: return None
-    else:
-        if not os.path.exists(photo_path):
-            return None
-        try:
-            with open(photo_path, 'rb') as photo:
-                files = {'photo': photo}
-                res = requests.post(url, data=data, files=files, timeout=20)
-                return res.json()
-        except Exception as e:
-            print(f"❌ Photo Send Error: {e}")
-            return None
+    
+    # إذا كان مساراً محلياً على السيرفر
+    if not os.path.exists(photo_path):
+        return None
+    try:
+        with open(photo_path, 'rb') as photo:
+            files = {'photo': photo}
+            res = requests.post(url, data=data, files=files, timeout=20)
+            return res.json()
+    except Exception as e:
+        print(f"❌ Photo Send Error: {e}")
+        return None
 
 def notify_new_message(telegram_id, sender_name, job_title, message_body):
     """تنبيه فوري للمستخدم عند استلام رسالة بالمنصة"""
@@ -74,7 +74,7 @@ def telegram_webhook():
     return jsonify({"status": "success"}), 200
 
 def handle_telegram_webhook(data):
-    """معالجة كافة أنواع التفاعلات (نصوص، أوامر، مقابلات، استشارات عالمية)"""
+    """معالجة كافة أنواع التفاعلات"""
     if "message" in data:
         message = data["message"]
         chat_id = message["chat"]["id"]
@@ -83,7 +83,7 @@ def handle_telegram_webhook(data):
 
         from app.models import User, CV, Application, Job, db
 
-        # 1. أمر البداية والربط الذكي
+        # 1. أمر البداية والربط
         if text.startswith("/start"):
             parts = text.split(" ")
             if len(parts) > 1:
@@ -107,13 +107,18 @@ def handle_telegram_webhook(data):
             else:
                 send_message(chat_id, "🤖 أهلاً بك! أنا بوت جوبيني الذكي. يرجى الضغط على 'ربط تليجرام' من داخل المنصة لتفعيل خدماتي.")
 
-        # 2. أمر الـ QR Code (تم إصلاح المسار ليعمل على Vercel)
+        # 2. أمر الـ QR Code (تم تحديث المسارات لتطابق الملفات الحالية)
         elif text.startswith("/qr") or any(word in text for word in ["رابط", "تطبيق", "باركود"]):
-            # نستخدم رابط الأيقونة من الموقع مباشرة لضمان الظهور
-            qr_link = "https://jobeni-sd.vercel.app/static/icon.png"
-            caption = "🔗 <b>رابط منصة جوبيني السودان</b>\n\nامسح الرمز ضوئياً للوصول السريع للمنصة، أو شاركه مع أصدقائك لمساعدتهم في رحلة البحث عن عمل! 🇸🇩\n\n🌐 https://jobeni-sd.vercel.app"
-            if not send_photo(chat_id, qr_link, caption=caption):
-                send_message(chat_id, caption)
+            # المسار المحلي للـ QR في مجلد static
+            qr_path = os.path.join(current_app.root_path, 'static', 'App_qr.png')
+            # رابط احتياطي للأيقونة
+            icon_url = "https://jobeni-sd.vercel.app/static/icon.png"
+            
+            caption = "🔗 <b>رابط منصة جوبيني السودان</b>\n\nامسح الرمز ضوئياً للوصول السريع للمنصة، أو شاركه مع أصدقائك! 🇸🇩\n\n🌐 https://jobeni-sd.vercel.app"
+            
+            # محاولة إرسال الـ QR المحلي، وإذا لم يوجد نرسل الأيقونة من الرابط
+            if not send_photo(chat_id, qr_path, caption=caption):
+                send_photo(chat_id, icon_url, caption=caption)
 
         # 3. تشغيل المقابلة الذكية
         elif text.startswith("/interview") or "مقابلة" in text:
@@ -131,7 +136,7 @@ def handle_telegram_webhook(data):
             ai_q = openrouter_ai.get_ai_response(start_prompt)
             send_message(chat_id, f"🚀 <b>بدء المقابلة الافتراضية</b>\n📌 الوظيفة: {job_name}\n" + "—" * 10 + f"\n\n{ai_q}")
 
-        # 4. إدارة جلسات الحوار النشطة
+        # 4. إدارة جلسات الحوار
         elif chat_id in user_sessions:
             session = user_sessions[chat_id]
             if text.lower() in ["إنهاء", "خروج", "خلاص", "stop", "end"]:
@@ -147,29 +152,26 @@ def handle_telegram_webhook(data):
                 session['history'].append(f"AI: {ai_next_q}")
                 send_message(chat_id, ai_next_q)
 
-        # 5. الاستفسارات العامة (نظام التبادل الذكي)
+        # 5. الاستشارات العامة (نظام التبادل والتحميل)
         else:
             user = User.query.filter_by(telegram_id=str(chat_id)).first()
             u_context = ""
             if user:
                 cv = CV.query.filter_by(user_id=user.id).order_by(CV.created_at.desc()).first()
                 u_context = f"الاسم: {user.full_name}. " + (f"سيرة: {cv.extracted_text[:500]}" if cv else "")
-            
+
             send_message(chat_id, "⏳ <i>جاري التفكير...</i>")
-            
-            # محاولة الرد عبر نظام الـ 100 نموذج
             agent_response = openrouter_ai.get_expert_omni_response(text, user_context=u_context, job_context="استشارة عامة")
-            
-            # إذا فشلت الـ 100 محرك، نقوم بمحاولة أخيرة بتغيير الـ Temperature أو الطلب
+
             if "تحت ضغط شديد" in agent_response:
-                time.sleep(1) # انتظار ثانية واحدة
-                agent_response = openrouter_ai.get_ai_response(f"يا مكنة رد على الزول ده بلهجة سودانية سمحة: {text}")
+                time.sleep(1)
+                agent_response = openrouter_ai.get_ai_response(f"رد بلهجة سودانية كمساعد ذكي لمنصة جوبيني: {text}")
 
             help_footer = "\n\n💡 <i>اكتب /qr للرابط أو 'مقابلة' للتدريب!</i>"
             send_message(chat_id, f"🤖 {agent_response}" + help_footer)
 
 def send_document(chat_id, document_path, caption=None):
-    """إرسال السير الذاتية أو التقارير كملفات"""
+    """إرسال ملفات"""
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
     if not os.path.exists(document_path): return None
     try:
