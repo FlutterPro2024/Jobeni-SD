@@ -18,7 +18,7 @@ def upload_to_imgbb(file):
     api_key = os.environ.get('IMGBB_API_KEY')
     if not api_key:
         return None
-    
+
     url = "https://api.imgbb.com/1/upload"
     try:
         # قراءة محتوى الملف وتحويله لإرساله
@@ -34,12 +34,14 @@ def upload_to_imgbb(file):
 
 @auth_bp.before_app_request
 def update_last_seen():
-    if current_user.is_authenticated:
-        current_user.last_seen = datetime.utcnow()
-        try:
+    # ملاحظة: إذا كانت القاعدة مكسورة، هذا الجزء سيسبب Error 500
+    # لذلك سنقوم بإصلاح القاعدة عبر رابط طوارئ لا يتأثر بهذا الخطأ
+    try:
+        if current_user.is_authenticated:
+            current_user.last_seen = datetime.utcnow()
             db.session.commit()
-        except:
-            db.session.rollback()
+    except Exception:
+        db.session.rollback()
 
 @auth_bp.route('/')
 def index():
@@ -194,6 +196,18 @@ def update_agent_settings():
 def scanner():
     """فتح صفحة الماسح الضوئي للكاميرا"""
     return render_template('scanner.html')
+
+@auth_bp.route('/force_upgrade')
+def force_upgrade():
+    """رابط طوارئ لإضافة العمود المفقود مباشرة لتجاوز خطأ الـ Favicon والـ Login"""
+    try:
+        from sqlalchemy import text
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS cover_photo VARCHAR(200)'))
+        db.session.commit()
+        return "✅ تم إضافة عمود cover_photo بنجاح! يمكنك الآن دخول البروفايل."
+    except Exception as e:
+        db.session.rollback()
+        return f"❌ خطأ في التحديث اليدوي: {str(e)}"
 
 @auth_bp.route('/deploy/upgrade')
 def deploy_upgrade():
