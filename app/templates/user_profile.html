@@ -1,52 +1,140 @@
 {% extends "base.html" %}
-{% block title %}ملف {{ user.username }}{% endblock %}
+{% block title %}ملف {{ user.full_name or user.username }}{% endblock %}
 
 {% block content %}
-<div class="container mt-5 text-end" dir="rtl">
+<style>
+    .profile-cover {
+        height: 200px;
+        background: url('{{ user.get_cover() }}') center/cover no-repeat;
+        border-radius: 20px 20px 0 0;
+    }
+    .profile-avatar-wrapper {
+        margin-top: -60px;
+        position: relative;
+    }
+    .avatar-img {
+        width: 120px;
+        height: 120px;
+        border: 5px solid white;
+        object-fit: cover;
+    }
+    .online-badge {
+        width: 15px;
+        height: 15px;
+        background: #28a745;
+        border: 2px solid white;
+        border-radius: 50%;
+        position: absolute;
+        bottom: 10px;
+        right: 15px;
+    }
+</style>
+
+<div class="container mt-4 text-end" dir="rtl">
     <div class="row justify-content-center">
-        <div class="col-md-9">
-            <div class="card border-0 shadow-sm rounded-4 mb-4">
-                <div class="card-body text-center p-5">
-                    <img src="{{ user.get_avatar() }}"
-                         class="rounded-circle border mb-3 shadow-sm" width="120" height="120" style="object-fit: cover;">
-                    <h3 class="fw-bold mb-1">{{ user.full_name or user.username }}</h3>
-                    <p class="text-primary mb-3">{{ user.headline or 'مهني في جوبيني' }}</p>
+        <div class="col-md-4 order-md-2 mb-4">
+            <div class="card border-0 shadow-sm rounded-4 text-center p-4 sticky-top" style="top: 80px;">
+                <h6 class="fw-bold text-dark mb-3">
+                    <i class="fas fa-qrcode ms-2 text-primary"></i> الهوية الرقمية
+                </h6>
+                <div class="p-3 bg-light rounded-4 border border-dashed mb-3">
+                    <img src="data:image/png;base64,{{ user_qr }}" 
+                         class="img-fluid rounded-3 shadow-sm bg-white p-2" 
+                         alt="QR Code">
+                </div>
+                <p class="small text-muted mb-0">امسح الكود لمشاركة ملف <strong>{{ user.username }}</strong> مع الآخرين.</p>
+                <hr class="my-3">
+                <div class="text-start small">
+                    <p class="mb-1 text-muted"><i class="fas fa-map-marker-alt ms-2"></i> {{ user.location_name or 'السودان' }}</p>
+                    <p class="mb-0 text-muted"><i class="fas fa-phone ms-2 text-success"></i> {{ user.phone or 'غير متوفر' }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8 order-md-1">
+            <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+                <div class="profile-cover"></div>
+                <div class="card-body text-center p-4">
+                    <div class="profile-avatar-wrapper mb-3">
+                        <img src="{{ user.get_avatar() }}" class="rounded-circle avatar-img shadow-sm">
+                        {% if is_online %}
+                            <div class="online-badge" title="متصل الآن"></div>
+                        {% endif %}
+                    </div>
+                    
+                    <h3 class="fw-bold mb-1 text-dark">{{ user.full_name or user.username }}</h3>
+                    <p class="text-primary fw-medium mb-3">{{ user.headline or 'مهني في منصة جوبيني' }}</p>
+                    
+                    {% if user.bio %}
+                        <p class="text-muted px-md-5 mb-4">{{ user.bio }}</p>
+                    {% endif %}
 
                     <div class="d-flex justify-content-center gap-2 mb-4">
                         {% if user != current_user %}
-                            <a href="{{ url_for('chat.open_chat', job_id=0, recipient_id=user.id) }}" class="btn btn-primary rounded-pill px-4">
+                            <a href="{{ url_for('chat.open_chat', job_id=0, recipient_id=user.id) }}" class="btn btn-primary rounded-pill px-4 shadow-sm">
                                 <i class="fas fa-paper-plane ms-1"></i> مراسلة
                             </a>
                             <a href="{{ url_for('community.follow', username=user.username) }}" class="btn btn-outline-primary rounded-pill px-4">
-                                {% if user in current_user.followed %}إلغاء المتابعة{% else %}متابعة{% endif %}
+                                {% if user in current_user.followed %}
+                                    <i class="fas fa-user-minus ms-1"></i> إلغاء المتابعة
+                                {% else %}
+                                    <i class="fas fa-user-plus ms-1"></i> متابعة
+                                {% endif %}
                             </a>
                         {% else %}
-                            <a href="{{ url_for('auth.profile') }}" class="btn btn-light rounded-pill px-4 border">تعديل ملفي الشخصي</a>
+                            <a href="{{ url_for('auth.profile') }}" class="btn btn-light rounded-pill px-4 border shadow-sm">
+                                <i class="fas fa-user-edit ms-1"></i> تعديل ملفي الشخصي
+                            </a>
                         {% endif %}
                     </div>
 
-                    <div class="row border-top pt-4 mt-2">
-                        <div class="col-4"><h6>{{ user.followers.count() }}</h6><small class="text-muted">متابعين</small></div>
-                        <div class="col-4 border-start border-end"><h6>{{ user.followed.count() }}</h6><small class="text-muted">يتابع</small></div>
-                        <div class="col-4"><h6>{{ posts|length }}</h6><small class="text-muted">منشورات</small></div>
+                    <div class="row border-top pt-4">
+                        <div class="col-4">
+                            <h5 class="fw-bold mb-0">{{ user.followers.count() }}</h5>
+                            <small class="text-muted">متابعين</small>
+                        </div>
+                        <div class="col-4 border-start border-end">
+                            <h5 class="fw-bold mb-0">{{ user.followed.count() }}</h5>
+                            <small class="text-muted">يتابع</small>
+                        </div>
+                        <div class="col-4">
+                            <h5 class="fw-bold mb-0">{{ posts|length }}</h5>
+                            <small class="text-muted">منشورات</small>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <h5 class="fw-bold mb-3 text-primary"><i class="fas fa-stream ms-2"></i> منشورات المستخدم</h5>
+            <h5 class="fw-bold mb-3 text-dark d-flex align-items-center">
+                <i class="fas fa-feather-alt ms-2 text-primary"></i> 
+                آخر المشاركات
+            </h5>
+            
             {% for post in posts %}
-                <div class="card border-0 shadow-sm rounded-4 mb-3 text-end">
-                    <div class="card-body">
-                        <small class="text-muted d-block mb-2">{{ post.timestamp.strftime('%Y-%m-%d') }}</small>
-                        <p class="mb-0 fs-5 text-dark">{{ post.body }}</p>
+                <div class="card border-0 shadow-sm rounded-4 mb-3 hover-shadow transition">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <img src="{{ user.get_avatar() }}" class="rounded-circle ms-2" width="40" height="40">
+                            <div>
+                                <h6 class="mb-0 fw-bold">{{ user.full_name or user.username }}</h6>
+                                <small class="text-muted">{{ post.timestamp.strftime('%Y-%m-%d | %I:%M %p') }}</small>
+                            </div>
+                        </div>
+                        <p class="mb-0 fs-5 text-dark" style="line-height: 1.6;">{{ post.body }}</p>
                     </div>
                 </div>
             {% else %}
-                <div class="text-center py-4 bg-white rounded-4 shadow-sm">
-                    <p class="text-muted mb-0">لا توجد منشورات لهذا المستخدم.</p>
+                <div class="text-center py-5 bg-white rounded-4 shadow-sm border border-dashed">
+                    <img src="https://cdn-icons-png.flaticon.com/512/7486/7486744.png" width="60" class="mb-3 opacity-25">
+                    <p class="text-muted mb-0 font-monospace">لا توجد أي منشورات لهذا المستخدم حتى الآن.</p>
                 </div>
             {% endfor %}
         </div>
     </div>
 </div>
+
+<style>
+    .transition { transition: all 0.3s ease; }
+    .hover-shadow:hover { transform: translateY(-5px); shadow: 0 10px 20px rgba(0,0,0,0.1); }
+</style>
 {% endblock %}

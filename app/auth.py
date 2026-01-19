@@ -34,8 +34,7 @@ def upload_to_imgbb(file):
 
 @auth_bp.before_app_request
 def update_last_seen():
-    # ملاحظة: إذا كانت القاعدة مكسورة، هذا الجزء سيسبب Error 500
-    # لذلك سنقوم بإصلاح القاعدة عبر رابط طوارئ لا يتأثر بهذا الخطأ
+    """تحديث آخر ظهور مع معالجة أخطاء قاعدة البيانات المكسورة"""
     try:
         if current_user.is_authenticated:
             current_user.last_seen = datetime.utcnow()
@@ -93,7 +92,7 @@ def register():
 @auth_bp.route('/dashboard')
 @login_required
 def dashboard():
-    """لوحة التحكم - عرض بيانات الرادار والمؤشر المهني"""
+    """لوحة التحكم - عرض بيانات الرادار والمؤشر المهني والـ QR الشخصي"""
     if current_user.role == 'employer':
         jobs = Job.query.filter_by(user_id=current_user.id).all()
         return render_template('dashboard_employer.html', jobs=jobs)
@@ -112,12 +111,12 @@ def dashboard():
         chart_labels = ["البداية", "جاري الفحص"]
         chart_scores = [0, 10]
 
+    # توليد QR Code للـ Dashboard
     user_link = url_for('auth.user_profile', username=current_user.username, _external=True)
     qr = qrcode.QRCode(version=1, box_size=10, border=2)
     qr.add_data(user_link)
     qr.make(fit=True)
     img = qr.make_image(fill_color="black", back_color="white")
-
     buffered = io.BytesIO()
     img.save(buffered, format="PNG")
     user_qr_base64 = base64.b64encode(buffered.getvalue()).decode()
@@ -132,16 +131,35 @@ def dashboard():
 @auth_bp.route('/user/<path:username>')
 @login_required
 def user_profile(username):
+    """عرض الملف الشخصي العام لأي مستخدم مع الـ QR Code الخاص به"""
     user = User.query.filter_by(username=username).first_or_404()
     posts = Post.query.filter_by(user_id=user.id).order_by(Post.timestamp.desc()).all()
+    
     is_online = False
     if user.last_seen:
         is_online = (datetime.utcnow() - user.last_seen).total_seconds() < 300
-    return render_template('user_profile.html', user=user, posts=posts, is_online=is_online)
+
+    # --- ميزة جديدة: توليد QR Code للمستخدم الذي يتم عرضه حالياً ---
+    profile_url = url_for('auth.user_profile', username=user.username, _external=True)
+    qr = qrcode.QRCode(version=1, box_size=10, border=2)
+    qr.add_data(profile_url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    buffered = io.BytesIO()
+    img.save(buffered, format="PNG")
+    user_qr_base64 = base64.b64encode(buffered.getvalue()).decode()
+
+    return render_template('user_profile.html', 
+                           user=user, 
+                           posts=posts, 
+                           is_online=is_online, 
+                           user_qr=user_qr_base64)
 
 @auth_bp.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
+    """تعديل الملف الشخصي ورفع الصور السحابية"""
     if request.method == 'POST':
         # تحديث الحقول النصية
         current_user.full_name = request.form.get('full_name')
@@ -169,7 +187,7 @@ def profile():
         flash('تم تحديث الملف الشخصي والبيانات بنجاح', 'success')
         return redirect(url_for('auth.profile'))
 
-    # توليد الـ QR Code
+    # توليد الـ QR Code للملف الشخصي الخاص
     user_link = url_for('auth.user_profile', username=current_user.username, _external=True)
     qr = qrcode.QRCode(version=1, box_size=10, border=2)
     qr.add_data(user_link)
@@ -211,7 +229,7 @@ def force_upgrade():
 
 @auth_bp.route('/deploy/upgrade')
 def deploy_upgrade():
-    """رابط تحديث قاعدة البيانات من المتصفح مباشرة"""
+    """رابط تحديث قاعدة البيانات عبر Flask-Migrate"""
     try:
         from flask_migrate import upgrade
         upgrade()
