@@ -85,10 +85,11 @@
                             <i class="fas fa-globe ms-1"></i> المصدر: {{ g_job.company }}
                         </p>
                         <p class="text-muted small mb-4 text-truncate-2">{{ g_job.snippet }}</p>
-                        
+
                         <div class="d-grid gap-2">
                             {% if current_user.is_authenticated and current_user.role in ['jobseeker', 'seeker'] %}
-                            <a href="{{ url_for('agent.smart_analyze', title=g_job.title, company=g_job.company) }}" 
+                            {# التعديل هنا: توجيه الزر لصفحة تحليل المهارات الموجودة فعلياً لإنهاء الـ Exception #}
+                            <a href="{{ url_for('search.skill_analysis') }}"
                                class="btn btn-primary rounded-pill btn-sm fw-bold">
                                التقديم عبر الخبير الذكي ✨
                             </a>
@@ -119,16 +120,18 @@
 
     // إضافة علامات للوظائف المحلية فقط مع التحقق من الإحداثيات
     {% for job in jobs %}
-        {% if job.latitude and job.longitude %}
-            var marker = L.marker([{{ job.latitude }}, {{ job.longitude }}]).addTo(map);
-            marker.bindPopup(`
-                <div class="text-end" dir="rtl" style="font-family: 'Segoe UI';">
-                    <strong style="color:#0d6efd;">{{ job.title }}</strong><br>
-                    <span class="small text-muted">{{ job.company_name }}</span><br>
-                    <a href="{{ url_for('jobs.job_detail', job_id=job.id) }}" class="btn btn-sm btn-primary text-white mt-2 w-100" style="font-size:10px;">التفاصيل</a>
-                </div>
-            `);
-            markers.push(marker);
+        {% if job.id and job.title %}
+            {% if job.latitude and job.longitude %}
+                var marker = L.marker([{{ job.latitude }}, {{ job.longitude }}]).addTo(map);
+                marker.bindPopup(`
+                    <div class="text-end" dir="rtl" style="font-family: 'Segoe UI';">
+                        <strong style="color:#0d6efd;">{{ job.title }}</strong><br>
+                        <span class="small text-muted">{{ job.company_name }}</span><br>
+                        <a href="{{ url_for('jobs.job_detail', job_id=job.id) }}" class="btn btn-sm btn-primary text-white mt-2 w-100" style="font-size:10px;">التفاصيل</a>
+                    </div>
+                `);
+                markers.push(marker);
+            {% endif %}
         {% endif %}
     {% endfor %}
 
