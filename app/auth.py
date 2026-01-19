@@ -130,7 +130,19 @@ def profile():
         current_user.phone = request.form.get('phone')
         db.session.commit()
         flash('تم تحديث الملف الشخصي بنجاح', 'success')
-    return render_template('profile.html')
+    
+    # --- إضافة توليد الـ QR Code ليعمل في صفحة الملف الشخصي أيضاً ---
+    user_link = url_for('auth.user_profile', username=current_user.username, _external=True)
+    qr = qrcode.QRCode(version=1, box_size=10, border=2)
+    qr.add_data(user_link)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+
+    buffered = io.BytesIO()
+    img.save(buffered, format="PNG")
+    user_qr_base64 = base64.b64encode(buffered.getvalue()).decode()
+
+    return render_template('profile.html', user_qr=user_qr_base64)
 
 @auth_bp.route('/update_agent_settings', methods=['POST'])
 @login_required
