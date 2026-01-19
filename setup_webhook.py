@@ -2,18 +2,18 @@
 import requests
 import json
 
-# التوكين الرسمي الجديد (تم التحديث)
-TOKEN = "8428928079:AAE9adzjOfMPj3k-WHuzmZc3uDM7KyBw8zA"
+# التوكين الرسمي الجديد والمؤمن (JOBENSDbot)
+TOKEN = "8450110637:AAEMNOzpc8phiBr0Dmjm2UHoEWfKi30Ja_s"
 # رابط الـ Webhook الخاص بمشروعك على Vercel
 WEBHOOK_URL = "https://jobeni-sd.vercel.app/telegram/webhook"
 
 def set_webhook():
-    print(f"🚀 البدء في تنشيط البوت الذكي جوبيني (JOBENISDbot)... ")
+    print(f"🚀 البدء في تنشيط البوت الذكي جوبيني الجديد (JOBENSDbot)... ")
     print(f"📡 الرابط المستهدف: {WEBHOOK_URL}")
     print(f"🔑 التوكين المستخدم يبدأ بـ: {TOKEN[:10]}...")
 
-    # 1. تنظيف أي جلسات معلقة قديمة
-    print("🧹 جاري تنظيف الجلسات السابقة...")
+    # 1. تنظيف أي جلسات معلقة قديمة لضمان أمان البوت الجديد
+    print("🧹 جاري تنظيف الجلسات السابقة وإزالة أي مخلفات اختراق...")
     del_url = f"https://api.telegram.org/bot{TOKEN}/deleteWebhook"
     requests.post(del_url, json={"drop_pending_updates": True})
 
@@ -30,7 +30,7 @@ def set_webhook():
         result = response.json()
 
         if result.get("ok"):
-            print(f"✅ نجاح باهر! تم ربط البوت الجديد بنجاح.")
+            print(f"✅ نجاح باهر! تم ربط البوت الجديد JOBENSDbot بنجاح.")
             print(f"📝 رسالة تليجرام: {result.get('description')}")
         else:
             print(f"❌ فشل الربط!")
@@ -46,7 +46,7 @@ def set_webhook():
             print(f"⏳ الرسائل المنتظرة: {info.get('pending_update_count')}")
             if info.get('last_error_message'):
                 print(f"❗ آخر خطأ مسجل: {info.get('last_error_message')}")
-        
+
     except Exception as e:
         print(f"💥 حدث خطأ غير متوقع: {e}")
 

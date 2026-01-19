@@ -3,8 +3,8 @@ import requests, os, re, json, time
 from flask import Blueprint, request, jsonify, current_app
 from app.openrouter_ai import openrouter_ai
 
-# توكن البوت (مفعل)
-BOT_TOKEN = "8428928079:AAE9adzjOfMPj3k-WHuzmZc3uDM7KyBw8zA"
+# التوكن الجديد والمؤمن (تم التحديث)
+BOT_TOKEN = "8450110637:AAEMNOzpc8phiBr0Dmjm2UHoEWfKi30Ja_s"
 telegram_bp = Blueprint('telegram', __name__)
 
 # مخزن مؤقت لجلسات الذكاء الاصطناعي والمقابلات
@@ -41,7 +41,7 @@ def send_photo(chat_id, photo_path, caption=None):
             res = requests.post(url, data=data, timeout=20)
             return res.json()
         except: return None
-    
+
     # إذا كان مساراً محلياً على السيرفر
     if not os.path.exists(photo_path):
         return None
@@ -107,16 +107,11 @@ def handle_telegram_webhook(data):
             else:
                 send_message(chat_id, "🤖 أهلاً بك! أنا بوت جوبيني الذكي. يرجى الضغط على 'ربط تليجرام' من داخل المنصة لتفعيل خدماتي.")
 
-        # 2. أمر الـ QR Code (تم تحديث المسارات لتطابق الملفات الحالية)
+        # 2. أمر الـ QR Code
         elif text.startswith("/qr") or any(word in text for word in ["رابط", "تطبيق", "باركود"]):
-            # المسار المحلي للـ QR في مجلد static
             qr_path = os.path.join(current_app.root_path, 'static', 'App_qr.png')
-            # رابط احتياطي للأيقونة
             icon_url = "https://jobeni-sd.vercel.app/static/icon.png"
-            
-            caption = "🔗 <b>رابط منصة جوبيني السودان</b>\n\nامسح الرمز ضوئياً للوصول السريع للمنصة، أو شاركه مع أصدقائك! 🇸🇩\n\n🌐 https://jobeni-sd.vercel.app"
-            
-            # محاولة إرسال الـ QR المحلي، وإذا لم يوجد نرسل الأيقونة من الرابط
+            caption = "🔗 <b>رابط منصة جوبيني السودان</b>\n\nامسح الرمز ضوئياً للوصول السريع للمنصة، أو شاركه مع أصدقائك! 🇸🇩\n\n 🌐 https://jobeni-sd.vercel.app"
             if not send_photo(chat_id, qr_path, caption=caption):
                 send_photo(chat_id, icon_url, caption=caption)
 
@@ -152,7 +147,7 @@ def handle_telegram_webhook(data):
                 session['history'].append(f"AI: {ai_next_q}")
                 send_message(chat_id, ai_next_q)
 
-        # 5. الاستشارات العامة (نظام التبادل والتحميل)
+        # 5. الاستشارات العامة
         else:
             user = User.query.filter_by(telegram_id=str(chat_id)).first()
             u_context = ""
@@ -162,7 +157,7 @@ def handle_telegram_webhook(data):
 
             send_message(chat_id, "⏳ <i>جاري التفكير...</i>")
             agent_response = openrouter_ai.get_expert_omni_response(text, user_context=u_context, job_context="استشارة عامة")
-
+            
             if "تحت ضغط شديد" in agent_response:
                 time.sleep(1)
                 agent_response = openrouter_ai.get_ai_response(f"رد بلهجة سودانية كمساعد ذكي لمنصة جوبيني: {text}")
