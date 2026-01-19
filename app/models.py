@@ -3,7 +3,7 @@ from app import db
 from flask_login import UserMixin
 from datetime import datetime
 from flask import url_for
-import uuid  # أضفنا هذا لتوليد مفاتيح QR فريدة
+import uuid
 
 # جدول المتابعين (Many-to-Many)
 followers = db.Table('followers',
@@ -19,7 +19,9 @@ class User(db.Model, UserMixin):
     full_name = db.Column(db.String(100))
     role = db.Column(db.String(20), default='jobseeker')
     phone = db.Column(db.String(20))
-    avatar = db.Column(db.String(200)) 
+    avatar = db.Column(db.String(200))
+    # إضافة حقل صورة الغلاف هنا لضمان الحفظ
+    cover_photo = db.Column(db.String(200)) 
     headline = db.Column(db.String(200))
     bio = db.Column(db.Text)
     location_name = db.Column(db.String(100))
@@ -31,8 +33,8 @@ class User(db.Model, UserMixin):
     agent_enabled = db.Column(db.Boolean, default=False)
     agent_query = db.Column(db.String(200))
     last_agent_run = db.Column(db.DateTime)
-    
-    # حقل الـ QR الفريد (لزيادة الأمان عند المسح)
+
+    # حقل الـ QR الفريد
     qr_code_key = db.Column(db.String(50), unique=True, default=lambda: str(uuid.uuid4())[:8])
 
     # العلاقات (Relationships)
@@ -52,6 +54,14 @@ class User(db.Model, UserMixin):
                 return self.avatar
             return url_for('static', filename='uploads/' + self.avatar)
         return f"https://ui-avatars.com/api/?name={self.username}&background=random&color=fff"
+
+    # دالة جديدة لجلب الغلاف بشكل آمن
+    def get_cover(self):
+        if self.cover_photo:
+            if self.cover_photo.startswith('http'):
+                return self.cover_photo
+            return url_for('static', filename='uploads/' + self.cover_photo)
+        return "https://via.placeholder.com/800x250/0d6efd/ffffff?text=Jobeni+SD"
 
     def ping(self):
         self.last_seen = datetime.utcnow()

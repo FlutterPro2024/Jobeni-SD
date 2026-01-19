@@ -3,103 +3,157 @@
 
 {% block content %}
 <div class="container py-5" dir="rtl">
-    <div class="row g-4">
-        <div class="col-lg-4 text-end">
-            <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden text-center">
-                <div class="card-header bg-primary py-5"></div>
-                <div class="card-body p-4 mt-n5">
-                    <div class="position-relative d-inline-block">
-                        <img src="{{ current_user.get_avatar() }}"
-                             class="rounded-circle border border-white border-4 shadow-sm mb-3 bg-white"
-                             style="width: 120px; height: 120px; object-fit: cover; margin-top: -60px;">
-                    </div>
-                    <h4 class="fw-bold mb-1">{{ current_user.full_name or current_user.username }}</h4>
-                    <p class="text-primary small fw-bold mb-3">{{ current_user.headline or 'عضو مجتمع جوبيني' }}</p>
-                    <div class="row g-2 mt-2">
-                        <div class="col-4">
-                            <div class="p-2 border rounded-3 bg-light">
-                                <h6 class="fw-bold mb-0 text-primary">{{ current_user.followed.count() }}</h6>
-                                <small class="text-muted" style="font-size: 0.7rem;">متابَع</small>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="p-2 border rounded-3 bg-light">
-                                <h6 class="fw-bold mb-0 text-primary">{{ current_user.followers.count() }}</h6>
-                                <small class="text-muted" style="font-size: 0.7rem;">متابِع</small>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="p-2 border rounded-3 bg-light">
-                                <h6 class="fw-bold mb-0 text-primary">{{ current_user.posts.count() }}</h6>
-                                <small class="text-muted" style="font-size: 0.7rem;">منشور</small>
-                            </div>
-                        </div>
+    <form method="POST" enctype="multipart/form-data" id="profileForm">
+        <div class="row g-4">
+            <div class="col-lg-4 text-end">
+                <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden text-center">
+                    <div class="card-header p-0 position-relative" 
+                         style="height: 140px; background: url('{{ current_user.cover_photo or 'https://via.placeholder.com/800x250/0d6efd/ffffff?text=Jobeni+SD' }}') center/cover no-repeat;">
+                        <label for="cover_input" class="btn btn-light btn-sm rounded-circle position-absolute top-0 end-0 m-2 shadow-sm" style="cursor: pointer;" title="تغيير صورة الغلاف">
+                            <i class="fas fa-camera text-primary"></i>
+                        </label>
+                        <input type="file" name="cover_photo" id="cover_input" class="d-none" onchange="previewAndSubmit()">
                     </div>
 
-                    <div class="mt-4 p-3 bg-white rounded-4 border border-dashed shadow-sm">
-                        <h6 class="small fw-bold text-muted mb-3"><i class="fas fa-qrcode ms-1"></i> بطاقة الهوية الذكية</h6>
-                        {% if user_qr %}
-                        <img src="data:image/png;base64,{{ user_qr }}" 
-                             class="img-fluid rounded-3 border p-2 bg-white" 
-                             style="max-width: 140px;" 
-                             alt="User QR Code">
-                        <p class="small text-muted mt-2 mb-0" style="font-size: 0.65rem;">
-                            امسح الكود لمشاركة ملفك الشخصي مع أصحاب العمل
-                        </p>
-                        {% else %}
-                        <p class="small text-danger">جاري تجهيز الكود...</p>
-                        {% endif %}
-                    </div>
-                    </div>
-            </div>
-        </div>
+                    <div class="card-body p-4 mt-n5">
+                        <div class="position-relative d-inline-block">
+                            <img src="{{ current_user.get_avatar() }}"
+                                 class="rounded-circle border border-white border-4 shadow-sm mb-3 bg-white"
+                                 style="width: 120px; height: 120px; object-fit: cover; margin-top: -60px;">
+                            <label for="avatar_input" class="position-absolute bottom-0 end-0 bg-primary text-white rounded-circle p-1 border border-white" 
+                                   style="cursor: pointer; width: 32px; height: 32px;" title="تغيير الصورة الشخصية">
+                                <i class="fas fa-pencil-alt fa-xs"></i>
+                            </label>
+                            <input type="file" name="avatar" id="avatar_input" class="d-none" onchange="previewAndSubmit()">
+                        </div>
 
-        <div class="col-lg-8">
-            <div class="card border-0 shadow-sm rounded-4 text-start">
-                <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
-                    <h5 class="fw-bold mb-0 text-end w-100"><i class="fas fa-user-cog text-primary ms-2"></i> تعديل البيانات الشخصية</h5>
+                        <h4 class="fw-bold mb-1">{{ current_user.full_name or current_user.username }}</h4>
+                        <p class="text-primary small fw-bold mb-3">{{ current_user.headline or 'عضو مجتمع جوبيني' }}</p>
+                        
+                        <div class="row g-2 mt-2">
+                            <div class="col-4">
+                                <div class="p-2 border rounded-3 bg-light">
+                                    <h6 class="fw-bold mb-0 text-primary">{{ current_user.followed.count() }}</h6>
+                                    <small class="text-muted" style="font-size: 0.7rem;">متابَع</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-2 border rounded-3 bg-light">
+                                    <h6 class="fw-bold mb-0 text-primary">{{ current_user.followers.count() }}</h6>
+                                    <small class="text-muted" style="font-size: 0.7rem;">متابِع</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-2 border rounded-3 bg-light">
+                                    <h6 class="fw-bold mb-0 text-primary">{{ current_user.posts.count() }}</h6>
+                                    <small class="text-muted" style="font-size: 0.7rem;">منشور</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 p-3 bg-white rounded-4 border border-dashed shadow-sm">
+                            <h6 class="small fw-bold text-muted mb-3"><i class="fas fa-qrcode ms-1"></i> بطاقة الهوية الذكية</h6>
+                            {% if user_qr %}
+                            <img src="data:image/png;base64,{{ user_qr }}"
+                                 class="img-fluid rounded-3 border p-2 bg-white"
+                                 style="max-width: 140px;"
+                                 alt="User QR Code">
+                            <p class="small text-muted mt-2 mb-0" style="font-size: 0.65rem;">
+                                امسح الكود لمشاركة ملفك الشخصي مع أصحاب العمل
+                            </p>
+                            {% else %}
+                            <p class="small text-danger">جاري تجهيز الكود...</p>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body p-4">
-                    <form method="POST">
+            </div>
+
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm rounded-4 text-start">
+                    <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold mb-0 text-end w-100"><i class="fas fa-user-cog text-primary ms-2"></i> تعديل البيانات الشخصية الاحترافية</h5>
+                    </div>
+                    <div class="card-body p-4">
                         <div class="row g-3">
                             <div class="col-md-6 text-end">
                                 <label class="form-label small fw-bold text-muted">الاسم الكامل</label>
-                                <input type="text" name="full_name" class="form-control rounded-3 bg-light border-0" value="{{ current_user.full_name or '' }}">
+                                <input type="text" name="full_name" class="form-control rounded-3 bg-light border-0" value="{{ current_user.full_name or '' }}" placeholder="أدخل اسمك بالكامل">
                             </div>
                             <div class="col-md-6 text-end">
-                                <label class="form-label small fw-bold text-muted">المسمى الوظيفي</label>
-                                <input type="text" name="headline" class="form-control rounded-3 bg-light border-0" value="{{ current_user.headline or '' }}">
+                                <label class="form-label small fw-bold text-muted">المسمى الوظيفي (Headline)</label>
+                                <input type="text" name="headline" class="form-control rounded-3 bg-light border-0" value="{{ current_user.headline or '' }}" placeholder="مثلاً: مهندس برمجيات | خبير تسويق">
                             </div>
+
+                            <div class="col-md-6 text-end">
+                                <label class="form-label small fw-bold text-muted">رقم الهاتف (WhatsApp)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-0 rounded-start-3"><i class="fas fa-phone-alt text-muted"></i></span>
+                                    <input type="text" name="phone" class="form-control rounded-end-3 bg-light border-0" value="{{ current_user.phone or '' }}" placeholder="+249...">
+                                </div>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <label class="form-label small fw-bold text-muted">الموقع / المدينة</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-0 rounded-start-3"><i class="fas fa-map-marker-alt text-muted"></i></span>
+                                    <input type="text" name="location_name" class="form-control rounded-end-3 bg-light border-0" value="{{ current_user.location_name or '' }}" placeholder="الخرطوم، السودان">
+                                </div>
+                            </div>
+
                             <div class="col-12 text-end">
-                                <label class="form-label small fw-bold text-muted">النبذة (Bio)</label>
-                                <textarea name="bio" class="form-control rounded-3 bg-light border-0" rows="4">{{ current_user.bio or '' }}</textarea>
+                                <label class="form-label small fw-bold text-muted">النبذة التعريفية (Bio)</label>
+                                <textarea name="bio" class="form-control rounded-3 bg-light border-0" rows="4" placeholder="اكتب نبذة مختصرة عن خبراتك وأهدافك المهنية...">{{ current_user.bio or '' }}</textarea>
                             </div>
 
                             <div class="col-12 text-end">
                                 <hr class="my-4">
-                                <label class="form-label small fw-bold text-muted">حالة الاتصال بتليجرام</label>
-                                <div class="p-3 rounded-3 {% if current_user.telegram_id %}bg-success-subtle{% else %}bg-warning-subtle{% endif %} d-flex justify-content-between align-items-center">
+                                <label class="form-label small fw-bold text-muted">تكامل المنصات</label>
+                                <div class="p-3 rounded-4 {% if current_user.telegram_id %}bg-success-subtle{% else %}bg-warning-subtle{% endif %} d-flex justify-content-between align-items-center shadow-sm border-0">
                                     {% if current_user.telegram_id %}
-                                        <span class="text-success fw-bold small"><i class="fas fa-check-circle me-1"></i> حسابك مرتبط برقم تليجرام</span>
-                                        <span class="badge bg-success rounded-pill px-3">متصل بنجاح</span>
+                                        <div class="d-flex align-items-center">
+                                            <i class="fab fa-telegram text-success fs-3 me-3"></i>
+                                            <div>
+                                                <div class="text-success fw-bold small">بوت تليجرام متصل</div>
+                                                <div class="text-muted small" style="font-size: 0.7rem;">ستصلك الإشعارات مباشرة</div>
+                                            </div>
+                                        </div>
+                                        <span class="badge bg-success rounded-pill px-3">نشط</span>
                                     {% else %}
-                                        <span class="text-dark fw-bold small"><i class="fas fa-exclamation-triangle text-warning me-1"></i> لم يتم ربط تليجرام</span>
-                                        <a href="https://t.me/JOBENISDbot?start={{ current_user.id }}" target="_blank" class="btn btn-warning btn-sm rounded-pill px-3 fw-bold">
-                                            <i class="fab fa-telegram me-1"></i> ربط الآن
+                                        <div class="d-flex align-items-center">
+                                            <i class="fab fa-telegram text-warning fs-3 me-3"></i>
+                                            <div class="text-dark fw-bold small">ربط بوت التنبيهات الذكي</div>
+                                        </div>
+                                        <a href="https://t.me/JOBENISDbot?start={{ current_user.id }}" target="_blank" class="btn btn-warning btn-sm rounded-pill px-3 fw-bold shadow-sm">
+                                            ربط الآن
                                         </a>
                                     {% endif %}
                                 </div>
                             </div>
 
                             <div class="col-12 mt-4 text-start">
-                                <button type="submit" class="btn btn-primary px-5 rounded-pill shadow-sm fw-bold">حفظ التغييرات</button>
-                                <a href="{{ url_for('community.index') }}" class="btn btn-light px-4 rounded-pill border ms-2">إلغاء</a>
+                                <button type="submit" class="btn btn-primary px-5 rounded-pill shadow-sm fw-bold border-0" style="background: linear-gradient(45deg, #0d6efd, #004dc7);">حفظ كافة التغييرات</button>
+                                <a href="{{ url_for('community.index') }}" class="btn btn-light px-4 rounded-pill border ms-2 fw-bold text-muted">إلغاء</a>
                             </div>
                         </div>
-                    </form>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    </form>
 </div>
+
+<script>
+    // وظيفة لتحسين تجربة المستخدم: الرفع التلقائي عند اختيار صورة مع إظهار لودر
+    function previewAndSubmit() {
+        Swal.fire({
+            title: 'جاري رفع الصور...',
+            text: 'يتم الآن المعالجة عبر ImgBB السحابي',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        document.getElementById('profileForm').submit();
+    }
+</script>
 {% endblock %}

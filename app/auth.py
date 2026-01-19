@@ -4,6 +4,7 @@ import re
 import base64
 import io
 import qrcode
+import requests
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
@@ -11,6 +12,25 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from app.models import User, Job, CV, Application, db, InterviewReport, Notification, Post
 
 auth_bp = Blueprint('auth', __name__)
+
+def upload_to_imgbb(file):
+    """دالة مساعدة لرفع الصور لـ ImgBB واسترجاع الرابط المباشر"""
+    api_key = os.environ.get('IMGBB_API_KEY')
+    if not api_key:
+        return None
+    
+    url = "https://api.imgbb.com/1/upload"
+    try:
+        # قراءة محتوى الملف وتحويله لإرساله
+        files = {"image": file.read()}
+        params = {"key": api_key}
+        response = requests.post(url, params=params, files=files)
+        data = response.json()
+        if data['status'] == 200:
+            return data['data']['url']
+    except Exception as e:
+        print(f"ImgBB Upload Error: {e}")
+    return None
 
 @auth_bp.before_app_request
 def update_last_seen():
@@ -76,11 +96,9 @@ def dashboard():
         jobs = Job.query.filter_by(user_id=current_user.id).all()
         return render_template('dashboard_employer.html', jobs=jobs)
 
-    # جلب آخر الطلبات (المقترحة والمقدمة)
     recent_apps = Application.query.filter_by(user_id=current_user.id)\
         .order_by(Application.applied_at.desc()).limit(10).all()
 
-    # بناء بيانات الرسم البياني (ATS Performance)
     radar_data = Application.query.filter_by(user_id=current_user.id, status='suggested')\
         .order_by(Application.applied_at.desc()).limit(7).all()
     radar_data.reverse()
@@ -92,7 +110,6 @@ def dashboard():
         chart_labels = ["البداية", "جاري الفحص"]
         chart_scores = [0, 10]
 
-    # توليد الـ QR Code الخاص بالمستخدم
     user_link = url_for('auth.user_profile', username=current_user.username, _external=True)
     qr = qrcode.QRCode(version=1, box_size=10, border=2)
     qr.add_data(user_link)
@@ -124,14 +141,33 @@ def user_profile(username):
 @login_required
 def profile():
     if request.method == 'POST':
+        # تحديث الحقول النصية
         current_user.full_name = request.form.get('full_name')
         current_user.bio = request.form.get('bio')
         current_user.headline = request.form.get('headline')
         current_user.phone = request.form.get('phone')
+        current_user.location_name = request.form.get('location_name')
+
+        # معالجة رفع الصور السحابية عبر ImgBB
+        if 'avatar' in request.files:
+            file = request.files['avatar']
+            if file and file.filename != '':
+                img_url = upload_to_imgbb(file)
+                if img_url:
+                    current_user.avatar = img_url
+
+        if 'cover_photo' in request.files:
+            file = request.files['cover_photo']
+            if file and file.filename != '':
+                cover_url = upload_to_imgbb(file)
+                if cover_url:
+                    current_user.cover_photo = cover_url
+
         db.session.commit()
-        flash('تم تحديث الملف الشخصي بنجاح', 'success')
-    
-    # --- إضافة توليد الـ QR Code ليعمل في صفحة الملف الشخصي أيضاً ---
+        flash('تم تحديث الملف الشخصي والبيانات بنجاح', 'success')
+        return redirect(url_for('auth.profile'))
+
+    # توليد الـ QR Code
     user_link = url_for('auth.user_profile', username=current_user.username, _external=True)
     qr = qrcode.QRCode(version=1, box_size=10, border=2)
     qr.add_data(user_link)
