@@ -1,0 +1,3 @@
+nohup: ignoring input
+🤖 Jobeni Smart Radar is now Polling (Local Termux Mode)...
+📡 البوت شغال حالياً وبراقب في الرسائل والرادار... (Token: 8450110637...)
