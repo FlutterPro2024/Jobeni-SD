@@ -26,3 +26,4 @@ app/static/uploads/cvs/*
 .vscode/
 .idea/
 .env
+.env
