@@ -5,16 +5,21 @@ from datetime import datetime
 import json
 import re
 import random
+import io
 import urllib.parse
 from app.models import User, CV, db, Job, Application
 from app.openrouter_ai import openrouter_ai
 from app.notifications import add_notification
 from app.serper_search import serper_searcher
 from app.telegram_bot import send_message
+# إضافة المكتبات اللازمة للشهادات والـ QR
+from PIL import Image, ImageDraw, ImageFont
+import qrcode
+import requests
 
 agent_bp = Blueprint('agent', __name__)
 
-# مصفوفة بيانات متجر المهارات (Skills Shop Data)
+# مصفوفة بيانات متجر المهارات
 SKILLS_RESOURCES = {
     "Python": {"title": "دورة Python كاملة - Elzero", "url": "https://www.youtube.com/playlist?list=PLDoPjvoNmBAyE_gei5dSy8qeBCSuQxe9z"},
     "Excel": {"title": "احترف الإكسيل - نضال الشامي", "url": "https://www.youtube.com/playlist?list=PL0fndWZpS87H97LzCIn6z09T_S9kSInw_"},
@@ -25,170 +30,165 @@ SKILLS_RESOURCES = {
 }
 
 class JobeniAgent:
+    
+    @staticmethod
+    def create_qr_code(link="https://jobeni-sudan.com"):
+        """توليد QR Code للمنصة"""
+        qr = qrcode.QRCode(version=1, box_size=10, border=5)
+        qr.add_data(link)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        img_byte_arr = io.BytesIO()
+        img.save(img_byte_arr, format='PNG')
+        img_byte_arr.seek(0)
+        return img_byte_arr
+
+    @staticmethod
+    def create_certificate_image(user_name, evaluation_text):
+        """توليد صورة شهادة احترافية (Certified)"""
+        try:
+            width, height = 800, 1100
+            img = Image.new('RGB', (width, height), color=(255, 255, 255))
+            draw = ImageDraw.Draw(img)
+            
+            # إطار فخم
+            draw.rectangle([20, 20, 780, 1080], outline=(0, 51, 102), width=15)
+            draw.rectangle([35, 35, 765, 1065], outline=(218, 165, 32), width=3)
+            
+            # العناوين
+            draw.text((220, 80), "JOBENI SUDAN - OFFICIAL CERTIFICATE", fill=(0, 51, 102))
+            draw.text((60, 180), f"Candidate: {user_name}", fill=(0, 0, 0))
+            
+            # محتوى التقييم
+            margin, offset = 60, 250
+            for line in evaluation_text.split('\n'):
+                if offset > 950: break
+                draw.text((margin, offset), line, fill=(0, 0, 0))
+                offset += 35
+                
+            # الختم والـ QR الصغير في ركن الشهادة
+            qr_small = JobeniAgent.create_qr_code(f"https://jobeni-sudan.com/verify/{user_name}")
+            qr_img = Image.open(qr_small).resize((100, 100))
+            img.paste(qr_img, (650, 930))
+
+            img_byte_arr = io.BytesIO()
+            img.save(img_byte_arr, format='PNG')
+            img_byte_arr.seek(0)
+            return img_byte_arr
+        except Exception as e:
+            print(f"Error drawing certificate: {e}")
+            return None
+
     @staticmethod
     def calculate_match_percentage(cv_text, job_title, job_desc):
-        """تحليل ذكي عميق للمطابقة بين السي في والوظيفة باستخدام AI"""
+        """تحليل ذكي عميق للمطابقة بين السي في والوظيفة"""
         prompt = f"""
-        Act as an Expert AI Recruiter.
-        Compare this CV with the Job Details.
-        Job Title: {job_title}
-        Description: {job_desc[:500]}
-        CV Content: {cv_text[:1200]}
-
-        Return ONLY a JSON object:
-        {{
-            "percentage": 0-100,
-            "missing": "أهم المهارات الناقصة بالعربية (فقط أسماء مهارات)",
-            "action": "نصيحة ذهبية للمرشح بالعربية",
-            "is_fit": true/false
-        }}
+        Act as an Expert AI Recruiter. Compare this CV with Job Details.
+        Job: {job_title} | CV: {cv_text[:1200]}
+        Return ONLY JSON: {{"percentage": 0-100, "missing": "skills", "action": "advice", "is_fit": bool}}
         """
         try:
             res = openrouter_ai.get_ai_response(prompt, temperature=0.1)
-            if "تحت ضغط شديد" in res:
-                return {"percentage": 70, "missing": "Skills", "action": "الوكيل يرى أن تخصصك مناسب، قدم الآن!"}
-
             match = re.search(r'\{.*\}', res, re.DOTALL)
-            if match:
-                return json.loads(match.group())
+            if match: return json.loads(match.group())
             return {"percentage": 65, "missing": "مهارات تقنية", "action": "حدث سيرتك لتناسب الوصف"}
-        except:
-            return {"percentage": 50, "missing": "تعذر التحليل", "action": "راجع المتطلبات يدوياً"}
+        except: return {"percentage": 50, "missing": "تعذر التحليل", "action": "راجع المتطلبات يدوياً"}
 
     @staticmethod
     def get_skill_suggestions(missing_text):
-        """مطابقة المهارات الناقصة مع روابط متجر المهارات"""
         suggestions = []
         for skill, data in SKILLS_RESOURCES.items():
             if skill.lower() in missing_text.lower():
                 suggestions.append(data)
-        return suggestions[:2] # نكتفي بأهم اقتراحين
+        return suggestions[:2]
 
     @staticmethod
     def generate_professional_cover_letter(cv_text, job_title, company):
-        """توليد خطاب تغطية احترافي مخصص"""
-        prompt = f"""
-        Write a professional Cover Letter (English) for:
-        Job: {job_title} | Company: {company}
-        Based on this CV: {cv_text[:1500]}
-        Keep it concise, powerful, and ATS-friendly.
-        """
+        prompt = f"Write a professional ATS-friendly Cover Letter for {job_title} at {company} based on: {cv_text[:1500]}"
         return openrouter_ai.get_ai_response(prompt, temperature=0.7)
+
+# --- Routes ---
+
+@agent_bp.route('/get-my-certificate')
+@login_required
+def get_certificate():
+    """توليد وإرسال الشهادة للمستخدم عبر تليجرام"""
+    if not current_user.telegram_id:
+        flash("يرجى ربط حساب تليجرام أولاً.", "warning")
+        return redirect(url_for('auth.dashboard'))
+    
+    evaluation = current_user.last_evaluation or "تقييم أولي: مهاراتك ممتازة وجاري تحليلها بعمق."
+    cert_img = JobeniAgent.create_certificate_image(current_user.username, evaluation)
+    
+    if cert_img:
+        # إرسال الصورة عبر تليجرام (نستخدم التوكن مباشرة للتبسيط هنا)
+        BOT_TOKEN = "8450110637:AAEMNOzpc8phiBr0Dmjm2UHoEWfKi30Ja_s"
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
+        files = {'photo': ('certified.png', cert_img, 'image/png')}
+        requests.post(url, data={'chat_id': current_user.telegram_id, 'caption': "📜 شهادة اعتمادك من جوبيني"}, files=files)
+        flash("تم إرسال الشهادة إلى حسابك في تليجرام!", "success")
+    return redirect(url_for('auth.dashboard'))
 
 @agent_bp.route('/toggle-agent', methods=['POST', 'GET'])
 @login_required
 def toggle_agent():
-    """تفعيل أو إيقاف الوكيل الذكي"""
-    try:
-        current_user.agent_enabled = not current_user.agent_enabled
-        db.session.commit()
-        status = "تفعيل" if current_user.agent_enabled else "إيقاف"
-        add_notification(current_user.id, f"الوكيل الذكي: {status}", f"تم {status} رادار الوظائف بنجاح.", "info")
-        flash(f"تم {status} الوكيل بنجاح.", "success")
-    except:
-        db.session.rollback()
-        flash("خطأ في تغيير الحالة.", "danger")
+    current_user.agent_enabled = not current_user.agent_enabled
+    db.session.commit()
+    status = "تفعيل" if current_user.agent_enabled else "إيقاف"
+    add_notification(current_user.id, f"الوكيل الذكي: {status}", f"تم {status} رادار الوظائف.", "info")
     return redirect(url_for('auth.dashboard'))
 
 @agent_bp.route('/run-jobs-agent')
 def run_agent():
-    """تشغيل الوكيل كـ 'رادار عالمي' (20 وظيفة: السودان + الخليج + عالمي)"""
+    """تشغيل الوكيل كـ 'رادار عالمي'"""
     try:
         user = User.query.filter_by(agent_enabled=True).order_by(db.func.random()).first()
-        if not user:
-            return "No active agents found.", 200
+        if not user: return "No active agents.", 200
 
         cv = CV.query.filter_by(user_id=user.id).order_by(CV.created_at.desc()).first()
-        if not cv:
-            return f"User {user.username} has no CV.", 200
+        if not cv: return f"No CV for {user.username}.", 200      
 
         profession = user.agent_query or cv.profession or "وظائف احترافية"
-
-        search_queries = [
-            f"{profession} jobs remote worldwide",
-            f"{profession} jobs in UAE Saudi Arabia Qatar",
-            f"{profession} jobs in Sudan"
-        ]
+        search_queries = [f"{profession} jobs worldwide", f"{profession} jobs in Sudan"]
 
         all_found_jobs = []
         for query in search_queries:
             search_results = serper_searcher.search_jobs(query)
             all_found_jobs.extend(search_results.get('jobs', []))
 
-        unique_jobs = {j['link']: j for j in all_found_jobs}.values()
-        target_jobs = list(unique_jobs)[:20]
-
+        target_jobs = list({j['link']: j for j in all_found_jobs}.values())[:20]
         processed_count = 0
-        rtl_char = "\u200f" 
 
         for j in target_jobs:
             job_obj = Job.query.filter_by(title=j['title'], company_name=j['company']).first()
             if not job_obj:
-                job_location = j.get('location', 'Global/Remote')
-                job_obj = Job(
-                    title=j['title'],
-                    company_name=j['company'],
-                    location=job_location,
-                    description=f"مصدر الوظيفة: {j['link']}"
-                )
+                job_obj = Job(title=j['title'], company_name=j['company'], location=j.get('location', 'Remote'), description=f"Link: {j['link']}")
                 db.session.add(job_obj)
                 db.session.flush()
 
-            existing_app = Application.query.filter_by(user_id=user.id, job_id=job_obj.id).first()
-            if not existing_app:
+            if not Application.query.filter_by(user_id=user.id, job_id=job_obj.id).first():
                 match = JobeniAgent.calculate_match_percentage(cv.extracted_text, j['title'], j['company'])
-                
-                # جلب اقتراحات متجر المهارات بناءً على النواقص
                 skill_suggestions = JobeniAgent.get_skill_suggestions(match.get('missing', ''))
 
-                new_app = Application(
-                    user_id=user.id,
-                    job_id=job_obj.id,
-                    status='suggested',
+                db.session.add(Application(
+                    user_id=user.id, job_id=job_obj.id, status='suggested',
                     match_score=match.get('percentage', 60),
-                    match_explanation=f"نواقص: {match.get('missing')} | نصيحة: {match.get('action')}",
-                    applied_at=datetime.utcnow()
-                )
-                db.session.add(new_app)
-                processed_count += 1
-
+                    match_explanation=f"نقص: {match.get('missing')}", applied_at=datetime.utcnow()
+                ))
+                processed_count += 1                            
+                
+                # إرسال للتلجرام مع زر الـ QR للمنصة
                 if user.telegram_id and processed_count <= 5:
-                    flag = "🇸🇩" if "Sudan" in job_obj.location else "🌎"
-                    job_msg = (
-                        f"{rtl_char}🎯 <b>فرصة عمل {flag}: {j['title']}</b>\n"
-                        f"🏢 <b>الشركة:</b> {j['company']}\n"
-                        f"📍 <b>الموقع:</b> {job_obj.location}\n"
-                        f"📊 <b>المطابقة:</b> {match.get('percentage')}%\n"
-                        f"💡 <b>نصيحة:</b> {match.get('action')}\n\n"
-                        f"🛒 <b>مقترح لرفع مهاراتك:</b>"
-                    )
-                    
-                    # بناء الأزرار (رابط التقديم + روابط متجر المهارات)
-                    inline_kb = [[{"text": "🔗 التقديم الآن", "url": j['link']}]]
-                    
-                    for suggestion in skill_suggestions:
-                        inline_kb.append([{"text": f"📚 {suggestion['title']}", "url": suggestion['url']}])
-                    
-                    inline_kb.append([{"text": "📄 لوحة التحكم", "url": f"https://jobeni-sd.vercel.app/dashboard"}])
-                    
-                    keyboard = {"inline_keyboard": inline_kb}
-                    send_message(user.telegram_id, job_msg, reply_markup=keyboard)
-
-        if user.telegram_id and processed_count > 5:
-            send_message(user.telegram_id, f"✅ تم العثور على {processed_count - 5} وظائف إضافية تناسبك. راجع لوحة التحكم!")
+                    job_msg = f"🎯 <b>فرصة عمل: {j['title']}</b>\n🏢 {j['company']}\n📊 المطابقة: {match.get('percentage')}%"
+                    inline_kb = [[{"text": "🔗 تقديم", "url": j['link']}]]
+                    # إضافة زر الـ QR Code
+                    inline_kb.append([{"text": "📱 QR المنصة", "url": "https://jobeni-sudan.com"}])
+                    send_message(user.telegram_id, job_msg, reply_markup={"inline_keyboard": inline_kb})
 
         user.last_agent_run = datetime.utcnow()
         db.session.commit()
-        return f"Done: Processed {processed_count} jobs for {user.username}.", 200
-
+        return f"Processed {processed_count} jobs.", 200
     except Exception as e:
         db.session.rollback()
-        return f"Agent Error: {str(e)}", 500
+        return str(e), 500
 
-@agent_bp.route('/generate-cover-letter/<int:cv_id>/<string:job_title>')
-@login_required
-def generate_cover_letter_view(cv_id, job_title):
-    cv = CV.query.get_or_404(cv_id)
-    if cv.user_id != current_user.id: abort(403)
-    letter = JobeniAgent.generate_professional_cover_letter(cv.extracted_text, job_title, "الجهة الموظفة")
-    return jsonify({"cover_letter": letter})
