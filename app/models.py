@@ -21,7 +21,7 @@ class User(db.Model, UserMixin):
     phone = db.Column(db.String(20))
     avatar = db.Column(db.String(200))
     # إضافة حقل صورة الغلاف هنا لضمان الحفظ
-    cover_photo = db.Column(db.String(200)) 
+    cover_photo = db.Column(db.String(200))
     headline = db.Column(db.String(200))
     bio = db.Column(db.Text)
     location_name = db.Column(db.String(100))
@@ -33,6 +33,9 @@ class User(db.Model, UserMixin):
     agent_enabled = db.Column(db.Boolean, default=False)
     agent_query = db.Column(db.String(200))
     last_agent_run = db.Column(db.DateTime)
+    
+    # الحقل الذي كان مفقوداً وسبب الخطأ في الـ Webhook
+    last_evaluation = db.Column(db.Text)
 
     # حقل الـ QR الفريد
     qr_code_key = db.Column(db.String(50), unique=True, default=lambda: str(uuid.uuid4())[:8])
