@@ -59,7 +59,7 @@ def convert_voice_to_text(file_id):
         file_path = file_info['result']['file_path']
         file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
         audio_content = requests.get(file_url, timeout=60, verify=False).content
-        
+
         # محاولة استخدام Google Recognition كخيار أساسي في تيرمكس
         return fallback_google_recognition(audio_content)
     except: return "⚠️ خطأ في معالجة الصوت"
@@ -110,11 +110,10 @@ def process_logic(chat_id, text):
                     send_message(chat_id, f"✅ <b>تم الربط بنجاح يا {user.username}!</b>\nأرسل /interview للمقابلة.")
                 else: send_message(chat_id, "❌ حساب غير موجود.")
             except: send_message(chat_id, "⚠️ خطأ في الربط.")
-        else: 
+        else:
             send_message(chat_id, "🤖 أهلاً بك في جوبيني! منصتك للتوظيف الذكي.\nأرسل /interview للمقابلة أو /qr لرابط المنصة.")
 
     elif text.startswith("/qr"):
-        # تحديث الرابط هنا ليكون رابط Vercel الصحيح
         qr_img = JobeniAgent.create_qr_code("https://jobeni-sd.vercel.app")
         send_photo(chat_id, qr_img, "🔗 رابط منصة جوبيني السودان المعتمد")
 
@@ -122,19 +121,18 @@ def process_logic(chat_id, text):
         user = User.query.filter_by(telegram_id=str(chat_id)).first()
         if user and user.last_evaluation:
             send_message(chat_id, "⏳ جاري استخراج شهادتك الموثقة...")
-            # استخدام الاسم الكامل في الشهادة
             display_name = user.full_name or user.username
             cert_img = JobeniAgent.create_certificate_image(display_name, user.last_evaluation)
             send_photo(chat_id, cert_img, f"📜 شهادة اعتماد جوبيني الرقمية\nللمستخدم: {display_name}")
-        else: 
+        else:
             send_message(chat_id, "⚠️ لا توجد شهادة محفوظة. يرجى إكمال مقابلة أولاً عبر /interview")
 
     # 2. نظام المقابلات
     elif text.startswith("/interview") or "مقابلة" in text:
         user = User.query.filter_by(telegram_id=str(chat_id)).first()
-        job = user.agent_query if (user and user.agent_query) else "مهندس حلول سحابية"
+        job = user.agent_query if (user and user.agent_query) else "Cloud Solutions Architect"
         user_sessions[chat_id] = {"mode": "interview", "job": job, "history": []}
-        ai_q = openrouter_ai.get_ai_response(f"ابدأ مقابلة لـ {job} بسؤال واحد فني.")
+        ai_q = openrouter_ai.get_ai_response(f"ابدأ مقابلة لـ {job} بسؤال واحد فني باللغة العربية.")
         send_message(chat_id, f"🎙️ <b>بدأت المقابلة: {job}</b>\n\n{ai_q}")
         send_voice_response(chat_id, ai_q)
 
@@ -143,9 +141,10 @@ def process_logic(chat_id, text):
         session = user_sessions[chat_id]
         if any(x in text for x in ["خلاص", "إنهاء", "تم", "انتهيت"]):
             send_message(chat_id, "🏁 جاري تقييم أدائك وتوليد التقرير النهائي...")
-            cert_prompt = f"بناءً على هذه المقابلة لـ {session['job']}, اكتب تقييماً فنياً مختصراً بالإنجليزية لشهادة الخبرة: {session['history']}"
+            # إجبار الـ AI على الصيغة الاحترافية للشهادة
+            cert_prompt = f"Analyze this interview for {session['job']}: {session['history']}. Provide a professional assessment in English starting with 'Expert Technical Assessment:' followed by 3 key strengths and a conclusion."
             certificate = openrouter_ai.get_ai_response(cert_prompt)
-            
+
             user = User.query.filter_by(telegram_id=str(chat_id)).first()
             if user:
                 user.last_evaluation = certificate
@@ -156,7 +155,7 @@ def process_logic(chat_id, text):
             del user_sessions[chat_id]
         else:
             session['history'].append(f"User: {text}")
-            ai_next = openrouter_ai.get_ai_response(f"رد المرشح: {text}. قيم الرد باختصار ثم اسأل السؤال الفني التالي.")
+            ai_next = openrouter_ai.get_ai_response(f"رد المرشح: {text}. قيم الرد باختصار باللغة العربية ثم اسأل السؤال الفني التالي.")
             send_message(chat_id, ai_next)
             send_voice_response(chat_id, ai_next)
 
