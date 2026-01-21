@@ -8,6 +8,10 @@
   ],
   "routes": [
     {
+      "src": "/telegram/webhook",
+      "dest": "run.py"
+    },
+    {
       "src": "/(.*)",
       "dest": "run.py"
     }
