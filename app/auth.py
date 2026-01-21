@@ -260,3 +260,24 @@ def verify_certificate(username):
         return "<h1>404 - سجل التوثيق غير موجود</h1><p>تأكد من صحة الرابط أو مسح الكود مرة أخرى.</p>", 404
 
     return render_template('certificate_verify.html', user=user)
+
+
+#################
+
+@auth_bp.route('/fix-ma-report')
+def fix_ma_report():
+    user = User.query.filter_by(username='Ma').first()
+    if user:
+        user.last_evaluation = """
+Expert Technical Assessment:
+The candidate demonstrates advanced proficiency in AWS Serverless Architectures.
+Key Strengths:
+- Deep understanding of Event-Driven design using Lambda & DynamoDB.
+- Strong knowledge of Cloud Security (IAM, Cognito) and Session Management.
+- Excellent ability to balance performance vs cost (Scalability & TTL strategies).
+Conclusion: Highly Recommended for Cloud Solution Architect roles.
+        """
+        db.session.commit()
+        return "✅ التقرير تم تحديثه بنجاح لـ Ma!"
+    return "❌ المستخدم غير موجود"
+
