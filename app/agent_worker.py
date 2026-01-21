@@ -4,7 +4,6 @@ from flask_login import login_required, current_user
 from datetime import datetime
 import json
 import re
-import random
 import io
 import textwrap
 import urllib.parse
@@ -13,7 +12,6 @@ from app.openrouter_ai import openrouter_ai
 from app.notifications import add_notification
 from app.serper_search import serper_searcher
 from app.telegram_bot import send_message
-# إضافة المكتبات اللازمة للشهادات والـ QR
 from PIL import Image, ImageDraw, ImageFont
 import qrcode
 import requests
@@ -56,36 +54,40 @@ class JobeniAgent:
             draw.rectangle([20, 20, 780, 1080], outline=(0, 51, 102), width=15)
             draw.rectangle([35, 35, 765, 1065], outline=(218, 165, 32), width=3)
 
-            # استخدام الخط الافتراضي (لضمان العمل على سيرفرات Vercel)
-            font_default = ImageFont.load_default()
-
-            # العناوين (English Only لضمان المظهر الرسمي)
+            # العناوين
             draw.text((200, 80), "JOBENI SUDAN - OFFICIAL CERTIFICATE", fill=(0, 51, 102))
             draw.text((60, 180), f"Candidate Name: {user_name}", fill=(0, 0, 0))
             draw.text((60, 210), "Status: AI Verified Expert", fill=(0, 102, 0))
 
-            # رسم خط فاصل ذهبي
+            # خط فاصل ذهبي
             draw.line((60, 240, 740, 240), fill=(218, 165, 32), width=2)
 
-            # نص التوثيق الأساسي
-            clean_text = (f"Verification Summary: This candidate has successfully cleared the Jobeni AI Interview. "
-                         f"The assessment shows high proficiency in technical standards and industry-ready skills.")
+            # تنظيف نص التقييم: إذا كان "الخرمجة" القديمة، نستخدم نصاً احترافياً
+            if "provide the following" in evaluation_text.lower() or len(evaluation_text) < 20:
+                display_eval = ("Verification Summary: This candidate has cleared the Jobeni AI Interview.\n"
+                                "Demonstrated proficiency in Cloud Infrastructure and Industry Standards.")
+            else:
+                display_eval = evaluation_text
 
-            # توزيع النص بشكل آلي داخل الشهادة
+            # توزيع النص داخل الشهادة
             margin, offset = 60, 280
-            wrapped_text = textwrap.wrap(clean_text, width=70)
-            for line in wrapped_text:
-                if offset > 900: break
-                draw.text((margin, offset), line, fill=(0, 0, 0))
-                offset += 30
+            # تقسيم النص بناءً على السطور الموجودة أولاً
+            lines = display_eval.split('\n')
+            for line in lines:
+                wrapped_lines = textwrap.wrap(line, width=70)
+                for w_line in wrapped_lines:
+                    if offset > 850: break
+                    draw.text((margin, offset), w_line, fill=(0, 0, 0))
+                    offset += 25
+                offset += 10 # مسافة إضافية بين الفقرات
 
-            # إضافة ملاحظة تخزين البيانات سحابياً
-            draw.text((60, offset + 40), "Detailed evaluation is securely stored on Jobeni-SD Cloud.", fill=(100, 100, 100))
+            # ملاحظة التخزين السحابي
+            draw.text((60, 880), "Detailed evaluation is securely stored on Jobeni-SD Cloud.", fill=(100, 100, 100))
 
-            # كيو أر التوثيق (Verification QR) - يوجه لصفحة التوثيق العامة
+            # كيو أر التوثيق (Verification QR)
             safe_name = urllib.parse.quote(user_name.replace(" ", "_"))
             verify_url = f"https://jobeni-sd.vercel.app/verify/{safe_name}"
-            
+
             qr_small_buf = JobeniAgent.create_qr_code(verify_url)
             qr_img = Image.open(qr_small_buf).resize((130, 130))
             img.paste(qr_img, (620, 900))
@@ -124,7 +126,7 @@ class JobeniAgent:
                 suggestions.append(data)
         return suggestions[:2]
 
-# --- Routes (المسارات) ---
+# --- Routes ---
 
 @agent_bp.route('/get-my-certificate')
 @login_required
@@ -134,9 +136,8 @@ def get_certificate():
         flash("يرجى ربط حساب تليجرام أولاً من لوحة التحكم لتلقي الشهادة.", "warning")
         return redirect(url_for('auth.dashboard'))
 
-    # استخدام الاسم الكامل (أو اسم المستخدم إذا لم يتوفر)
     display_name = current_user.full_name or current_user.username
-    evaluation = current_user.last_evaluation or "AI Interview Evaluation Complete."
+    evaluation = current_user.last_evaluation or ""
 
     cert_img = JobeniAgent.create_certificate_image(display_name, evaluation)
 
@@ -144,9 +145,7 @@ def get_certificate():
         BOT_TOKEN = "8450110637:AAEMNOzpc8phiBr0Dmjm2UHoEWfKi30Ja_s"
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
         files = {'photo': ('jobeni_certified.png', cert_img, 'image/png')}
-        
         caption = f"📜 تهانينا {display_name}!\nلقد تم إصدار شهادتك الرسمية الموثقة من جوبيني بنجاح.\n\nيمكن لأصحاب العمل مسح الكود للتأكد من صحة بياناتك."
-        
         try:
             requests.post(url, data={'chat_id': current_user.telegram_id, 'caption': caption}, files=files, verify=False)
             flash("تم إرسال الشهادة الموثقة إلى حسابك في تليجرام بنجاح!", "success")
@@ -154,13 +153,11 @@ def get_certificate():
             flash(f"حدث خطأ أثناء الإرسال: {str(e)}", "danger")
     else:
         flash("حدث خطأ أثناء توليد الشهادة، حاول مرة أخرى.", "danger")
-
     return redirect(url_for('auth.dashboard'))
 
 @agent_bp.route('/toggle-agent', methods=['POST', 'GET'])
 @login_required
 def toggle_agent():
-    """تفعيل أو إيقاف الوكيل الذكي (الرادار)"""
     current_user.agent_enabled = not current_user.agent_enabled
     db.session.commit()
     status = "تفعيل" if current_user.agent_enabled else "إيقاف"
@@ -171,7 +168,6 @@ def toggle_agent():
 def run_agent():
     """تشغيل الوكيل كـ 'رادار عالمي' لجلب وظائف حقيقية ومطابقتها"""
     try:
-        # اختيار مستخدم عشوائي مفعّل لديه الوكيل لتشغيل الرادار له
         user = User.query.filter_by(agent_enabled=True).order_by(db.func.random()).first()
         if not user: return "No active agents found.", 200
 
@@ -186,12 +182,9 @@ def run_agent():
             search_results = serper_searcher.search_jobs(query)
             all_found_jobs.extend(search_results.get('jobs', []))
 
-        # إزالة التكرار وأخذ أفضل 15 وظيفة فريدة
         target_jobs = list({j['link']: j for j in all_found_jobs}.values())[:15]
         processed_count = 0
-
         for j in target_jobs:
-            # التحقق مما إذا كانت الوظيفة موجودة مسبقاً في قاعدة بياناتنا
             job_obj = Job.query.filter_by(title=j['title'], company_name=j['company']).first()
             if not job_obj:
                 job_obj = Job(
@@ -203,10 +196,8 @@ def run_agent():
                 db.session.add(job_obj)
                 db.session.flush()
 
-            # التحقق مما إذا كان المستخدم قد تم ترشيحه لهذه الوظيفة مسبقاً
             if not Application.query.filter_by(user_id=user.id, job_id=job_obj.id).first():
                 match = JobeniAgent.calculate_match_percentage(cv.extracted_text, j['title'], j['company'])
-                
                 db.session.add(Application(
                     user_id=user.id, job_id=job_obj.id, status='suggested',
                     match_score=match.get('percentage', 60),
@@ -215,13 +206,11 @@ def run_agent():
                 ))
                 processed_count += 1
 
-                # إرسال تنبيه فوري عبر تليجرام لأفضل 5 وظائف مطابقة
                 if user.telegram_id and processed_count <= 5:
                     job_msg = (f"🎯 <b>فرصة عمل جديدة وجدها الرادار:</b>\n\n"
                                f"🔹 <b>الوظيفة:</b> {j['title']}\n"
                                f"🏢 <b>الشركة:</b> {j['company']}\n"
                                f"📊 <b>نسبة المطابقة:</b> {match.get('percentage', 0)}%")
-
                     inline_kb = [
                         [{"text": "🔗 عرض وتفاصيل الوظيفة", "url": j['link']}],
                         [{"text": "📱 لوحة تحكم جوبيني", "url": "https://jobeni-sd.vercel.app"}]
