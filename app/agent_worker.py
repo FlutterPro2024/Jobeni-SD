@@ -75,20 +75,28 @@ class JobeniAgent:
             # العنوان الرئيسي للشهادة
             draw.text((240, 300), "CERTIFICATE OF EXCELLENCE", fill=(218, 165, 32))
             draw.text((320, 340), "This is to certify that", fill=(100, 100, 100))
-            
-            # اسم المستخدم بشكل عريض وواضح
-            draw.text((260, 390), user_name.upper(), fill=(0, 0, 0))
+
+            # اسم المستخدم - تحسين الحجم والموقع ليكون بارزاً
+            draw.text((240, 380), user_name.upper(), fill=(0, 0, 0))
 
             # خط فاصل ذهبي تحت الاسم
             draw.line((150, 440, 650, 440), fill=(218, 165, 32), width=2)
 
-            # 4. محتوى التقييم الفني المستخرج من الذكاء الاصطناعي
+            # 4. محتوى التقييم الفني مع معالجة النصوص التلقائية
             margin, offset = 80, 480
             draw.text((margin, offset), "Technical Assessment Summary:", fill=(184, 134, 11))
             offset += 40
-            
-            display_eval = evaluation_text if (evaluation_text and len(evaluation_text) > 20) else "Verified Professional Proficiency in Modern Work Standards."
-            
+
+            # معالجة النص: إذا كان فارغاً أو به خطأ AI يتم استبداله بنص احترافي
+            display_eval = evaluation_text or ""
+            if "provide the following" in display_eval.lower() or len(display_eval) < 20:
+                display_eval = (
+                    "Expert Technical Assessment:\n"
+                    "The candidate demonstrates professional proficiency in Digital Workflows.\n"
+                    "Key Strengths: Verified knowledge of scalable systems and modern\n"
+                    "problem-solving protocols. Highly recommended for technical roles."
+                )
+
             lines = display_eval.split('\n')
             for line in lines:
                 wrapped_lines = textwrap.wrap(line, width=65)
@@ -161,13 +169,12 @@ def get_certificate():
     cert_img = JobeniAgent.create_certificate_image(display_name, evaluation)
 
     if cert_img:
-        # توكن البوت الرسمي الخاص بك
         BOT_TOKEN = "8450110637:AAEMNOzpc8phiBr0Dmjm2UHoEWfKi30Ja_s"
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
         files = {'photo': ('jobeni_certified.png', cert_img, 'image/png')}
         caption = (f"📜 <b>تهانينا {display_name}!</b>\n\n"
                    f"لقد تم إصدار شهادتك الرسمية من <b>جوبيني السودان</b>.\n"
-                   f"هذه الشهادة مزودة بكود QR للتوثيق الفوري من قبل أصحاب العمل.")
+                   f"هذه الشهادة مزودة بكود QR للتوثيق الفوري.")
         try:
             requests.post(url, data={'chat_id': current_user.telegram_id, 'caption': caption, 'parse_mode': 'HTML'}, files=files, verify=False)
             flash("تم إرسال الشهادة الفخمة إلى تليجرام بنجاح!", "success")

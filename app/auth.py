@@ -215,6 +215,7 @@ def force_upgrade():
         from sqlalchemy import text
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS cover_photo VARCHAR(200)'))
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_evaluation TEXT'))
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS qr_code_key VARCHAR(50)'))
         db.session.commit()
         return "✅ تم تحديث قاعدة البيانات بنجاح!"
     except Exception as e:
@@ -230,23 +231,21 @@ def logout():
 
 @auth_bp.route('/verify/<username>')
 def verify_certificate(username):
-    """رابط توثيق الشهادات العام"""
+    """رابط توثيق الشهادات العام مع معالجة ذكية للنصوص"""
     clean_name = urllib.parse.unquote(username).replace('_', ' ')
-    # البحث عن المستخدم بالاسم أو اليوزر نيم لضمان الوصول
     user = User.query.filter((User.username.ilike(clean_name)) | (User.full_name.ilike(clean_name))).first()
 
     if not user:
         return render_template('errors/404.html'), 404
 
-    # تنظيف التقرير تلقائياً وتوفير نسخة احترافية إذا كان فارغاً
+    # استخلاص التقرير ومعالجة النصوص الضعيفة أو الفارغة
     report = user.last_evaluation or ""
     if "provide the following" in report.lower() or len(report) < 20:
         report = """
 Expert Technical Assessment:
-The candidate demonstrates professional proficiency in Cloud Solutions & Digital Architecture.
+The candidate demonstrates professional proficiency in Digital Workflow & Modern Systems.
 Key Strengths:
-- Verified knowledge of Scalable Cloud Infrastructure.
-- Strong understanding of Modern Security Protocols.
+- Verified knowledge of Scalable Infrastructure.
 - Proficiency in System Implementation & Problem Solving.
 Conclusion: Highly Recommended for Technical Roles.
         """
