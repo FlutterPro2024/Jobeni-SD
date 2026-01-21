@@ -7,13 +7,8 @@
     }
   ],
   "routes": [
-    {
-      "src": "/telegram/webhook",
-      "dest": "run.py"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "run.py"
-    }
+    { "src": "/webhook", "dest": "run.py" },
+    { "src": "/telegram/webhook", "dest": "run.py" },
+    { "src": "/(.*)", "dest": "run.py" }
   ]
 }

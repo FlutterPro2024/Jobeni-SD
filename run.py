@@ -1,23 +1,30 @@
 import os
-from flask import request
+from flask import request, jsonify
 from app import create_app
-# بنستورد معالج الرسايل اللي إنت كاتبه أصلاً في app/telegram_bot.py
 from app.telegram_bot import handle_telegram_webhook
 
+# تهيئة التطبيق
 app = create_app('production' if os.environ.get('VERCEL') else 'default')
 
-# المسار اللي تليجرام حيرسل فيه الرسايل
+# استقبال الرسائل من المسارين لضمان عدم حدوث 404
+@app.route('/webhook', methods=['POST'])
 @app.route('/telegram/webhook', methods=['POST'])
-def webhook():
-    if request.method == 'POST':
-        # استلام الداتا من تليجرام
-        update = request.get_json()
-        if update:
-            # تمرير الداتا للمعالج الأصلي بتاعك
-            handle_telegram_webhook(update)
-        return "OK", 200
-    return "Method Not Allowed", 405
+def telegram_webhook():
+    try:
+        data = request.get_json()
+        if data:
+            # تمرير البيانات للمعالج الموجود في telegram_bot.py
+            handle_telegram_webhook(data)
+            return jsonify({"status": "success"}), 200
+        return jsonify({"status": "no data"}), 200
+    except Exception as e:
+        print(f"❌ Error in Webhook: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# مسار إضافي للتأكد أن السيرفر شغال
+@app.route('/')
+def index():
+    return "Jobeni Bot is Running on Vercel!"
 
 if __name__ == "__main__":
-    is_debug = False if os.environ.get('VERCEL') else True
-    app.run(debug=is_debug, port=5008)
+    app.run(debug=True, port=5008)
