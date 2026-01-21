@@ -25,7 +25,7 @@
         .dropdown-menu { border-radius: 15px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.1); margin-top: 10px; }
         .alert { border-radius: 12px; border: none; }
         .nav-avatar { width: 30px; height: 30px; object-fit: cover; border: 1.5px solid #0dcaf0; }
-        
+
         /* تنسيق عداد التنبيهات */
         .notification-badge {
             position: absolute; top: 5px; right: 5px;
@@ -45,6 +45,9 @@
             border-right: 6px solid #0d6efd;
         }
         @keyframes slideUp { from { transform: translateY(150px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        /* تنسيق الفوتر الجديد */
+        footer { border-top: 1px solid #dee2e6; background: #fff; }
     </style>
 </head>
 <body>
@@ -79,9 +82,10 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('auth.instructions') }}">كيف تعمل المنصة؟</a></li>
                     <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('jobs.jobs_list') }}">الوظائف</a></li>
                     <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('community.index') }}">المجتمع</a></li>
-                    
+
                     {% if current_user.is_authenticated %}
                         <li class="nav-item">
                             <a class="nav-link px-3" href="{{ url_for('auth.scanner') }}" title="المسح الذكي">
@@ -104,7 +108,7 @@
                                 <i class="fas fa-envelope ms-1"></i> الرسائل
                             </a>
                         </li>
-                        
+
                         <li class="nav-item dropdown ms-lg-3">
                             <a class="nav-link dropdown-toggle btn btn-outline-info btn-sm rounded-pill px-3 text-white d-flex align-items-center" href="#" data-bs-toggle="dropdown">
                                 <img src="{{ current_user.get_avatar() }}" class="rounded-circle me-2 nav-avatar">
@@ -145,6 +149,10 @@
 
     <footer class="py-5 text-center mt-5">
         <div class="container">
+            <div class="mb-3">
+                <h6 class="fw-bold mb-1">مطور المنصة: م. محمد عبدالقادر السراج (UST)</h6>
+                <p class="small text-muted mb-0">mohammedu3615@gmail.com</p>
+            </div>
             <p class="text-muted small mb-1">© 2026 Jobeni SD. جميع الحقوق محفوظة</p>
             <p class="small fw-bold" style="color: #0d6efd;">صنع بكل فخر في السودان 🇸🇩</p>
         </div>
@@ -153,6 +161,17 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
+        // --- تحديث الرقم خارج الأيقونة (App Badge) ---
+        function updateAppBadge(count) {
+            if ('setAppBadge' in navigator) {
+                if (count > 0) {
+                    navigator.setAppBadge(count).catch(e => console.log("Badge error"));
+                } else {
+                    navigator.clearAppBadge();
+                }
+            }
+        }
+
         // --- نظام التنبيهات اللحظية (Real-time) ---
         let lastCount = 0;
         function fetchNotifications() {
@@ -163,11 +182,15 @@
                 if (data.count > 0) {
                     badge.innerText = data.count;
                     badge.style.display = 'block';
+                    // التعديل: تحديث الرقم بره اللوجو
+                    updateAppBadge(data.count);
+                    
                     if (data.count > lastCount) {
                         playNotify();
                     }
                 } else {
                     badge.style.display = 'none';
+                    updateAppBadge(0);
                 }
                 lastCount = data.count;
             });
@@ -195,6 +218,7 @@
             fetch("{{ url_for('notifications.mark_read') }}", { method: 'POST' })
             .then(() => {
                 document.getElementById('notif-count').style.display = 'none';
+                updateAppBadge(0);
                 lastCount = 0;
             });
         }

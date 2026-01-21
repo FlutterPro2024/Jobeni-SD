@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="text-center mb-5">
+        <h1 class="display-4 fw-bold text-primary">دليل مستخدم منصة Jobeni-SD 🇸🇩</h1>
+        <p class="lead">مستقبل التوظيف الذكي - ذكاء اصطناعي، أتمتة، ووكلاء أذكياء</p>
+        <hr class="w-25 mx-auto">
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card h-100 border-0 shadow-sm bg-light">
+                <div class="card-body">
+                    <h3 class="card-title text-success"><i class="fas fa-building me-2"></i> دليل صاحب العمل (Employer/HR)</h3>
+                    <ul class="list-group list-group-flush bg-transparent">
+                        <li class="list-group-item bg-transparent">✅ <b>نشر الوظائف الذكي:</b> حدد متطلباتك بدقة مع دمج الخريطة لتحديد موقع العمل.</li>
+                        <li class="list-group-item bg-transparent">✅ <b>فرز ATS فوري:</b> تحليل وتصنيف المتقدمين حسب "نسبة المطابقة" تلقائياً.</li>
+                        <li class="list-group-item bg-transparent">✅ <b>المقابلات الآلية:</b> استلم تقرير تقني مفصل عن كل مرشح عبر مقابلة AI أولية.</li>
+                        <li class="list-group-item bg-transparent">✅ <b>إدارة التواصل:</b> نظام دردشة مدمج لمتابعة الطلبات وقبول المرشحين.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card h-100 border-0 shadow-sm bg-light">
+                <div class="card-body">
+                    <h3 class="card-title text-info"><i class="fas fa-user-tie me-2"></i> دليل الباحث عن عمل (Job Seeker)</h3>
+                    <ul class="list-group list-group-flush bg-transparent">
+                        <li class="list-group-item bg-transparent">✅ <b>تحليل الـ CV:</b> ارفع ملفك وسيقوم الـ AI ببناء بروفايلك الرقمي فوراً.</li>
+                        <li class="list-group-item bg-transparent">✅ <b>الوكيل الذكي (الرادار):</b> تفعيل البحث العالمي 24 ساعة للوظائف عن بُعد.</li>
+                        <li class="list-group-item bg-transparent">✅ <b>ربط تليجرام:</b> استلم إشعارات الوظائف المطابقة لمهاراتك في هاتفك فوراً.</li>
+                        <li class="list-group-item bg-transparent">✅ <b>شهادات التقييم:</b> خض مقابلة مع الـ AI واحصل على شهادة موثقة بـ QR Code.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-5 p-4 bg-dark text-white rounded shadow-lg text-center">
+        <h4 class="mb-3">👨‍💻 مطور المنصة</h4>
+        <div class="d-flex justify-content-center align-items-center gap-3 flex-wrap">
+            <div class="text-start">
+                <p class="mb-1 fw-bold fs-5">م. محمد عبدالقادر السراج (UST)</p>
+                <p class="mb-0 text-info"><i class="fas fa-envelope me-2"></i>mohammedu3615@gmail.com</p>
+            </div>
+            <div class="vr mx-3 d-none d-md-block"></div>
+            <p class="mb-0 opacity-75">متخصص في حلول الذكاء الاصطناعي وهندسة البرمجيات</p>
+        </div>
+    </div>
+
+    <div class="text-center mt-5">
+        <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg px-5">ابدأ رحلتك الآن 🚀</a>
+    </div>
+</div>
+{% endblock %}

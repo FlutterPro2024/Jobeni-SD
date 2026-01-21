@@ -53,6 +53,12 @@ def index():
         latest_jobs = []
     return render_template('index.html', jobs=latest_jobs)
 
+# التعديل الجديد: مسار صفحة تعليمات المنصة ودليل المستخدم
+@auth_bp.route('/instructions')
+def instructions():
+    """عرض صفحة كيف تعمل المنصة ودليل المطور"""
+    return render_template('instructions.html')
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated: return redirect(url_for('auth.dashboard'))
