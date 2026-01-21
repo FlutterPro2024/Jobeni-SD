@@ -5,6 +5,7 @@ import base64
 import io
 import qrcode
 import requests
+import urllib.parse
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
@@ -134,26 +135,25 @@ def user_profile(username):
     """عرض الملف الشخصي العام لأي مستخدم مع الـ QR Code الخاص به"""
     user = User.query.filter_by(username=username).first_or_404()
     posts = Post.query.filter_by(user_id=user.id).order_by(Post.timestamp.desc()).all()
-    
+
     is_online = False
     if user.last_seen:
         is_online = (datetime.utcnow() - user.last_seen).total_seconds() < 300
-
+                                                    
     # --- ميزة جديدة: توليد QR Code للمستخدم الذي يتم عرضه حالياً ---
     profile_url = url_for('auth.user_profile', username=user.username, _external=True)
     qr = qrcode.QRCode(version=1, box_size=10, border=2)
     qr.add_data(profile_url)
     qr.make(fit=True)
     img = qr.make_image(fill_color="black", back_color="white")
-    
     buffered = io.BytesIO()
     img.save(buffered, format="PNG")
     user_qr_base64 = base64.b64encode(buffered.getvalue()).decode()
 
-    return render_template('user_profile.html', 
-                           user=user, 
-                           posts=posts, 
-                           is_online=is_online, 
+    return render_template('user_profile.html',
+                           user=user,
+                           posts=posts,
+                           is_online=is_online,
                            user_qr=user_qr_base64)
 
 @auth_bp.route('/profile', methods=['GET', 'POST'])
@@ -193,7 +193,6 @@ def profile():
     qr.add_data(user_link)
     qr.make(fit=True)
     img = qr.make_image(fill_color="black", back_color="white")
-
     buffered = io.BytesIO()
     img.save(buffered, format="PNG")
     user_qr_base64 = base64.b64encode(buffered.getvalue()).decode()
@@ -243,3 +242,21 @@ def logout():
     logout_user()
     flash('تم تسجيل الخروج بنجاح.', 'info')
     return redirect(url_for('auth.login'))
+
+@auth_bp.route('/verify/<username>')
+def verify_certificate(username):
+    """رابط توثيق الشهادات - متاح للجميع"""
+    # فك تشفير الاسم وتبديل الشرطات بمسافات
+    clean_name = urllib.parse.unquote(username).replace('_', ' ')
+
+    # البحث في قاعدة البيانات
+    user = User.query.filter(
+        (User.username.ilike(clean_name)) |
+        (User.full_name.ilike(clean_name))
+    ).first()
+
+    if not user:
+        # إذا لم يوجد مستخدم، نعرض رسالة واضحة
+        return "<h1>404 - سجل التوثيق غير موجود</h1><p>تأكد من صحة الرابط أو مسح الكود مرة أخرى.</p>", 404
+
+    return render_template('certificate_verify.html', user=user)
