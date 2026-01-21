@@ -47,6 +47,7 @@ class JobeniAgent:
         """توليد صورة شهادة احترافية بالإنجليزية متوافقة مع Vercel وتدعم التوثيق"""
         try:
             width, height = 800, 1100
+            # إنشاء خلفية بيضاء
             img = Image.new('RGB', (width, height), color=(255, 255, 255))
             draw = ImageDraw.Draw(img)
 
@@ -54,7 +55,7 @@ class JobeniAgent:
             draw.rectangle([20, 20, 780, 1080], outline=(0, 51, 102), width=15)
             draw.rectangle([35, 35, 765, 1065], outline=(218, 165, 32), width=3)
 
-            # العناوين
+            # العناوين (ملاحظة: تيرمكس قد يحتاج مسار خطوط محدد، هنا نستخدم الخط الافتراضي)
             draw.text((200, 80), "JOBENI SUDAN - OFFICIAL CERTIFICATE", fill=(0, 51, 102))
             draw.text((60, 180), f"Candidate Name: {user_name}", fill=(0, 0, 0))
             draw.text((60, 210), "Status: AI Verified Expert", fill=(0, 102, 0))
@@ -62,16 +63,15 @@ class JobeniAgent:
             # خط فاصل ذهبي
             draw.line((60, 240, 740, 240), fill=(218, 165, 32), width=2)
 
-            # تنظيف نص التقييم: إذا كان "الخرمجة" القديمة، نستخدم نصاً احترافياً
-            if "provide the following" in evaluation_text.lower() or len(evaluation_text) < 20:
+            # تنظيف نص التقييم
+            if not evaluation_text or len(evaluation_text) < 20:
                 display_eval = ("Verification Summary: This candidate has cleared the Jobeni AI Interview.\n"
-                                "Demonstrated proficiency in Cloud Infrastructure and Industry Standards.")
+                                "Demonstrated proficiency in Industry Standards and Technical Skills.")
             else:
                 display_eval = evaluation_text
 
-            # توزيع النص داخل الشهادة
+            # توزيع النص داخل الشهادة مع التفاف الأسطر
             margin, offset = 60, 280
-            # تقسيم النص بناءً على السطور الموجودة أولاً
             lines = display_eval.split('\n')
             for line in lines:
                 wrapped_lines = textwrap.wrap(line, width=70)
@@ -79,13 +79,14 @@ class JobeniAgent:
                     if offset > 850: break
                     draw.text((margin, offset), w_line, fill=(0, 0, 0))
                     offset += 25
-                offset += 10 # مسافة إضافية بين الفقرات
+                offset += 10 
 
             # ملاحظة التخزين السحابي
             draw.text((60, 880), "Detailed evaluation is securely stored on Jobeni-SD Cloud.", fill=(100, 100, 100))
 
             # كيو أر التوثيق (Verification QR)
             safe_name = urllib.parse.quote(user_name.replace(" ", "_"))
+            # تأكد من تغيير الرابط لرابط موقعك الحقيقي لاحقاً
             verify_url = f"https://jobeni-sd.vercel.app/verify/{safe_name}"
 
             qr_small_buf = JobeniAgent.create_qr_code(verify_url)
@@ -126,12 +127,12 @@ class JobeniAgent:
                 suggestions.append(data)
         return suggestions[:2]
 
-# --- Routes ---
+# --- Routes (المسارات) ---
 
 @agent_bp.route('/get-my-certificate')
 @login_required
 def get_certificate():
-    """توليد وإرسال الشهادة للمستخدم عبر تليجرام"""
+    """توليد وإرسال الشهادة للمستخدم الحالي عبر تليجرام"""
     if not current_user.telegram_id:
         flash("يرجى ربط حساب تليجرام أولاً من لوحة التحكم لتلقي الشهادة.", "warning")
         return redirect(url_for('auth.dashboard'))
@@ -158,6 +159,7 @@ def get_certificate():
 @agent_bp.route('/toggle-agent', methods=['POST', 'GET'])
 @login_required
 def toggle_agent():
+    """تفعيل أو إيقاف الوكيل الذكي"""
     current_user.agent_enabled = not current_user.agent_enabled
     db.session.commit()
     status = "تفعيل" if current_user.agent_enabled else "إيقاف"
@@ -166,7 +168,7 @@ def toggle_agent():
 
 @agent_bp.route('/run-jobs-agent')
 def run_agent():
-    """تشغيل الوكيل كـ 'رادار عالمي' لجلب وظائف حقيقية ومطابقتها"""
+    """تشغيل الوكيل كـ 'رادار عالمي' لجلب وظائف حقيقية ومطابقتها للمستخدمين النشطين"""
     try:
         user = User.query.filter_by(agent_enabled=True).order_by(db.func.random()).first()
         if not user: return "No active agents found.", 200
@@ -182,6 +184,7 @@ def run_agent():
             search_results = serper_searcher.search_jobs(query)
             all_found_jobs.extend(search_results.get('jobs', []))
 
+        # إزالة التكرار وأخذ أول 15 وظيفة
         target_jobs = list({j['link']: j for j in all_found_jobs}.values())[:15]
         processed_count = 0
         for j in target_jobs:
@@ -206,6 +209,7 @@ def run_agent():
                 ))
                 processed_count += 1
 
+                # إرسال إشعار تليجرام لأول 5 وظائف مناسبة
                 if user.telegram_id and processed_count <= 5:
                     job_msg = (f"🎯 <b>فرصة عمل جديدة وجدها الرادار:</b>\n\n"
                                f"🔹 <b>الوظيفة:</b> {j['title']}\n"

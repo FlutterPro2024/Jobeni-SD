@@ -15,22 +15,23 @@ from app.models import User, Job, CV, Application, db, InterviewReport, Notifica
 auth_bp = Blueprint('auth', __name__)
 
 def upload_to_imgbb(file):
-    """دالة مساعدة لرفع الصور لـ ImgBB واسترجاع الرابط المباشر"""
+    """دالة مساعدة لرفع الصور لـ ImgBB واسترجاع الرابط المباشر لضمان بقاء الصور في Vercel"""
     api_key = os.environ.get('IMGBB_API_KEY')
     if not api_key:
+        print("⚠️ IMGBB_API_KEY is missing in environment variables")
         return None
 
     url = "https://api.imgbb.com/1/upload"
     try:
-        # قراءة محتوى الملف وتحويله لإرساله
+        # قراءة محتوى الملف وتحويله لإرساله كـ base64 أو كملف
         files = {"image": file.read()}
         params = {"key": api_key}
         response = requests.post(url, params=params, files=files)
         data = response.json()
-        if data['status'] == 200:
+        if data.get('status') == 200:
             return data['data']['url']
     except Exception as e:
-        print(f"ImgBB Upload Error: {e}")
+        print(f"❌ ImgBB Upload Error: {e}")
     return None
 
 @auth_bp.before_app_request
@@ -101,6 +102,7 @@ def dashboard():
     recent_apps = Application.query.filter_by(user_id=current_user.id)\
         .order_by(Application.applied_at.desc()).limit(10).all()
 
+    # جلب بيانات رادار الوظائف للرسم البياني
     radar_data = Application.query.filter_by(user_id=current_user.id, status='suggested')\
         .order_by(Application.applied_at.desc()).limit(7).all()
     radar_data.reverse()
@@ -112,6 +114,7 @@ def dashboard():
         chart_labels = ["البداية", "جاري الفحص"]
         chart_scores = [0, 10]
 
+    # توليد QR Code للبروفايل الشخصي
     user_link = url_for('auth.user_profile', username=current_user.username, _external=True)
     qr = qrcode.QRCode(version=1, box_size=10, border=2)
     qr.add_data(user_link)
@@ -129,7 +132,6 @@ def dashboard():
                            user_qr=user_qr_base64)
 
 @auth_bp.route('/user/<path:username>')
-@login_required
 def user_profile(username):
     """عرض الملف الشخصي العام لأي مستخدم مع الـ QR Code الخاص به"""
     user = User.query.filter_by(username=username).first_or_404()
@@ -208,14 +210,16 @@ def scanner():
 
 @auth_bp.route('/force_upgrade')
 def force_upgrade():
+    """أداة يدوية لتصحيح الداتابيز وإضافة الأعمدة المفقودة"""
     try:
         from sqlalchemy import text
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS cover_photo VARCHAR(200)'))
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_evaluation TEXT'))
         db.session.commit()
-        return "✅ تم إضافة عمود cover_photo بنجاح!"
+        return "✅ تم تحديث قاعدة البيانات بنجاح!"
     except Exception as e:
         db.session.rollback()
-        return f"❌ خطأ: {str(e)}"
+        return f"❌ خطأ في التحديث: {str(e)}"
 
 @auth_bp.route('/logout')
 @login_required
@@ -226,14 +230,15 @@ def logout():
 
 @auth_bp.route('/verify/<username>')
 def verify_certificate(username):
-    """رابط توثيق الشهادات - مع ميزة التصحيح التلقائي للتقارير"""
+    """رابط توثيق الشهادات العام"""
     clean_name = urllib.parse.unquote(username).replace('_', ' ')
+    # البحث عن المستخدم بالاسم أو اليوزر نيم لضمان الوصول
     user = User.query.filter((User.username.ilike(clean_name)) | (User.full_name.ilike(clean_name))).first()
 
     if not user:
-        return "<h1>404 - سجل التوثيق غير موجود</h1>", 404
+        return render_template('errors/404.html'), 404
 
-    # تنظيف التقرير تلقائياً إذا كان يحتوي على تعليمات AI أو فارغاً
+    # تنظيف التقرير تلقائياً وتوفير نسخة احترافية إذا كان فارغاً
     report = user.last_evaluation or ""
     if "provide the following" in report.lower() or len(report) < 20:
         report = """

@@ -5,7 +5,7 @@ from datetime import datetime
 from flask import url_for
 import uuid
 
-# جدول المتابعين (Many-to-Many)
+# جدول المتابعين (Many-to-Many Relationship)
 followers = db.Table('followers',
     db.Column('follower_id', db.Integer, db.ForeignKey('user.id')),
     db.Column('followed_id', db.Integer, db.ForeignKey('user.id'))
@@ -17,27 +17,28 @@ class User(db.Model, UserMixin):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
     full_name = db.Column(db.String(100))
-    role = db.Column(db.String(20), default='jobseeker')
+    role = db.Column(db.String(20), default='jobseeker') # jobseeker or employer
     phone = db.Column(db.String(20))
     avatar = db.Column(db.String(200))
-    # إضافة حقل صورة الغلاف هنا لضمان الحفظ
     cover_photo = db.Column(db.String(200))
     headline = db.Column(db.String(200))
     bio = db.Column(db.Text)
+    
+    # الموقع الجغرافي
     location_name = db.Column(db.String(100))
     lat = db.Column(db.Float)
     lng = db.Column(db.Float)
+    
+    # بيانات التليجرام والوكيل الذكي
     telegram_id = db.Column(db.String(50))
     last_seen = db.Column(db.DateTime, default=datetime.utcnow)
     is_typing_now = db.Column(db.DateTime, default=datetime.utcnow)
     agent_enabled = db.Column(db.Boolean, default=False)
     agent_query = db.Column(db.String(200))
     last_agent_run = db.Column(db.DateTime)
-    
-    # الحقل الذي كان مفقوداً وسبب الخطأ في الـ Webhook
-    last_evaluation = db.Column(db.Text)
 
-    # حقل الـ QR الفريد
+    # حقول الشهادات والتوثيق (مهمة جداً للكل)
+    last_evaluation = db.Column(db.Text)
     qr_code_key = db.Column(db.String(50), unique=True, default=lambda: str(uuid.uuid4())[:8])
 
     # العلاقات (Relationships)
@@ -46,6 +47,8 @@ class User(db.Model, UserMixin):
     applications = db.relationship('Application', backref='applicant', lazy=True)
     posts = db.relationship('Post', backref='author', lazy='dynamic')
     notifications = db.relationship('Notification', backref='recipient', lazy='dynamic')
+    
+    # علاقة المتابعة
     followed = db.relationship('User', secondary=followers,
         primaryjoin=(followers.c.follower_id == id),
         secondaryjoin=(followers.c.followed_id == id),
@@ -58,7 +61,6 @@ class User(db.Model, UserMixin):
             return url_for('static', filename='uploads/' + self.avatar)
         return f"https://ui-avatars.com/api/?name={self.username}&background=random&color=fff"
 
-    # دالة جديدة لجلب الغلاف بشكل آمن
     def get_cover(self):
         if self.cover_photo:
             if self.cover_photo.startswith('http'):
@@ -90,12 +92,15 @@ class Job(db.Model):
     latitude = db.Column(db.Float)
     longitude = db.Column(db.Float)
     salary = db.Column(db.String(50))
-    job_type = db.Column(db.String(50))
+    job_type = db.Column(db.String(50)) # Remote, Full-time, etc.
     category = db.Column(db.String(50), default='عام')
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # ربط الوظيفة بصاحب العمل
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     employer_user = db.relationship('User', back_populates='jobs')
+    
     applications = db.relationship('Application', backref='job_ref', lazy=True, cascade="all, delete-orphan")
 
 class CV(db.Model):
@@ -112,7 +117,7 @@ class Application(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     job_id = db.Column(db.Integer, db.ForeignKey('job.id'))
-    status = db.Column(db.String(20), default='pending')
+    status = db.Column(db.String(20), default='pending') # pending, accepted, rejected, suggested
     match_score = db.Column(db.Integer)
     match_explanation = db.Column(db.Text)
     applied_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -152,6 +157,8 @@ class Comment(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     post_id = db.Column(db.Integer, db.ForeignKey('post.id'))
     parent_id = db.Column(db.Integer, db.ForeignKey('comment.id'))
+    
+    # علاقة الردود على التعليقات
     replies = db.relationship(
         'Comment', backref=db.backref('parent', remote_side=[id]),
         lazy='dynamic', cascade="all, delete-orphan"
@@ -164,6 +171,6 @@ class Notification(db.Model):
     title = db.Column(db.String(100))
     message = db.Column(db.Text)
     link = db.Column(db.String(200))
-    category = db.Column(db.String(20), default='info')
+    category = db.Column(db.String(20), default='info') # info, success, warning, danger
     is_read = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
