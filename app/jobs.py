@@ -9,6 +9,12 @@ from sqlalchemy import text
 from datetime import datetime
 import re
 
+# استيراد دالة إرسال رسالة المقابلة الآلية من ملف الدردشة
+try:
+    from app.chat import send_automated_interview_message
+except ImportError:
+    def send_automated_interview_message(*args, **kwargs): pass
+
 jobs_bp = Blueprint('jobs', __name__)
 
 @jobs_bp.route('/jobs')
@@ -42,21 +48,18 @@ def job_detail(job_id):
         application = Application.query.filter_by(user_id=current_user.id, job_id=job.id).first()
 
     user_cvs = CV.query.filter_by(user_id=current_user.id).all() if current_user.is_authenticated else []
-    
-    # فحص ما إذا كانت الوظيفة تحتوي على اختبار
     has_quiz = JobQuestion.query.filter_by(job_id=job.id).first() is not None
-    
+
     return render_template('job_detail.html', job=job, application=application, user_cvs=user_cvs, has_quiz=has_quiz)
 
 @jobs_bp.route('/job/add', methods=['GET', 'POST'])
 @login_required
-def create_job(): # تم توحيد الاسم ليتوافق مع الـ Template
+def create_job():
     if current_user.role != 'employer':
         flash('عذراً، هذه الصفحة مخصصة لأصحاب العمل فقط.', 'danger')
         return redirect(url_for('auth.dashboard'))
 
     if request.method == 'POST':
-        # 1. حفظ بيانات الوظيفة الأساسية
         new_job = Job(
             title=request.form.get('title'),
             company_name=request.form.get('company_name'),
@@ -67,9 +70,8 @@ def create_job(): # تم توحيد الاسم ليتوافق مع الـ Templa
             user_id=current_user.id
         )
         db.session.add(new_job)
-        db.session.flush() # الحصول على ID الوظيفة قبل الـ commit النهائي
+        db.session.flush()
 
-        # 2. حفظ أسئلة الاختبار (إن وجدت)
         q_texts = request.form.getlist('q_text[]')
         if q_texts:
             q_as = request.form.getlist('q_a[]')
@@ -108,16 +110,11 @@ def apply_to_job(job_id):
         return redirect(url_for('auth.dashboard'))
 
     job = Job.query.get_or_404(job_id)
-    
-    # التحقق من وجود اختبار للوظيفة
     questions = JobQuestion.query.filter_by(job_id=job_id).all()
-    
-    # إذا كانت الوظيفة تحتوي على اختبار ولم يتم إرسال إجابات بعد
+
     if questions and 'answers[]' not in request.form:
-        # هنا يتم توجيه المستخدم لصفحة الاختبار (سنحتاج لإنشاء هذه الواجهة)
         return render_template('take_quiz.html', job=job, questions=questions)
 
-    # حساب درجة الاختبار إذا وجدت إجابات
     quiz_score = None
     if questions:
         user_answers = request.form.getlist('answers[]')
@@ -160,13 +157,13 @@ def apply_to_job(job_id):
         job_id=job_id,
         match_score=match_score,
         match_explanation=explanation,
-        quiz_score=quiz_score, # حفظ درجة الاختبار
+        quiz_score=quiz_score,
         status='pending'
     )
     db.session.add(new_app)
     db.session.commit()
 
-    flash(f'تم التقديم بنجاح! نسبة المطابقة الذكية: {match_score}%' + (f' | درجة الاختبار: {quiz_score}' if quiz_score is not None else ''), 'success')
+    flash(f'تم التقديم بنجاح! نسبة المطابقة الذكية: {match_score}%', 'success')
     return redirect(url_for('auth.dashboard'))
 
 @jobs_bp.route('/job/<int:job_id>/candidates')
@@ -182,6 +179,7 @@ def view_candidates(job_id):
 @jobs_bp.route('/job/status/<int:app_id>', methods=['POST'])
 @login_required
 def update_application_status(app_id):
+    """تحديث حالة الطلب مع نظام إشعارات ورسائل مقابلة آلية"""
     application = Application.query.get_or_404(app_id)
     job = Job.query.get(application.job_id)
 
@@ -189,10 +187,38 @@ def update_application_status(app_id):
         abort(403)
 
     new_status = request.form.get('status')
-    application.status = new_status
-    db.session.commit()
+    interview_details = request.form.get('interview_details', '').strip()
 
-    flash(f'تم تحديث الحالة بنجاح.', 'success')
+    application.status = new_status
+
+    # منطق الإشعارات المتطور
+    if new_status == 'interview':
+        msg = f"🚀 خبر رائع! تم اختيارك لمقابلة لوظيفة {job.title}."
+        if interview_details:
+            msg += f" تفاصيل الموعد: {interview_details}"
+        
+        # 1. إضافة إشعار في نظام التنبيهات
+        add_notification(application.user_id, msg, 'info')
+        
+        # 2. إرسال رسالة تلقائية في الشات لفتح قناة تواصل
+        send_automated_interview_message(
+            sender_id=current_user.id, 
+            recipient_id=application.user_id, 
+            job_id=job.id, 
+            details=interview_details
+        )
+        
+        flash('تم إرسال دعوة المقابلة وتفاصيل الموعد وبدء دردشة مع المتقدم.', 'success')
+
+    elif new_status == 'accepted':
+        add_notification(application.user_id, f"✅ مبروك! تم قبولك مبدئياً لوظيفة {job.title}.", 'success')
+        flash('تم تحديث الحالة إلى مقبول بنجاح.', 'success')
+
+    elif new_status == 'rejected':
+        add_notification(application.user_id, f"نعتذر، لم يتم اختيارك لوظيفة {job.title} هذه المرة. نتمنى لك التوفيق.", 'secondary')
+        flash('تم تحديث الحالة إلى مرفوض.', 'info')
+
+    db.session.commit()
     return redirect(url_for('jobs.view_candidates', job_id=job.id))
 
 @jobs_bp.route('/job/delete/<int:job_id>', methods=['POST'])
@@ -214,7 +240,7 @@ def get_cv_api(user_id):
     cv = CV.query.filter_by(user_id=user_id).order_by(CV.created_at.desc()).first()
     if cv:
         return jsonify({
-            'parsed_text': cv.extracted_text or "لا يوجد نص مستخلص للسيرة الذاتية.",
+            'parsed_text': cv.extracted_text or "لا يوجد نص مستخلص.",
             'skills': cv.skills if hasattr(cv, 'skills') else [],
             'created_at': cv.created_at.strftime('%Y-%m-%d')
         })

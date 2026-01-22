@@ -18,6 +18,25 @@ except ImportError:
 
 chat_bp = Blueprint('chat', __name__)
 
+def send_automated_interview_message(sender_id, recipient_id, job_id, details):
+    """دالة مساعدة لإرسال رسالة مقابلة آلية عند تغيير الحالة"""
+    job = Job.query.get(job_id)
+    job_title = job.title if job else "الوظيفة"
+    
+    body = f"🚀 مرحباً، يسعدنا إبلاغك بتأهلك لمرحلة المقابلة لوظيفة ({job_title}).\n\n"
+    body += f"📍 تفاصيل الموعد: {details}\n\n"
+    body += "يرجى تأكيد الحضور أو اقتراح موعد بديل عبر الرد على هذه الرسالة."
+    
+    new_msg = Message(
+        sender_id=sender_id,
+        recipient_id=recipient_id,
+        job_id=job_id,
+        body=body,
+        timestamp=datetime.utcnow()
+    )
+    db.session.add(new_msg)
+    db.session.commit()
+
 @chat_bp.route('/messages')
 @login_required
 def my_messages():
@@ -129,8 +148,7 @@ def open_chat(job_id, recipient_id):
                 job_id=job_id if job_id != 0 else None
             )
             db.session.add(new_msg)
-            
-            # إضافة إشعار تلقائي للمستلم
+
             if not is_ai_agent:
                 from app.notifications import add_notification
                 add_notification(
@@ -140,37 +158,23 @@ def open_chat(job_id, recipient_id):
                     category="primary",
                     link=url_for('chat.open_chat', job_id=job_id, recipient_id=current_user.id)
                 )
-            
+
             db.session.commit()
 
             if is_ai_agent:
-                # تجميع السياق الكامل للذكاء الاصطناعي (ذاكرة 100%)
                 user_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
                 current_job = Job.query.get(job_id) if job_id != 0 else None
-                
                 u_context = f"المستخدم: {current_user.full_name}. "
                 if user_cv: u_context += f"السيرة الذاتية: {user_cv.extracted_text[:1000]}"
-                
                 j_context = "استشارة مهنية عامة"
-                if current_job:
-                    j_context = f"الوظيفة الحالية: {current_job.title}. الوصف: {current_job.description[:500]}"
-
-                # استخدام المحرك الأومني المطور
+                if current_job: j_context = f"الوظيفة الحالية: {current_job.title}. الوصف: {current_job.description[:500]}"
                 ai_response = get_expert_omni_response(body, user_context=u_context, job_context=j_context)
-                
-                bot_msg = Message(
-                    sender_id=bot_id, 
-                    recipient_id=current_user.id, 
-                    body=ai_response, 
-                    job_id=job_id if job_id != 0 else None
-                )
+                bot_msg = Message(sender_id=bot_id, recipient_id=current_user.id, body=ai_response, job_id=job_id if job_id != 0 else None)
                 db.session.add(bot_msg)
                 db.session.commit()
-                
             elif recipient.telegram_id:
                 notify_new_message(recipient.telegram_id, current_user.username, job.title if job else "تواصل عام", body or "أرسل ملفاً")
 
-    # جلب الرسائل
     messages_query = Message.query.filter(
         or_(
             and_(Message.sender_id == current_user.id, Message.recipient_id == target_id),
@@ -179,34 +183,19 @@ def open_chat(job_id, recipient_id):
     )
     if job_id != 0:
         messages_query = messages_query.filter(Message.job_id == job_id)
-    
+
     messages = messages_query.order_by(Message.timestamp.asc()).all()
 
-    # دعم التحديث التلقائي AJAX
     if request.args.get('json'):
         is_typing = False
         if not is_ai_agent and recipient.is_typing_now:
             is_typing = recipient.is_typing_now > (datetime.utcnow() - timedelta(seconds=5))
-
         is_online = False
         if not is_ai_agent and recipient.last_seen:
             is_online = recipient.last_seen >= (datetime.utcnow() - timedelta(minutes=5))
-            
         return jsonify({
-            "is_online": is_online,
-            "is_typing": is_typing,
-            "messages": [{
-                "id": m.id,
-                "body": m.body,
-                "file_path": m.file_path,
-                "sender_id": m.sender_id,
-                "timestamp": m.timestamp.strftime('%I:%M %p')
-            } for m in messages[-20:]]
+            "is_online": is_online, "is_typing": is_typing,
+            "messages": [{"id": m.id, "body": m.body, "file_path": m.file_path, "sender_id": m.sender_id, "timestamp": m.timestamp.strftime('%I:%M %p')} for m in messages[-20:]]
         })
 
-    return render_template('chat.html',
-                           messages=messages,
-                           recipient=recipient,
-                           job=job,
-                           is_ai_agent=is_ai_agent,
-                           utcnow=datetime.utcnow())
+    return render_template('chat.html', messages=messages, recipient=recipient, job=job, is_ai_agent=is_ai_agent, utcnow=datetime.utcnow())
