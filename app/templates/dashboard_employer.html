@@ -6,16 +6,16 @@
     <div class="d-md-flex justify-content-between align-items-center mb-5">
         <div>
             <h1 class="fw-bold mb-1 text-dark">لوحة تحكم الشركات 🏢</h1>
-            <p class="text-muted small">مرحباً {{ current_user.full_name or current_user.username }}، تابع أداء وظائفك.</p>
+            <p class="text-muted small">مرحباً {{ current_user.full_name or current_user.username }}، تابع أداء وظائفك وعمليات الفرز الذكي.</p>
         </div>
         <div class="d-flex gap-2 justify-content-end mt-3 mt-md-0">
             {% if not current_user.telegram_id %}
             <a href="https://t.me/Jobeni_Task_Bot?start={{ current_user.id }}" target="_blank" class="btn btn-outline-primary rounded-pill px-4 fw-bold small">
-                <i class="fab fa-telegram-plane ms-1"></i> ربط التلجرام
+                <i class="fab fa-telegram-plane ms-1"></i> ربط التلجرام للمتابعة
             </a>
             {% endif %}
-            <a href="{{ url_for('jobs.add_job') }}" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold">
-                <i class="fas fa-plus-circle ms-1"></i> نشر وظيفة
+            <a href="{{ url_for('jobs.create_job') }}" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold">
+                <i class="fas fa-plus-circle ms-1"></i> نشر وظيفة جديدة
             </a>
         </div>
     </div>
@@ -39,7 +39,7 @@
         </div>
         <div class="col-md-4">
             <div class="card border-0 shadow-sm rounded-4 p-4 bg-white border-bottom border-warning border-4">
-                <h6 class="text-muted small fw-bold">متوسط المطابقة</h6>
+                <h6 class="text-muted small fw-bold">متوسط المطابقة الذكية</h6>
                 <h2 class="fw-bold mb-0 text-dark">
                     {% set total_score = namespace(value=0) %}
                     {% set score_count = namespace(value=0) %}
@@ -61,13 +61,14 @@
 
     <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
         <div class="card-header bg-white py-4 border-bottom d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 fw-bold"><i class="fas fa-tasks text-primary ms-2"></i> إدارة الوظائف</h5>
+            <h5 class="mb-0 fw-bold"><i class="fas fa-tasks text-primary ms-2"></i> إدارة الوظائف المنشورة</h5>
         </div>
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0 text-end">
                 <thead class="bg-light">
                     <tr class="small text-muted">
-                        <th class="pe-4">الوظيفة</th>
+                        <th class="pe-4">الوظيفة والتاريخ</th>
+                        <th class="text-center">نوع الوظيفة</th>
                         <th class="text-center">المرشحين</th>
                         <th class="text-start ps-4">الإجراءات</th>
                     </tr>
@@ -78,23 +79,26 @@
                         <td class="pe-4 py-4">
                             <div class="fw-bold text-dark">{{ job.title }}</div>
                             <small class="text-muted">
-                                <i class="far fa-calendar-alt ms-1"></i> {{ job.created_at.strftime('%Y-%m-%d') }} 
+                                <i class="far fa-calendar-alt ms-1"></i> {{ job.created_at.strftime('%Y-%m-%d') }}
                                 <span class="mx-2">|</span>
-                                <i class="fas fa-map-marker-alt ms-1"></i> {{ job.location }}
+                                <i class="fas fa-map-marker-alt ms-1"></i> {{ job.location or 'عن بعد' }}
                             </small>
                         </td>
                         <td class="text-center">
+                            <span class="badge bg-light text-dark border rounded-pill px-3">{{ job.job_type or 'غير محدد' }}</span>
+                        </td>
+                        <td class="text-center">
                             <a href="{{ url_for('jobs.view_candidates', job_id=job.id) }}" class="badge bg-primary rounded-pill px-3 py-2 text-decoration-none shadow-sm">
-                                <i class="fas fa-users ms-1"></i> {{ job.applications|length }}
+                                <i class="fas fa-users ms-1"></i> {{ job.applications|length }} مرشحاً
                             </a>
                         </td>
                         <td class="text-start ps-4">
                             <div class="d-flex gap-2 justify-content-start">
-                                <a href="{{ url_for('jobs.view_candidates', job_id=job.id) }}" class="btn btn-sm btn-light border" title="إدارة المتقدمين">
-                                    <i class="fas fa-user-tie text-primary"></i> <span class="d-none d-lg-inline">إدارة</span>
+                                <a href="{{ url_for('jobs.view_candidates', job_id=job.id) }}" class="btn btn-sm btn-outline-primary rounded-pill px-3" title="إدارة المتقدمين">
+                                    <i class="fas fa-user-tie ms-1"></i> إدارة الفررز
                                 </a>
-                                <form action="{{ url_for('jobs.delete_job', job_id=job.id) }}" method="POST" onsubmit="return confirm('هل أنت متأكد من حذف هذه الوظيفة نهائياً؟');" style="display:inline;">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <form action="{{ url_for('jobs.delete_job', job_id=job.id) }}" method="POST" onsubmit="return confirm('هل أنت متأكد من حذف هذه الوظيفة نهائياً؟ سيتم حذف جميع الطلبات المرتبطة بها.');" style="display:inline;">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-circle" style="width: 32px; height: 32px; padding: 0;">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </form>
@@ -103,11 +107,11 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="3" class="text-center py-5">
+                        <td colspan="4" class="text-center py-5">
                             <div class="text-muted">
                                 <i class="fas fa-briefcase fa-3x mb-3 opacity-25"></i>
-                                <p>لم تقم بنشر أي وظائف حتى الآن.</p>
-                                <a href="{{ url_for('jobs.add_job') }}" class="btn btn-primary btn-sm rounded-pill">انشر أول وظيفة الآن</a>
+                                <p class="fw-bold">لم تقم بنشر أي وظائف حتى الآن.</p>
+                                <a href="{{ url_for('jobs.create_job') }}" class="btn btn-primary btn-sm rounded-pill px-4">انشر أول وظيفة الآن</a>
                             </div>
                         </td>
                     </tr>
@@ -117,4 +121,12 @@
         </div>
     </div>
 </div>
+
+<style>
+    .card { transition: transform 0.2s; }
+    .card:hover { transform: translateY(-5px); }
+    .table thead th { border-top: none; }
+    .badge { font-size: 0.85rem; }
+    .btn-outline-danger:hover { background-color: #dc3545; color: white; }
+</style>
 {% endblock %}
