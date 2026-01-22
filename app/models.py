@@ -23,12 +23,12 @@ class User(db.Model, UserMixin):
     cover_photo = db.Column(db.String(200))
     headline = db.Column(db.String(200))
     bio = db.Column(db.Text)
-    
+
     # الموقع الجغرافي
     location_name = db.Column(db.String(100))
     lat = db.Column(db.Float)
     lng = db.Column(db.Float)
-    
+
     # بيانات التليجرام والوكيل الذكي
     telegram_id = db.Column(db.String(50))
     last_seen = db.Column(db.DateTime, default=datetime.utcnow)
@@ -48,6 +48,9 @@ class User(db.Model, UserMixin):
     posts = db.relationship('Post', backref='author', lazy='dynamic')
     notifications = db.relationship('Notification', backref='recipient', lazy='dynamic')
     
+    # علاقة نتائج الاختبارات
+    quiz_results = db.relationship('QuizResult', backref='user', lazy=True)
+
     # علاقة المتابعة
     followed = db.relationship('User', secondary=followers,
         primaryjoin=(followers.c.follower_id == id),
@@ -96,12 +99,36 @@ class Job(db.Model):
     category = db.Column(db.String(50), default='عام')
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     # ربط الوظيفة بصاحب العمل
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     employer_user = db.relationship('User', back_populates='jobs')
-    
+
     applications = db.relationship('Application', backref='job_ref', lazy=True, cascade="all, delete-orphan")
+    
+    # علاقة الأسئلة الاختبارية (جديد)
+    questions = db.relationship('JobQuestion', backref='job', lazy=True, cascade="all, delete-orphan")
+
+class JobQuestion(db.Model):
+    """جدول أسئلة الاختبار الخاصة بكل وظيفة"""
+    id = db.Column(db.Integer, primary_key=True)
+    job_id = db.Column(db.Integer, db.ForeignKey('job.id'), nullable=False)
+    question_text = db.Column(db.Text, nullable=False)
+    option_a = db.Column(db.String(200), nullable=False)
+    option_b = db.Column(db.String(200), nullable=False)
+    option_c = db.Column(db.String(200), nullable=True)
+    option_d = db.Column(db.String(200), nullable=True)
+    correct_answer = db.Column(db.String(10), nullable=False) # 'A', 'B', 'C', or 'D'
+    points = db.Column(db.Integer, default=10)
+
+class QuizResult(db.Model):
+    """نتائج اختبارات الباحثين عن عمل"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    job_id = db.Column(db.Integer, db.ForeignKey('job.id'), nullable=False)
+    score = db.Column(db.Integer, default=0)
+    total_possible = db.Column(db.Integer, default=0)
+    completed_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class CV(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -121,6 +148,9 @@ class Application(db.Model):
     match_score = db.Column(db.Integer)
     match_explanation = db.Column(db.Text)
     applied_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # ربط درجة الاختبار بطلب التقديم (جديد)
+    quiz_score = db.Column(db.Integer, nullable=True)
 
 class InterviewSession(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -157,7 +187,7 @@ class Comment(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     post_id = db.Column(db.Integer, db.ForeignKey('post.id'))
     parent_id = db.Column(db.Integer, db.ForeignKey('comment.id'))
-    
+
     # علاقة الردود على التعليقات
     replies = db.relationship(
         'Comment', backref=db.backref('parent', remote_side=[id]),

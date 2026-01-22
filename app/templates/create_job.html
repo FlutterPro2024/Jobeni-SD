@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نشر وظيفة جديدة - Jobeni-SD</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .question-card { border-right: 5px solid #198754; background: #f8f9fa; transition: all 0.3s; }
+        .question-card:hover { transform: scale(1.01); box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    </style>
 </head>
 <body class="bg-light">
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
@@ -19,10 +24,10 @@
 
     <div class="container py-5">
         <div class="row justify-content-center">
-            <div class="col-md-8">
-                <div class="card">
+            <div class="col-md-10">
+                <div class="card shadow">
                     <div class="card-header bg-success text-white">
-                        <h4 class="mb-0"><i class="fas fa-plus"></i> نشر وظيفة جديدة</h4>
+                        <h4 class="mb-0"><i class="fas fa-plus-circle"></i> نشر وظيفة جديدة وإعداد الاختبار</h4>
                     </div>
                     <div class="card-body">
                         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -32,45 +37,59 @@
                                 {% endfor %}
                             {% endif %}
                         {% endwith %}
-                        
-                        <form method="POST" action="{{ url_for('jobs.create_job') }}">
-                            <div class="mb-3">
-                                <label for="title" class="form-label">عنوان الوظيفة *</label>
-                                <input type="text" class="form-control" id="title" name="title" required>
+
+                        <form method="POST" action="{{ url_for('jobs.create_job') }}" id="jobForm">
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    <label for="title" class="form-label fw-bold">عنوان الوظيفة *</label>
+                                    <input type="text" class="form-control" id="title" name="title" placeholder="مثلاً: مطور بايثون محترف" required>
+                                </div>
+                                <div class="col-md-12 mb-3">
+                                    <label for="description" class="form-label fw-bold">وصف الوظيفة والمتطلبات *</label>
+                                    <textarea class="form-control" id="description" name="description" rows="5" required placeholder="اكتب تفاصيل الوظيفة هنا..."></textarea>
+                                </div>
                             </div>
-                            
-                            <div class="mb-3">
-                                <label for="description" class="form-label">وصف الوظيفة *</label>
-                                <textarea class="form-control" id="description" name="description" rows="5" required></textarea>
-                            </div>
-                            
+
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label for="location" class="form-label">المكان</label>
-                                    <input type="text" class="form-control" id="location" name="location" placeholder="مثل: القاهرة، مصر">
+                                    <label for="location" class="form-label fw-bold">المكان</label>
+                                    <input type="text" class="form-control" id="location" name="location" placeholder="بورتسودان، عطبرة، أو Remote">
                                 </div>
-                                
                                 <div class="col-md-6 mb-3">
-                                    <label for="salary" class="form-label">الراتب</label>
-                                    <input type="text" class="form-control" id="salary" name="salary" placeholder="مثل: 5000-8000 جنيه">
+                                    <label for="salary" class="form-label fw-bold">الراتب المتوقع</label>
+                                    <input type="text" class="form-control" id="salary" name="salary" placeholder="مثلاً: 500,000 - 800,000 ج.س">
                                 </div>
                             </div>
-                            
-                            <div class="mb-3">
-                                <label for="job_type" class="form-label">نوع الوظيفة</label>
+
+                            <div class="mb-4">
+                                <label for="job_type" class="form-label fw-bold">نوع الوظيفة</label>
                                 <select class="form-select" id="job_type" name="job_type">
-                                    <option value="">اختر نوع الوظيفة</option>
+                                    <option value="">اختر النوع</option>
                                     <option value="دوام كامل">دوام كامل</option>
                                     <option value="دوام جزئي">دوام جزئي</option>
-                                    <option value="عن بعد">عن بعد</option>
-                                    <option value="عقد">عقد</option>
+                                    <option value="عن بعد">عن بعد (Remote)</option>
+                                    <option value="عقد">عقد بمهمة</option>
                                     <option value="تدريب">تدريب</option>
                                 </select>
                             </div>
-                            
-                            <div class="d-grid gap-2">
-                                <button type="submit" class="btn btn-success btn-lg">نشر الوظيفة</button>
-                                <a href="{{ url_for('jobs.jobs_list') }}" class="btn btn-outline-secondary">إلغاء</a>
+
+                            <hr class="my-4">
+
+                            <div class="bg-light p-3 rounded-3 border">
+                                <h5 class="text-primary fw-bold mb-3"><i class="fas fa-tasks"></i> إعداد اختبار التصفية (اختياري)</h5>
+                                <p class="small text-muted mb-4">أضف أسئلة تظهر للمتقدمين لتصفية الكفاءات آلياً. سيتم ترتيب المتقدمين حسب درجة الاختبار.</p>
+                                
+                                <div id="questionsContainer">
+                                    </div>
+
+                                <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="addQuestion()">
+                                    <i class="fas fa-plus"></i> إضافة سؤال جديد
+                                </button>
+                            </div>
+
+                            <div class="d-grid gap-2 mt-5">
+                                <button type="submit" class="btn btn-success btn-lg shadow">نشر الوظيفة الآن</button>
+                                <a href="{{ url_for('jobs.jobs_list') }}" class="btn btn-outline-secondary">إلغاء والعودة</a>
                             </div>
                         </form>
                     </div>
@@ -78,7 +97,81 @@
             </div>
         </div>
     </div>
-    
+
+    <script>
+        let questionCount = 0;
+
+        function addQuestion() {
+            questionCount++;
+            const container = document.getElementById('questionsContainer');
+            const questionHtml = `
+                <div class="card mb-3 question-card shadow-sm" id="q_block_${questionCount}">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge bg-success">سؤال ${questionCount}</span>
+                            <button type="button" class="btn btn-sm btn-link text-danger" onclick="removeQuestion(${questionCount})">
+                                <i class="fas fa-trash"></i> حذف السؤال
+                            </button>
+                        </div>
+                        <div class="mb-3">
+                            <input type="text" class="form-control" name="q_text[]" placeholder="نص السؤال (مثلاً: ما هي ميزة Python الأساسية؟)" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">A</span>
+                                    <input type="text" class="form-control" name="q_a[]" placeholder="الخيار الأول" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">B</span>
+                                    <input type="text" class="form-control" name="q_b[]" placeholder="الخيار الثاني" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">C</span>
+                                    <input type="text" class="form-control" name="q_c[]" placeholder="الخيار الثالث (اختياري)">
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">D</span>
+                                    <input type="text" class="form-control" name="q_d[]" placeholder="الخيار الرابع (اختياري)">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-6">
+                                <label class="small fw-bold">الإجابة الصحيحة:</label>
+                                <select class="form-select form-select-sm" name="q_correct[]">
+                                    <option value="A">الخيار A</option>
+                                    <option value="B">الخيار B</option>
+                                    <option value="C">الخيار C</option>
+                                    <option value="D">الخيار D</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="small fw-bold">الدرجة:</label>
+                                <input type="number" class="form-control form-select-sm" name="q_points[]" value="10">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', questionHtml);
+        }
+
+        function removeQuestion(id) {
+            const block = document.getElementById(`q_block_${id}`);
+            block.remove();
+        }
+
+        // إضافة سؤال واحد تلقائياً عند الفتح (اختياري)
+        // window.onload = addQuestion;
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

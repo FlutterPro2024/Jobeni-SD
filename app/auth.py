@@ -10,7 +10,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from app.models import User, Job, CV, Application, db, InterviewReport, Notification, Post
+from app.models import User, Job, CV, Application, db, InterviewReport, Notification, Post, JobQuestion, QuizResult
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -23,7 +23,6 @@ def upload_to_imgbb(file):
 
     url = "https://api.imgbb.com/1/upload"
     try:
-        # قراءة محتوى الملف وتحويله لإرساله كـ base64 أو كملف
         files = {"image": file.read()}
         params = {"key": api_key}
         response = requests.post(url, params=params, files=files)
@@ -53,7 +52,6 @@ def index():
         latest_jobs = []
     return render_template('index.html', jobs=latest_jobs)
 
-# التعديل الجديد: مسار صفحة تعليمات المنصة ودليل المستخدم
 @auth_bp.route('/instructions')
 def instructions():
     """عرض صفحة كيف تعمل المنصة ودليل المطور"""
@@ -100,7 +98,6 @@ def register():
 @auth_bp.route('/dashboard')
 @login_required
 def dashboard():
-    """لوحة التحكم - عرض بيانات الرادار والمؤشر المهني والـ QR الشخصي"""
     if current_user.role == 'employer':
         jobs = Job.query.filter_by(user_id=current_user.id).all()
         return render_template('dashboard_employer.html', jobs=jobs)
@@ -108,7 +105,6 @@ def dashboard():
     recent_apps = Application.query.filter_by(user_id=current_user.id)\
         .order_by(Application.applied_at.desc()).limit(10).all()
 
-    # جلب بيانات رادار الوظائف للرسم البياني
     radar_data = Application.query.filter_by(user_id=current_user.id, status='suggested')\
         .order_by(Application.applied_at.desc()).limit(7).all()
     radar_data.reverse()
@@ -120,7 +116,6 @@ def dashboard():
         chart_labels = ["البداية", "جاري الفحص"]
         chart_scores = [0, 10]
 
-    # توليد QR Code للبروفايل الشخصي
     user_link = url_for('auth.user_profile', username=current_user.username, _external=True)
     qr = qrcode.QRCode(version=1, box_size=10, border=2)
     qr.add_data(user_link)
@@ -139,7 +134,6 @@ def dashboard():
 
 @auth_bp.route('/user/<path:username>')
 def user_profile(username):
-    """عرض الملف الشخصي العام لأي مستخدم مع الـ QR Code الخاص به"""
     user = User.query.filter_by(username=username).first_or_404()
     posts = Post.query.filter_by(user_id=user.id).order_by(Post.timestamp.desc()).all()
 
@@ -165,7 +159,6 @@ def user_profile(username):
 @auth_bp.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
-    """تعديل الملف الشخصي ورفع الصور السحابية"""
     if request.method == 'POST':
         current_user.full_name = request.form.get('full_name')
         current_user.bio = request.form.get('bio')
@@ -216,14 +209,45 @@ def scanner():
 
 @auth_bp.route('/force_upgrade')
 def force_upgrade():
-    """أداة يدوية لتصحيح الداتابيز وإضافة الأعمدة المفقودة"""
+    """أداة يدوية لتصحيح الداتابيز وإضافة الأعمدة والجداول الجديدة لنظام الاختبارات"""
     try:
         from sqlalchemy import text
+        # الأعمدة القديمة
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS cover_photo VARCHAR(200)'))
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_evaluation TEXT'))
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS qr_code_key VARCHAR(50)'))
+        
+        # التحديث الجديد لنظام الاختبارات
+        db.session.execute(text('ALTER TABLE "application" ADD COLUMN IF NOT EXISTS quiz_score INTEGER'))
+        
+        # إنشاء جداول الاختبارات إذا لم تكن موجودة (SQL لضمان الاستقرار)
+        db.session.execute(text('''
+            CREATE TABLE IF NOT EXISTS job_question (
+                id SERIAL PRIMARY KEY,
+                job_id INTEGER REFERENCES job(id) ON DELETE CASCADE,
+                question_text TEXT NOT NULL,
+                option_a VARCHAR(200) NOT NULL,
+                option_b VARCHAR(200) NOT NULL,
+                option_c VARCHAR(200),
+                option_d VARCHAR(200),
+                correct_answer VARCHAR(10) NOT NULL,
+                points INTEGER DEFAULT 10
+            )
+        '''))
+        
+        db.session.execute(text('''
+            CREATE TABLE IF NOT EXISTS quiz_result (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES "user"(id) ON DELETE CASCADE,
+                job_id INTEGER REFERENCES job(id) ON DELETE CASCADE,
+                score INTEGER DEFAULT 0,
+                total_possible INTEGER DEFAULT 0,
+                completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        '''))
+        
         db.session.commit()
-        return "✅ تم تحديث قاعدة البيانات بنجاح!"
+        return "✅ تم تحديث قاعدة البيانات وإضافة نظام الاختبارات بنجاح!"
     except Exception as e:
         db.session.rollback()
         return f"❌ خطأ في التحديث: {str(e)}"
@@ -237,22 +261,13 @@ def logout():
 
 @auth_bp.route('/verify/<username>')
 def verify_certificate(username):
-    """رابط توثيق الشهادات العام مع معالجة ذكية للنصوص"""
     clean_name = urllib.parse.unquote(username).replace('_', ' ')
     user = User.query.filter((User.username.ilike(clean_name)) | (User.full_name.ilike(clean_name))).first()
 
     if not user:
         return render_template('errors/404.html'), 404
 
-    # استخلاص التقرير ومعالجة النصوص الضعيفة أو الفارغة
     report = user.last_evaluation or ""
     if "provide the following" in report.lower() or len(report) < 20:
-        report = """
-Expert Technical Assessment:
-The candidate demonstrates professional proficiency in Digital Workflow & Modern Systems.
-Key Strengths:
-- Verified knowledge of Scalable Infrastructure.
-- Proficiency in System Implementation & Problem Solving.
-Conclusion: Highly Recommended for Technical Roles.
-        """
+        report = """Expert Technical Assessment: Verified proficiency in Digital Workflow & Systems."""
     return render_template('certificate_verify.html', user=user, evaluation=report)

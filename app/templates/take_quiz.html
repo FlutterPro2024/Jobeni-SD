@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار التقييم - {{ job.title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --primary-color: #0d6efd; --success-color: #198754; }
+        body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .quiz-container { max-width: 800px; margin: 50px auto; }
+        .question-card { 
+            display: none; /* إخفاء كل الأسئلة وعرضها واحداً تلو الآخر */
+            border: none; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); 
+        }
+        .question-card.active { display: block; animation: fadeIn 0.5s ease-in-out; }
+        .option-label {
+            display: block; padding: 15px; margin-bottom: 10px;
+            border: 2px solid #e9ecef; border-radius: 10px; cursor: pointer;
+            transition: all 0.2s ease-in-out; position: relative;
+        }
+        .option-input { display: none; }
+        .option-input:checked + .option-label {
+            border-color: var(--primary-color); background-color: #e7f1ff; font-weight: bold;
+        }
+        .option-input:checked + .option-label::after {
+            content: '\f058'; font-family: 'Font Awesome 5 Free'; font-weight: 900;
+            position: absolute; left: 15px; color: var(--primary-color);
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .progress { height: 8px; border-radius: 10px; margin-bottom: 30px; }
+    </style>
+</head>
+<body>
+
+<div class="container quiz-container">
+    <div class="text-center mb-4">
+        <h2 class="fw-bold text-dark">{{ job.title }}</h2>
+        <p class="text-muted">اختبار تصفية المتقدمين للوظيفة - يرجى الإجابة بدقة</p>
+    </div>
+
+    <div class="progress">
+        <div id="quizProgress" class="progress-bar bg-success" role="progressbar" style="width: 0%;"></div>
+    </div>
+
+    <form id="quizForm" method="POST" action="{{ url_for('jobs.apply_to_job', job_id=job.id) }}">
+        <input type="hidden" name="cv_id" value="{{ request.form.get('cv_id') }}">
+
+        {% for question in questions %}
+        <div class="card question-card p-4 {% if loop.first %}active{% endif %}" id="q-{{ loop.index }}">
+            <div class="d-flex justify-content-between mb-3">
+                <span class="badge bg-primary px-3">سؤال {{ loop.index }} من {{ questions|length }}</span>
+                <span class="text-muted small"><i class="fas fa-star text-warning"></i> {{ question.points }} درجة</span>
+            </div>
+            
+            <h4 class="mb-4 fw-bold text-secondary">{{ question.question_text }}</h4>
+
+            <div class="options-group">
+                <input type="radio" name="answers[]" value="A" id="q{{ loop.index }}a" class="option-input" required>
+                <label for="q{{ loop.index }}a" class="option-label">أ) {{ question.option_a }}</label>
+
+                <input type="radio" name="answers[]" value="B" id="q{{ loop.index }}b" class="option-input">
+                <label for="q{{ loop.index }}b" class="option-label">ب) {{ question.option_b }}</label>
+
+                {% if question.option_c %}
+                <input type="radio" name="answers[]" value="C" id="q{{ loop.index }}c" class="option-input">
+                <label for="q{{ loop.index }}c" class="option-label">ج) {{ question.option_c }}</label>
+                {% endif %}
+
+                {% if question.option_d %}
+                <input type="radio" name="answers[]" value="D" id="q{{ loop.index }}d" class="option-input">
+                <label for="q{{ loop.index }}d" class="option-label">د) {{ question.option_d }}</label>
+                {% endif %}
+            </div>
+
+            <div class="mt-4 d-flex justify-content-between">
+                {% if not loop.first %}
+                <button type="button" class="btn btn-outline-secondary px-4" onclick="prevStep({{ loop.index }})">السابق</button>
+                {% else %}
+                <div></div>
+                {% endif %}
+
+                {% if not loop.last %}
+                <button type="button" class="btn btn-primary px-4" onclick="nextStep({{ loop.index }})">التالي <i class="fas fa-arrow-left ms-1"></i></button>
+                {% else %}
+                <button type="submit" class="btn btn-success px-5 fw-bold">إرسال الطلب النهائي <i class="fas fa-paper-plane ms-1"></i></button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </form>
+</div>
+
+<script>
+    const totalQuestions = {{ questions|length }};
+    
+    function updateProgress(step) {
+        const percent = (step / totalQuestions) * 100;
+        document.getElementById('quizProgress').style.width = percent + '%';
+    }
+
+    function nextStep(current) {
+        // التحقق من أن المستخدم اختار إجابة قبل الانتقال
+        const selected = document.querySelector(`#q-${current} input[name="answers[]"]:checked`);
+        if (!selected) {
+            alert("يرجى اختيار إجابة قبل الانتقال للسؤال التالي.");
+            return;
+        }
+        
+        document.getElementById(`q-${current}`).classList.remove('active');
+        document.getElementById(`q-${current + 1}`).classList.add('active');
+        updateProgress(current);
+    }
+
+    function prevStep(current) {
+        document.getElementById(`q-${current}`).classList.remove('active');
+        document.getElementById(`q-${current - 1}`).classList.add('active');
+        updateProgress(current - 2);
+    }
+
+    // تهيئة شريط التقدم عند البداية
+    updateProgress(0);
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -14,14 +14,17 @@
         <div class="card-body p-4 p-md-5 d-md-flex justify-content-between align-items-center">
             <div>
                 <h2 class="fw-bold mb-2">{{ job.title }}</h2>
-                <div class="d-flex gap-3 opacity-90">
+                <div class="d-flex flex-wrap gap-3 opacity-90">
                     <span><i class="fas fa-users ms-1"></i> {{ applications|length }} متقدماً</span>
-                    <span><i class="fas fa-calendar-alt ms-1"></i> {{ job.created_at.strftime('%Y-%m-%d') }}</span>
+                    <span><i class="fas fa-calendar-alt ms-1"></i> نُشرت بتاريخ: {{ job.created_at.strftime('%Y-%m-%d') }}</span>
+                    {% if job.questions %}
+                    <span class="badge bg-warning text-dark px-3 rounded-pill"><i class="fas fa- clipboard-check ms-1"></i> تحتوي على اختبار تصفية</span>
+                    {% endif %}
                 </div>
             </div>
             <div class="mt-3 mt-md-0">
                 <span class="badge bg-white text-primary rounded-pill px-4 py-3 fw-bold shadow-sm">
-                    <i class="fas fa-robot ms-2"></i> فرز ذكي مدعوم بالـ AI
+                    <i class="fas fa-robot ms-2"></i> نظام الفرز والتقييم الذكي
                 </span>
             </div>
         </div>
@@ -30,10 +33,11 @@
     <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
-                <thead class="bg-light text-muted small">
+                <thead class="bg-light text-muted small text-uppercase">
                     <tr>
-                        <th class="ps-4">المرشح والبريد</th>
-                        <th class="text-center">المطابقة الذكية</th>
+                        <th class="ps-4">بيانات المتقدم</th>
+                        <th class="text-center">تحليل الـ AI</th>
+                        <th class="text-center">نتيجة الاختبار</th>
                         <th class="text-center">الحالة</th>
                         <th class="text-start pe-4">الإجراءات والقرار</th>
                     </tr>
@@ -43,20 +47,29 @@
                     <tr>
                         <td class="ps-4 py-3">
                             <div class="d-flex align-items-center">
-                                <div class="avatar-circle bg-primary text-white fw-bold ms-3">
+                                <div class="avatar-circle bg-primary text-white fw-bold ms-3 shadow-sm">
                                     {{ app.applicant.username[0].upper() }}
                                 </div>
                                 <div>
                                     <div class="fw-bold text-dark">{{ app.applicant.full_name or app.applicant.username }}</div>
-                                    <div class="text-muted small">{{ app.applicant.email }}</div>
+                                    <div class="text-muted small"><i class="fas fa-envelope ms-1"></i> {{ app.applicant.email }}</div>
                                 </div>
                             </div>
                         </td>
                         <td class="text-center">
                             <div class="fw-bold {% if app.match_score >= 70 %}text-success{% else %}text-warning{% endif %}">{{ app.match_score }}%</div>
-                            <div class="progress mx-auto" style="height: 4px; width: 60px;">
+                            <div class="progress mx-auto" style="height: 6px; width: 60px; border-radius: 10px;">
                                 <div class="progress-bar bg-primary" style="width: {{ app.match_score }}%"></div>
                             </div>
+                            <small class="text-muted" style="font-size: 0.7rem;">مطابقة الـ CV</small>
+                        </td>
+                        <td class="text-center">
+                            {% if app.quiz_score is not none %}
+                                <div class="fw-bold text-dark">{{ app.quiz_score }}</div>
+                                <span class="badge bg-success bg-opacity-10 text-success small px-2">مكتمل</span>
+                            {% else %}
+                                <span class="text-muted small">لا يوجد اختبار</span>
+                            {% endif %}
                         </td>
                         <td class="text-center">
                             {% set status_map = {'pending': 'قيد الانتظار', 'accepted': 'مقبول', 'rejected': 'مرفوض', 'interview': 'مقابلة'} %}
@@ -70,30 +83,37 @@
                         </td>
                         <td class="text-start pe-4">
                             <div class="d-flex gap-2 justify-content-end align-items-center">
-                                <button class="btn btn-sm btn-outline-info rounded-pill shadow-sm" 
+                                <button class="btn btn-sm btn-outline-info rounded-pill shadow-sm"
                                         onclick="viewCandidateCV('{{ app.user_id }}', '{{ app.applicant.username }}')"
                                         title="عرض السيرة الذاتية">
                                     <i class="fas fa-eye"></i>
                                 </button>
 
-                                <a href="{{ url_for('chat.open_chat', job_id=app.job_id, recipient_id=app.user_id) }}" 
-                                   class="btn btn-sm btn-outline-primary rounded-pill shadow-sm" title="دردشة">
+                                <a href="{{ url_for('chat.open_chat', job_id=app.job_id, recipient_id=app.user_id) }}"
+                                   class="btn btn-sm btn-outline-primary rounded-pill shadow-sm" title="فتح دردشة">
                                     <i class="fas fa-comments"></i>
                                 </a>
 
                                 <div class="dropdown">
-                                    <button class="btn btn-sm btn-dark dropdown-toggle rounded-pill shadow-sm px-3" data-bs-toggle="dropdown">القرار</button>
+                                    <button class="btn btn-sm btn-dark dropdown-toggle rounded-pill shadow-sm px-3" data-bs-toggle="dropdown">اتخاذ قرار</button>
                                     <ul class="dropdown-menu shadow border-0 text-end">
                                         <li>
                                             <form action="{{ url_for('jobs.update_application_status', app_id=app.id) }}" method="POST">
                                                 <input type="hidden" name="status" value="accepted">
-                                                <button type="submit" class="dropdown-item text-success"><i class="fas fa-check ms-2"></i>قبول المترشح</button>
+                                                <button type="submit" class="dropdown-item text-success"><i class="fas fa-check-circle ms-2"></i>قبول مبدئي</button>
                                             </form>
                                         </li>
                                         <li>
                                             <form action="{{ url_for('jobs.update_application_status', app_id=app.id) }}" method="POST">
+                                                <input type="hidden" name="status" value="interview">
+                                                <button type="submit" class="dropdown-item text-info"><i class="fas fa-user-tie ms-2"></i>تحديد مقابلة</button>
+                                            </form>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <form action="{{ url_for('jobs.update_application_status', app_id=app.id) }}" method="POST">
                                                 <input type="hidden" name="status" value="rejected">
-                                                <button type="submit" class="dropdown-item text-danger"><i class="fas fa-times ms-2"></i>رفض الطلب</button>
+                                                <button type="submit" class="dropdown-item text-danger"><i class="fas fa-times-circle ms-2"></i>رفض الطلب</button>
                                             </form>
                                         </li>
                                     </ul>
@@ -109,7 +129,7 @@
         {% if not applications %}
         <div class="text-center py-5">
             <i class="fas fa-user-slash fa-3x mb-3 opacity-25"></i>
-            <p class="text-muted">لا يوجد متقدمين لهذه الوظيفة حتى الآن.</p>
+            <p class="text-muted fw-bold">لم يتقدم أحد لهذه الوظيفة حتى اللحظة.</p>
         </div>
         {% endif %}
     </div>
@@ -119,60 +139,63 @@
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg rounded-4">
             <div class="modal-header bg-light border-0">
-                <h5 class="modal-title fw-bold text-primary" id="cvModalLabel">السيرة الذاتية للمتقدم</h5>
+                <h5 class="modal-title fw-bold text-primary" id="cvModalLabel">ملف المتقدم</h5>
                 <button type="button" class="btn-close ms-0 me-auto" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body p-4" id="cvModalBody" dir="ltr" style="text-align: left;">
-                <div class="text-center py-5">
-                    <div class="spinner-border text-primary" role="status"></div>
-                    <p class="mt-2 text-muted">جاري تحليل البيانات...</p>
+            <div class="modal-body p-4 text-start" id="cvModalBody" dir="ltr">
                 </div>
-            </div>
         </div>
     </div>
 </div>
 
 <style>
-    .avatar-circle { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; }
-    .table-hover tbody tr:hover { background-color: #f8faff; transition: 0.3s; }
-    .badge { font-weight: 600; letter-spacing: 0.3px; }
-    .breadcrumb-item + .breadcrumb-item::before { float: right; padding-left: 0.5rem; color: #6c757d; content: "/"; }
-    .modal-body { max-height: 70vh; overflow-y: auto; }
+    .avatar-circle { width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+    .table-hover tbody tr:hover { background-color: #f0f4ff; transition: 0.3s; }
+    .badge { font-weight: 600; }
+    .progress { background-color: #eee; }
+    .modal-body { max-height: 75vh; overflow-y: auto; }
+    /* لضمان تناسق العرض على الموبايل */
+    @media (max-width: 768px) {
+        .avatar-circle { width: 35px; height: 35px; font-size: 0.8rem; }
+    }
 </style>
 
 <script>
 function viewCandidateCV(userId, username) {
     document.getElementById('cvModalLabel').innerText = "السيرة الذاتية لـ: " + username;
+    const body = document.getElementById('cvModalBody');
+    body.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">جاري جلب بيانات الـ AI...</p></div>';
+    
     const modal = new bootstrap.Modal(document.getElementById('cvPreviewModal'));
     modal.show();
-    
-    // استدعاء الـ API اللي أضفناه في jobs.py
+
     fetch(`/jobs/api/get_cv/${userId}`)
     .then(response => response.json())
     .then(data => {
-        const body = document.getElementById('cvModalBody');
         if (data.error) {
-            body.innerHTML = `<div class="alert alert-warning text-center">عذراً، لم يتم العثور على سيرة ذاتية مرفوعة لهذا المستخدم.</div>`;
+            body.innerHTML = `<div class="alert alert-warning text-center rounded-3">لم يتم رفع سيرة ذاتية لهذا المتقدم.</div>`;
         } else {
             body.innerHTML = `
-                <div class="cv-parsed-content">
-                    <h6 class="fw-bold text-primary mb-3"><i class="fas fa-file-alt me-2"></i> النص المستخلص (AI Parsed):</h6>
-                    <div class="bg-light p-3 rounded-3 border mb-4" style="white-space: pre-wrap; font-size: 0.9rem; color: #333;">
+                <div class="cv-content">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h6 class="fw-bold text-dark mb-0"><i class="fas fa-file-invoice text-primary me-2"></i> تحليل البيانات المستخلصة</h6>
+                        <span class="text-muted small">تاريخ الرفع: ${data.created_at}</span>
+                    </div>
+                    <div class="bg-dark text-light p-3 rounded-3 mb-4" style="font-family: monospace; font-size: 0.85rem; white-space: pre-wrap; max-height: 400px; overflow-y: auto; border-left: 4px solid #3b82f6;">
                         ${data.parsed_text}
                     </div>
-                    
-                    <h6 class="fw-bold text-primary mb-3"><i class="fas fa-tags me-2"></i> المهارات المكتشفة:</h6>
+                    <h6 class="fw-bold text-dark mb-3"><i class="fas fa-brain text-info me-2"></i> المهارات التي رصدها الـ AI</h6>
                     <div class="d-flex flex-wrap gap-2">
                         ${data.skills && data.skills.length > 0 ? 
-                          data.skills.map(s => `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-3">${s}</span>`).join('') 
-                          : '<span class="text-muted">لم يتم تحديد مهارات معينة</span>'}
+                          data.skills.map(s => `<span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 rounded-pill px-3 py-2">${s}</span>`).join('') 
+                          : '<span class="text-muted">لم يتم رصد مهارات تقنية محددة</span>'}
                     </div>
                 </div>
             `;
         }
     })
     .catch(err => {
-        document.getElementById('cvModalBody').innerHTML = `<div class="alert alert-danger">حدث خطأ أثناء تحميل البيانات. تأكد من اتصالك بالإنترنت.</div>`;
+        body.innerHTML = `<div class="alert alert-danger">خطأ في الاتصال بالخادم.</div>`;
     });
 }
 </script>
