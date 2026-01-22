@@ -224,16 +224,15 @@ def evaluate_candidate(app_id):
     """تقييم المتقدم بعد المقابلة وإصدار القرار النهائي"""
     application = Application.query.get_or_404(app_id)
     job = Job.query.get(application.job_id)
-    
+
     if job.user_id != current_user.id:
         abort(403)
 
     technical_score = int(request.form.get('technical_score', 0))
     soft_skills_score = int(request.form.get('soft_skills_score', 0))
     final_notes = request.form.get('final_notes', '')
-    decision = request.form.get('decision') 
+    decision = request.form.get('decision')
 
-    # تخزين التقييم (يمكن إضافة حقول للموديل مستقبلاً، حالياً ندمجها في التفسير)
     avg_score = (technical_score + soft_skills_score) / 2
     application.match_explanation += f"\n\n--- تقييم المقابلة ---\nالدرجة: {avg_score}/5\nالملاحظات: {final_notes}"
     application.status = decision
@@ -247,7 +246,7 @@ def evaluate_candidate(app_id):
 
     add_notification(application.user_id, msg, category)
     db.session.commit()
-    
+
     flash('تم تسجيل التقييم وإرسال القرار النهائي للمتقدم.', 'success')
     return redirect(url_for('jobs.view_candidates', job_id=job.id))
 
@@ -270,16 +269,17 @@ def job_analytics(job_id):
     pass_mark = max_score * 0.5
 
     apps_with_quiz = Application.query.filter(
-        Application.job_id == job_id, 
+        Application.job_id == job_id,
         Application.quiz_score.isnot(None)
     ).all()
-    
+
     passed_quiz = len([a for a in apps_with_quiz if a.quiz_score >= pass_mark])
     failed_quiz = len(apps_with_quiz) - passed_quiz
 
+    # تم تغيير التسمية هنا لتجنب التعارض مع دوال القواميس الأصلية
     chart_data = {
         "labels": ["ناجح", "راسب"],
-        "values": [passed_quiz, failed_quiz],
+        "quiz_counts": [passed_quiz, failed_quiz],
         "status_labels": ["مقبول", "مرفوض", "مقابلة", "قيد الانتظار"],
         "status_values": [accepted, rejected, interviewing, pending]
     }
