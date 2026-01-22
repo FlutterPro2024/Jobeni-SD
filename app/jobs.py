@@ -191,23 +191,20 @@ def update_application_status(app_id):
 
     application.status = new_status
 
-    # منطق الإشعارات المتطور
     if new_status == 'interview':
         msg = f"🚀 خبر رائع! تم اختيارك لمقابلة لوظيفة {job.title}."
         if interview_details:
             msg += f" تفاصيل الموعد: {interview_details}"
-        
-        # 1. إضافة إشعار في نظام التنبيهات
+
         add_notification(application.user_id, msg, 'info')
-        
-        # 2. إرسال رسالة تلقائية في الشات لفتح قناة تواصل
+
         send_automated_interview_message(
-            sender_id=current_user.id, 
-            recipient_id=application.user_id, 
-            job_id=job.id, 
+            sender_id=current_user.id,
+            recipient_id=application.user_id,
+            job_id=job.id,
             details=interview_details
         )
-        
+
         flash('تم إرسال دعوة المقابلة وتفاصيل الموعد وبدء دردشة مع المتقدم.', 'success')
 
     elif new_status == 'accepted':
@@ -220,6 +217,74 @@ def update_application_status(app_id):
 
     db.session.commit()
     return redirect(url_for('jobs.view_candidates', job_id=job.id))
+
+@jobs_bp.route('/job/evaluate/<int:app_id>', methods=['POST'])
+@login_required
+def evaluate_candidate(app_id):
+    """تقييم المتقدم بعد المقابلة وإصدار القرار النهائي"""
+    application = Application.query.get_or_404(app_id)
+    job = Job.query.get(application.job_id)
+    
+    if job.user_id != current_user.id:
+        abort(403)
+
+    technical_score = int(request.form.get('technical_score', 0))
+    soft_skills_score = int(request.form.get('soft_skills_score', 0))
+    final_notes = request.form.get('final_notes', '')
+    decision = request.form.get('decision') 
+
+    # تخزين التقييم (يمكن إضافة حقول للموديل مستقبلاً، حالياً ندمجها في التفسير)
+    avg_score = (technical_score + soft_skills_score) / 2
+    application.match_explanation += f"\n\n--- تقييم المقابلة ---\nالدرجة: {avg_score}/5\nالملاحظات: {final_notes}"
+    application.status = decision
+
+    if decision == 'accepted':
+        msg = f"🎊 مبروك! بعد تقييم المقابلة، تم قبولك نهائياً لوظيفة {job.title}. سيتواصل معك قسم الموارد البشرية."
+        category = 'success'
+    else:
+        msg = f"نعتذر، لم يتم اختيارك لوظيفة {job.title} بعد مرحلة المقابلة. نتمنى لك التوفيق في فرص قادمة."
+        category = 'secondary'
+
+    add_notification(application.user_id, msg, category)
+    db.session.commit()
+    
+    flash('تم تسجيل التقييم وإرسال القرار النهائي للمتقدم.', 'success')
+    return redirect(url_for('jobs.view_candidates', job_id=job.id))
+
+@jobs_bp.route('/job/<int:job_id>/analytics')
+@login_required
+def job_analytics(job_id):
+    """لوحة تحكم التحليلات والرسوم البيانية للوظيفة"""
+    job = Job.query.get_or_404(job_id)
+    if job.user_id != current_user.id:
+        abort(403)
+
+    total_apps = Application.query.filter_by(job_id=job_id).count()
+    accepted = Application.query.filter_by(job_id=job_id, status='accepted').count()
+    rejected = Application.query.filter_by(job_id=job_id, status='rejected').count()
+    pending = Application.query.filter_by(job_id=job_id, status='pending').count()
+    interviewing = Application.query.filter_by(job_id=job_id, status='interview').count()
+
+    questions = JobQuestion.query.filter_by(job_id=job_id).all()
+    max_score = sum(q.points for q in questions) if questions else 100
+    pass_mark = max_score * 0.5
+
+    apps_with_quiz = Application.query.filter(
+        Application.job_id == job_id, 
+        Application.quiz_score.isnot(None)
+    ).all()
+    
+    passed_quiz = len([a for a in apps_with_quiz if a.quiz_score >= pass_mark])
+    failed_quiz = len(apps_with_quiz) - passed_quiz
+
+    chart_data = {
+        "labels": ["ناجح", "راسب"],
+        "values": [passed_quiz, failed_quiz],
+        "status_labels": ["مقبول", "مرفوض", "مقابلة", "قيد الانتظار"],
+        "status_values": [accepted, rejected, interviewing, pending]
+    }
+
+    return render_template('job_analytics.html', job=job, data=chart_data, total=total_apps)
 
 @jobs_bp.route('/job/delete/<int:job_id>', methods=['POST'])
 @login_required

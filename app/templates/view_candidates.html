@@ -22,10 +22,10 @@
                     {% endif %}
                 </div>
             </div>
-            <div class="mt-3 mt-md-0">
-                <span class="badge bg-white text-primary rounded-pill px-4 py-3 fw-bold shadow-sm">
-                    <i class="fas fa-robot ms-2"></i> نظام الفرز والتقييم الذكي
-                </span>
+            <div class="mt-3 mt-md-0 d-flex gap-2">
+                <a href="{{ url_for('jobs.job_analytics', job_id=job.id) }}" class="btn btn-light text-primary rounded-pill px-4 py-2 fw-bold shadow-sm">
+                    <i class="fas fa-chart-pie ms-2"></i> عرض التحليلات الذكية
+                </a>
             </div>
         </div>
     </div>
@@ -97,6 +97,15 @@
                                 <div class="dropdown">
                                     <button class="btn btn-sm btn-dark dropdown-toggle rounded-pill shadow-sm px-3" data-bs-toggle="dropdown">اتخاذ قرار</button>
                                     <ul class="dropdown-menu shadow border-0 text-end">
+                                        {% if app.status == 'interview' %}
+                                        <li>
+                                            <button class="dropdown-item text-primary fw-bold" data-bs-toggle="modal" data-bs-target="#evalModal{{ app.id }}">
+                                                <i class="fas fa-star ms-2"></i>تقييم المقابلة النهائي
+                                            </button>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        {% endif %}
+                                        
                                         <li>
                                             <button class="dropdown-item text-info" data-bs-toggle="modal" data-bs-target="#interviewModal{{ app.id }}">
                                                 <i class="fas fa-calendar-alt ms-2"></i>تحديد مقابلة
@@ -133,16 +142,54 @@
                                         <input type="hidden" name="status" value="interview">
                                         <div class="mb-3 text-start" dir="rtl">
                                             <label class="form-label fw-bold"><i class="fas fa-clock ms-1"></i> تفاصيل الموعد والمكان</label>
-                                            <textarea name="interview_details" class="form-control rounded-3" rows="3" 
+                                            <textarea name="interview_details" class="form-control rounded-3" rows="3"
                                                 placeholder="مثال: الأحد القادم الساعة 10 ص. الرابط: [رابط زووم] أو عنوان الشركة..." required></textarea>
                                         </div>
                                         <div class="alert alert-info py-2 small mb-0">
-                                            <i class="fas fa-info-circle ms-1"></i> سيتم إرسال هذه التفاصيل فوراً للمتقدم في الإشعارات.
+                                            <i class="fas fa-info-circle ms-1"></i> سيتم إرسال هذه التفاصيل فوراً للمتقدم في الإشعارات والدردشة.
                                         </div>
                                     </div>
                                     <div class="modal-footer border-0">
                                         <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">إلغاء</button>
                                         <button type="submit" class="btn btn-primary rounded-pill px-4 shadow">تأكيد الدعوة</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal fade" id="evalModal{{ app.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content border-0 shadow-lg rounded-4">
+                                <div class="modal-header bg-dark text-white border-0">
+                                    <h5 class="modal-title fw-bold">تقييم المقابلة: {{ app.applicant.username }}</h5>
+                                    <button type="button" class="btn-close btn-close-white ms-0 me-auto" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form action="{{ url_for('jobs.evaluate_candidate', app_id=app.id) }}" method="POST">
+                                    <div class="modal-body p-4 text-end">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">المهارات التقنية (1-5)</label>
+                                            <input type="range" name="technical_score" class="form-range" min="1" max="5" value="3">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">المهارات الشخصية (1-5)</label>
+                                            <input type="range" name="soft_skills_score" class="form-range" min="1" max="5" value="3">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">ملاحظات التقييم</label>
+                                            <textarea name="final_notes" class="form-control" rows="3" placeholder="اكتب رأيك النهائي في أداء المتقدم..."></textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold text-danger">القرار النهائي</label>
+                                            <select name="decision" class="form-select border-2" required>
+                                                <option value="accepted">✅ قبول وتوظيف</option>
+                                                <option value="rejected">❌ اعتذار ورفض</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer border-0">
+                                        <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">إغاء</button>
+                                        <button type="submit" class="btn btn-dark rounded-pill px-4 shadow">حفظ وإرسال النتيجة</button>
                                     </div>
                                 </form>
                             </div>
@@ -169,8 +216,7 @@
                 <h5 class="modal-title fw-bold text-primary" id="cvModalLabel">ملف المتقدم</h5>
                 <button type="button" class="btn-close ms-0 me-auto" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body p-4 text-start" id="cvModalBody" dir="ltr">
-                </div>
+            <div class="modal-body p-4 text-start" id="cvModalBody" dir="ltr"></div>
         </div>
     </div>
 </div>
@@ -181,6 +227,7 @@
     .badge { font-weight: 600; }
     .progress { background-color: #eee; }
     .modal-body { max-height: 75vh; overflow-y: auto; }
+    .dropdown-item { padding: 10px 20px; cursor: pointer; }
     @media (max-width: 768px) {
         .avatar-circle { width: 35px; height: 35px; font-size: 0.8rem; }
     }

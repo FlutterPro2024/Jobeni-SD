@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}تحليلات الوظيفة - {{ job.title }}{% endblock %}
+
+{% block content %}
+<div class="container py-4 text-end" dir="rtl">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+        <div>
+            <h2 class="fw-bold mb-1"><i class="fas fa-chart-pie text-primary ms-2"></i>تحليلات الوظيفة</h2>
+            <p class="text-muted mb-0">{{ job.title }} | {{ job.company_name }}</p>
+        </div>
+        <a href="{{ url_for('jobs.view_candidates', job_id=job.id) }}" class="btn btn-outline-primary rounded-pill px-4">
+            <i class="fas fa-arrow-right ms-2"></i>العودة للمرشحين
+        </a>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 border-start border-primary border-4">
+                <h6 class="text-muted small">إجمالي المتقدمين</h6>
+                <h3 class="fw-bold mb-0">{{ total }}</h3>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 border-start border-success border-4">
+                <h6 class="text-muted small">نسبة النجاح</h6>
+                <h3 class="fw-bold mb-0 text-success">
+                    {% if data.values[0] + data.values[1] > 0 %}
+                        {{ ((data.values[0] / (data.values[0] + data.values[1])) * 100) | round(1) }}%
+                    {% else %}
+                        0%
+                    {% endif %}
+                </h3>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 border-start border-info border-4">
+                <h6 class="text-muted small">بانتظار المقابلة</h6>
+                <h3 class="fw-bold mb-0 text-info">
+                    {% if 'interview' in data.status_labels %}
+                        {{ data.status_values[data.status_labels.index('interview')] }}
+                    {% else %}
+                        0
+                    {% endif %}
+                </h3>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 border-start border-warning border-4">
+                <h6 class="text-muted small">تاريخ النشر</h6>
+                <h6 class="fw-bold mb-0 text-truncate">{{ job.created_at.strftime('%Y-%m-%d') }}</h6>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
+                <h5 class="fw-bold mb-4 text-center">أداء المتقدمين في الاختبار</h5>
+                <div style="position: relative; height: 300px;">
+                    <canvas id="quizChart"></canvas>
+                </div>
+                <div class="mt-4">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span><i class="fas fa-check-circle text-success ms-1"></i> ناجحين:</span>
+                        <span class="fw-bold">{{ data.values[0] }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span><i class="fas fa-times-circle text-danger ms-1"></i> راسبين:</span>
+                        <span class="fw-bold">{{ data.values[1] }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
+                <h5 class="fw-bold mb-4 text-center">توزيع حالات المتقدمين (Pipeline)</h5>
+                <div style="position: relative; height: 350px;">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    // إعدادات الخطوط العربية في الرسوم البيانية
+    Chart.defaults.font.family = 'Cairo, sans-serif';
+
+    // 1. الرسم البياني الدائري (الاختبارات)
+    const quizCtx = document.getElementById('quizChart').getContext('2d');
+    new Chart(quizCtx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ data.labels|tojson }},
+            datasets: [{
+                data: {{ data.values|tojson }},
+                backgroundColor: ['#28a745', '#dc3545'],
+                borderWidth: 0,
+                hoverOffset: 10
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' }
+            },
+            cutout: '70%'
+        }
+    });
+
+    // 2. الرسم البياني للأعمدة (حالات التوظيف)
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    new Chart(statusCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ data.status_labels|tojson }},
+            datasets: [{
+                label: 'عدد المتقدمين',
+                data: {{ data.status_values|tojson }},
+                backgroundColor: ['#198754', '#dc3545', '#0dcaf0', '#6c757d'],
+                borderRadius: 10,
+                barThickness: 40
+            }]
+        },
+        options: {
+            indexAxis: 'y', // أعمدة أفقية لشكل عصري أكثر
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                x: { beginAtZero: true, grid: { display: false }, ticks: { stepSize: 1 } },
+                y: { grid: { display: false } }
+            }
+        }
+    });
+</script>
+
+<style>
+    body { background-color: #f8f9fa; }
+    .card { transition: transform 0.3s ease; }
+    .card:hover { transform: translateY(-5px); }
+</style>
+{% endblock %}
