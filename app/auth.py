@@ -116,10 +116,21 @@ def dashboard():
 
     if last_cv and last_cv.extracted_text:
         try:
-            radar_data = openrouter_ai.generate_skills_radar_data(last_cv.extracted_text)
-            radar_labels = radar_data.get('labels', radar_labels)
-            radar_scores = radar_data.get('scores', radar_scores)
-            course_suggestions = openrouter_ai.suggest_courses_for_gaps(radar_data)
+            # محاولة جلب البيانات المخزنة أولاً
+            if last_cv.radar_labels and last_cv.radar_scores:
+                radar_labels = last_cv.radar_labels
+                radar_scores = last_cv.radar_scores
+            else:
+                # إذا لم تكن مخزنة، نولدها الآن
+                radar_data = openrouter_ai.generate_skills_radar_data(last_cv.extracted_text)
+                radar_labels = radar_data.get('labels', radar_labels)
+                radar_scores = radar_data.get('scores', radar_scores)
+                # حفظها في الداتابيز للاستخدام المستقبلي
+                last_cv.radar_labels = radar_labels
+                last_cv.radar_scores = radar_scores
+                db.session.commit()
+            
+            course_suggestions = openrouter_ai.suggest_courses_for_gaps({"labels": radar_labels, "scores": radar_scores})
         except Exception as e:
             print(f"Radar Generation Error: {e}")
 
@@ -170,11 +181,14 @@ def user_profile(username):
 
     if last_cv:
         cv_skills = getattr(last_cv, 'skills', [])
-        try:
-            ai_radar = openrouter_ai.generate_skills_radar_data(last_cv.extracted_text or "")
-            radar_data = ai_radar.get('scores', radar_data)
-        except: pass
-
+        if last_cv.radar_scores:
+            radar_data = last_cv.radar_scores
+        else:
+            try:
+                ai_radar = openrouter_ai.generate_skills_radar_data(last_cv.extracted_text or "")
+                radar_data = ai_radar.get('scores', radar_data)
+            except: pass
+    
     # توليد QR Code الخاص بالبروفايل
     profile_url = url_for('auth.user_profile', username=user.username, _external=True)
     qr = qrcode.QRCode(version=1, box_size=10, border=2)
@@ -185,12 +199,10 @@ def user_profile(username):
     img.save(buffered, format="PNG")
     user_qr_base64 = base64.b64encode(buffered.getvalue()).decode()
 
-    return render_template('user_profile.html',
+    return render_template('user_profile.html', 
                            user=user, posts=posts,
-                           is_online=is_online,
-                           user_qr=user_qr_base64,
-                           radar_data=radar_data,
-                           cv_skills=cv_skills)
+                           is_online=is_online, user_qr=user_qr_base64,
+                           radar_data=radar_data, cv_skills=cv_skills)
 
 @auth_bp.route('/profile', methods=['GET', 'POST'])
 @login_required
@@ -218,12 +230,10 @@ def profile():
         flash('تم تحديث الملف الشخصي والبيانات بنجاح', 'success')
         return redirect(url_for('auth.profile'))
 
-    # بيانات العرض لصفحة البروفايل (تحليلات + تقديمات)
     cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
     applications = Application.query.filter_by(user_id=current_user.id).order_by(Application.applied_at.desc()).all()
-    radar_data = [80, 70, 90, 65, 75] if cv else [0, 0, 0, 0, 0]
+    radar_data = cv.radar_scores if cv and cv.radar_scores else ([80, 70, 90, 65, 75] if cv else [0, 0, 0, 0, 0])
 
-    # QR Code للبروفايل الشخصي
     user_link = url_for('auth.user_profile', username=current_user.username, _external=True)
     qr = qrcode.QRCode(version=1, box_size=10, border=2)
     qr.add_data(user_link)
@@ -260,22 +270,24 @@ def force_upgrade():
     """أداة تحديث قاعدة البيانات وإضافة الأعمدة الجديدة للنظام المطوّر"""
     try:
         from sqlalchemy import text
-        # تحديثات الهوية والتقييم
+        # تحديثات الهوية والتقييم في جدول User
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS cover_photo VARCHAR(200)'))
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_evaluation TEXT'))
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS qr_code_key VARCHAR(50)'))
+        
+        # تحديث جدول Application
         db.session.execute(text('ALTER TABLE "application" ADD COLUMN IF NOT EXISTS quiz_score INTEGER'))
-
+        
         # تحديثات نظام الرادار في جدول CV
         db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS radar_labels JSON'))
         db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS radar_scores JSON'))
         db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS course_recommendations TEXT'))
 
         db.session.commit()
-        return "✅ تم تحديث قاعدة البيانات وإضافة نظام الرادار بنجاح لعام 2026!"
+        return "<h1>✅ تم تحديث قاعدة البيانات بنجاح!</h1><p>نظام الرادار والهوية الرقمية يعمل الآن.</p>"
     except Exception as e:
         db.session.rollback()
-        return f"❌ خطأ في التحديث: {str(e)}"
+        return f"<h1>❌ خطأ في التحديث</h1><p>{str(e)}</p>"
 
 @auth_bp.route('/logout')
 @login_required
@@ -291,6 +303,6 @@ def verify_certificate(username):
     user = User.query.filter((User.username.ilike(clean_name)) | (User.full_name.ilike(clean_name))).first()
     if not user:
         return render_template('errors/404.html'), 404
-
+    
     report = user.last_evaluation or "Expert Technical Assessment: Verified proficiency in Digital Workflow & Systems."
     return render_template('certificate_verify.html', user=user, evaluation=report)
