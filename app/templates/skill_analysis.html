@@ -1,40 +1,117 @@
 {% extends "base.html" %}
 {% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <div class="container py-5 text-end" dir="rtl">
-    <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+    <div class="card border-0 shadow-lg rounded-4 overflow-hidden animate__animated animate__fadeIn">
         <div class="card-body p-5 text-center text-white" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
-            <i class="fas fa-brain fa-4x text-info mb-3"></i>
+            <div class="position-relative d-inline-block">
+                <i class="fas fa-brain fa-4x text-info mb-3"></i>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                    AI 2026
+                </span>
+            </div>
             <h2 class="fw-bold">مستشار المهارات الذكي</h2>
-            <div class="badge bg-info p-2 px-4 rounded-pill fs-6 mt-2">تخصصك المرصود: {{ profession }}</div>
+            <p class="text-info opacity-75 mb-0">تحليل المهارات بناءً على أحدث معايير السوق العالمي</p>
+            <div class="badge bg-info p-2 px-4 rounded-pill fs-6 mt-3 shadow-sm">تخصصك المرصود: {{ profession }}</div>
         </div>
 
-        <div class="card-body p-5 bg-white">
-            <div class="row align-items-center">
+        <div class="card-body p-4 p-md-5 bg-white">
+            <div class="row g-5 align-items-center">
                 <div class="col-md-7">
-                    <h4 class="fw-bold mb-4 border-bottom pb-2"><i class="fas fa-lightbulb text-warning"></i> مهارات ننصحك بها لعام 2026:</h4>
+                    <h4 class="fw-bold mb-4 border-bottom pb-2 d-flex align-items-center">
+                        <i class="fas fa-rocket text-warning ms-2"></i> مهارات ننصحك بها لعام 2026:
+                    </h4>
                     <div class="row g-3">
                         {% for skill in skills_data %}
                         <div class="col-sm-6">
-                            <div class="p-3 rounded-4 bg-light border-start border-4 border-info shadow-sm">
-                                <div class="fw-bold text-dark mb-2">{{ skill.name }}</div>
-                                <div class="d-flex gap-1">
-                                    <a href="{{ skill.url }}" target="_blank" class="btn btn-sm btn-outline-danger w-100 py-0 small"><i class="fab fa-youtube"></i> تعلم</a>
-                                    <a href="{{ url_for('search.interview_prep', skill=skill.name) }}" class="btn btn-sm btn-outline-dark w-100 py-0 small">تدرب</a>
+                            <div class="p-3 rounded-4 bg-light border-start border-4 border-info shadow-sm hover-up transition">
+                                <div class="fw-bold text-dark mb-2 d-flex justify-content-between align-items-center">
+                                    {{ skill.name }}
+                                    <i class="fas fa-check-circle text-success small opacity-50"></i>
+                                </div>
+                                <div class="d-flex gap-2 mt-3">
+                                    <a href="{{ skill.url }}" target="_blank" class="btn btn-sm btn-outline-danger w-100 py-1 rounded-pill">
+                                        <i class="fab fa-youtube ms-1"></i> تعلم
+                                    </a>
+                                    <a href="{{ url_for('search.interview_prep', skill=skill.name) }}" class="btn btn-sm btn-outline-dark w-100 py-1 rounded-pill">
+                                        <i class="fas fa-user-tie ms-1"></i> تدرب
+                                    </a>
                                 </div>
                             </div>
                         </div>
                         {% endfor %}
                     </div>
                 </div>
-                <div class="col-md-5 text-center">
-                    <div class="p-4 rounded-4 shadow-sm" style="background: #f0f9ff; border: 2px dashed #bae6fd;">
-                        <h1 class="display-3 fw-bold text-primary">{{ cv_score }}%</h1>
-                        <p class="text-muted fw-bold">قوة مطابقتك الحالية</p>
-                        <a href="{{ url_for('cv.optimize_cv_view', cv_id=cv_id) }}" class="btn btn-primary btn-lg rounded-pill w-100 shadow">حسن سيرتك الآن ✨</a>
+
+                <div class="col-md-5">
+                    <div class="radar-box p-3 mb-4 rounded-4 bg-white border shadow-sm">
+                        <canvas id="skillsRadarChart" style="max-height: 250px;"></canvas>
+                    </div>
+
+                    <div class="p-4 rounded-4 shadow-sm text-center" style="background: #f0f9ff; border: 2px dashed #bae6fd;">
+                        <div class="position-relative d-inline-block mb-2">
+                            <h1 class="display-3 fw-bold text-primary mb-0">{{ cv_score }}%</h1>
+                        </div>
+                        <p class="text-muted fw-bold mb-4">قوة مطابقتك الحالية للمعايير</p>
+                        <a href="{{ url_for('cv.optimize_cv_view', cv_id=cv_id) }}" class="btn btn-primary btn-lg rounded-pill w-100 shadow-lg pulse-animation">
+                            <i class="fas fa-magic ms-1"></i> حسن سيرتك الآن ✨
+                        </a>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+    .hover-up:hover { transform: translateY(-5px); transition: all 0.3s ease; }
+    .transition { transition: all 0.3s ease; }
+    .pulse-animation { animation: pulse 2s infinite; }
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.02); }
+        100% { transform: scale(1); }
+    }
+    .radar-box { position: relative; width: 100%; }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('skillsRadarChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: {{ (radar_labels or ['التقنية', 'التواصل', 'الخبرة', 'التعليم', 'القيادة'])|tojson }},
+                datasets: [{
+                    label: 'تحليل القدرات',
+                    data: {{ (radar_scores or [65, 75, 80, 60, 70])|tojson }},
+                    fill: true,
+                    backgroundColor: 'rgba(14, 165, 233, 0.2)',
+                    borderColor: '#0ea5e9',
+                    pointBackgroundColor: '#0ea5e9',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: '#0ea5e9',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    r: {
+                        angleLines: { display: true, color: '#e2e8f0' },
+                        grid: { color: '#e2e8f0' },
+                        suggestedMin: 0,
+                        suggestedMax: 100,
+                        ticks: { display: false, stepSize: 20 },
+                        pointLabels: { font: { family: 'Tajawal', size: 12 }, color: '#64748b' }
+                    }
+                }
+            }
+        });
+    });
+</script>
 {% endblock %}

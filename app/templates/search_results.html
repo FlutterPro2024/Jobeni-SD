@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}نتائج البحث - Jobeni SD{% endblock %}
+{% block title %}نتائج البحث الذكي - Jobeni SD{% endblock %}
 
 {% block content %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -8,22 +8,24 @@
 <div class="container py-4 text-end" dir="rtl">
     <div class="row mb-4 justify-content-center">
         <div class="col-lg-10">
-            <div class="search-box-wrapper p-1 rounded-pill shadow-lg bg-white border">
+            <div class="search-box-wrapper p-2 rounded-pill shadow-lg bg-white border animate__animated animate__fadeInDown">
                 <form action="{{ url_for('search.jobs_list') }}" method="GET" class="row g-0 align-items-center">
                     <div class="col-md-5">
                         <div class="input-group border-start">
                             <span class="input-group-text bg-transparent border-0 text-muted"><i class="fas fa-search"></i></span>
-                            <input type="text" name="q" class="form-control border-0 shadow-none px-2" placeholder="المسمى الوظيفي..." value="{{ search_query }}">
+                            <input type="text" name="q" class="form-control border-0 shadow-none px-2" placeholder="المسمى الوظيفي (مثلاً: محاسب، مهندس)..." value="{{ search_query }}">
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="input-group">
                             <span class="input-group-text bg-transparent border-0 text-muted"><i class="fas fa-map-marker-alt"></i></span>
-                            <input type="text" name="location" class="form-control border-0 shadow-none px-2" placeholder="الموقع..." value="{{ location_query }}">
+                            <input type="text" name="location" class="form-control border-0 shadow-none px-2" placeholder="الموقع (الخرطوم، بورتسودان...)" value="{{ location_query }}">
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">تحديث البحث</button>
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm transition-base">
+                            <i class="fas fa-sync-alt me-1"></i> تحديث البحث
+                        </button>
                     </div>
                 </form>
             </div>
@@ -32,78 +34,102 @@
 
     <div class="row mb-5">
         <div class="col-12">
-            <h5 class="fw-bold mb-3"><i class="fas fa-map-marked-alt text-primary me-2"></i> التوزيع الجغرافي للوظائف المحلية</h5>
-            <div id="searchMap" style="height: 400px; border-radius: 20px;" class="shadow-sm border"></div>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0"><i class="fas fa-map-marked-alt text-primary ms-2"></i> رادار الوظائف المحلية</h5>
+                <span class="text-muted small">توزيع الفرص جغرافياً في السودان</span>
+            </div>
+            <div id="searchMap" style="height: 350px; border-radius: 24px;" class="shadow-sm border"></div>
         </div>
     </div>
 
     <div class="row g-4">
         <div class="col-lg-8">
-            <div class="d-flex align-items-center mb-4">
-                <h4 class="fw-bold mb-0">الوظائف المحلية في جوبني</h4>
-                <span class="badge bg-secondary ms-3 rounded-pill">{{ jobs|length if jobs else 0 }} وظيفة</span>
+            <div class="d-flex align-items-center justify-content-between mb-4">
+                <h4 class="fw-bold mb-0">الوظائف المتاحة في جوبيني</h4>
+                <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-2">
+                    {{ jobs|length if jobs else 0 }} وظيفة محلية
+                </span>
             </div>
 
             <div class="row g-3">
                 {% if jobs %}
                     {% for job in jobs %}
                     <div class="col-12">
-                        <div class="card border-0 shadow-sm rounded-4 p-4 job-card job-item"
+                        <div class="card border-0 shadow-sm rounded-4 p-4 job-card job-item h-100"
                              data-lat="{{ job.latitude }}" data-lng="{{ job.longitude }}"
                              data-title="{{ job.title }}" data-company="{{ job.company_name }}">
                             <div class="row align-items-center">
-                                <div class="col-md-8 d-flex align-items-center">
-                                    <div class="company-logo bg-light rounded-3 p-3 text-center me-3">
-                                        <i class="fas fa-building fa-lg text-secondary"></i>
-                                    </div>
-                                    <div>
-                                        <h5 class="fw-bold mb-1 text-dark">{{ job.title }}</h5>
-                                        <p class="mb-0 text-muted small"><i class="far fa-building me-1"></i> {{ job.company_name }} | <i class="fas fa-map-pin me-1"></i> {{ job.location }}</p>
+                                <div class="col-md-2 text-center d-none d-md-block">
+                                    <div class="company-logo bg-primary bg-opacity-10 rounded-4 p-3 mx-auto">
+                                        <i class="fas fa-building fa-2x text-primary"></i>
                                     </div>
                                 </div>
-                                <div class="col-md-4 text-start mt-3 mt-md-0">
-                                    <a href="{{ url_for('jobs.job_detail', job_id=job.id) }}" class="btn btn-outline-primary rounded-pill px-4">تفاصيل الوظيفة</a>
+                                <div class="col-md-7">
+                                    <h5 class="fw-bold mb-1 text-dark">{{ job.title }}</h5>
+                                    <div class="d-flex flex-wrap gap-3 text-muted small">
+                                        <span><i class="far fa-building ms-1"></i> {{ job.company_name }}</span>
+                                        <span><i class="fas fa-map-pin ms-1 text-danger"></i> {{ job.location }}</span>
+                                        <span><i class="far fa-clock ms-1"></i> {{ job.created_at.strftime('%Y-%m-%d') if job.created_at else 'اليوم' }}</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 text-start mt-3 mt-md-0">
+                                    <a href="{{ url_for('jobs.job_detail', job_id=job.id) }}" class="btn btn-outline-primary rounded-pill px-4 w-100 fw-bold">
+                                        عرض التفاصيل
+                                    </a>
                                 </div>
                             </div>
                         </div>
                     </div>
                     {% endfor %}
                 {% else %}
-                    <div class="col-12 text-center py-5 bg-light rounded-4 border-2 border-dashed">
-                        <p class="text-muted">لم نجد وظائف محلية تطابق بحثك حالياً.</p>
+                    <div class="col-12 text-center py-5 bg-white rounded-4 border-2 border-dashed shadow-sm">
+                        <img src="https://cdn-icons-png.flaticon.com/512/7486/7486744.png" width="80" class="mb-3 opacity-25">
+                        <p class="text-muted fw-bold">عذراً، لم نجد وظائف تطابق بحثك حالياً.</p>
+                        <a href="{{ url_for('search.jobs_list') }}" class="btn btn-link text-primary">عرض كافة الوظائف</a>
                     </div>
                 {% endif %}
             </div>
         </div>
 
         <div class="col-lg-4">
-            <div class="p-4 bg-white rounded-4 shadow-sm border-top border-4 border-primary sticky-top" style="top: 20px;">
-                <h5 class="fw-bold mb-4 text-primary"><i class="fas fa-globe-americas me-2"></i> فرص عمل عالمية (AI)</h5>
+            <div class="p-4 bg-white rounded-4 shadow-sm border-top border-4 border-success sticky-top" style="top: 20px;">
+                <div class="d-flex align-items-center mb-4">
+                    <div class="icon-box bg-success bg-opacity-10 p-2 rounded-3 ms-2">
+                        <i class="fas fa-robot text-success"></i>
+                    </div>
+                    <h5 class="fw-bold mb-0 text-dark">فرص عالمية (AI Hunt)</h5>
+                </div>
 
                 {% if global_jobs %}
                     {% for g_job in global_jobs %}
-                    <div class="g-job-item mb-4 pb-3 border-bottom">
-                        <span class="badge bg-info bg-opacity-10 text-info mb-2 small">{{ g_job.get('company', 'شركة عالمية') }}</span>
-                        <h6 class="fw-bold mb-2 text-dark" style="font-size: 0.95rem;">{{ g_job.get('title', 'بدون عنوان') }}</h6>
+                    <div class="g-job-item mb-4 pb-3 border-bottom animate__animated animate__fadeInRight">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-2" style="font-size: 0.7rem;">
+                                {{ g_job.get('company', 'شركة عالمية') }}
+                            </span>
+                            <span class="text-muted small"><i class="fas fa-globe-africa"></i> Remote</span>
+                        </div>
+                        <h6 class="fw-bold mb-3 text-dark" style="font-size: 0.95rem; line-height: 1.4;">{{ g_job.get('title', 'بدون عنوان') }}</h6>
 
-                        <div class="d-grid gap-2 mt-3">
+                        <div class="d-grid gap-2">
                             <form action="{{ url_for('applications.auto_apply_global') }}" method="POST">
                                 <input type="hidden" name="job_title" value="{{ g_job.get('title') }}">
                                 <input type="hidden" name="job_link" value="{{ g_job.get('link') }}">
                                 <input type="hidden" name="company" value="{{ g_job.get('company') }}">
-                                <button type="submit" class="btn btn-success btn-sm w-100 rounded-pill fw-bold py-2">
+                                <button type="submit" class="btn btn-success btn-sm w-100 rounded-pill fw-bold py-2 shadow-sm apply-btn">
                                     <i class="fas fa-magic me-1"></i> تقديم تلقائي ذكي
                                 </button>
                             </form>
-                            <a href="{{ g_job.get('link', '#') }}" target="_blank" class="btn btn-sm btn-outline-light text-dark border rounded-pill py-2">
-                                <i class="fas fa-external-link-alt me-1"></i> فتح الموقع الأصلي
+                            <a href="{{ g_job.get('link', '#') }}" target="_blank" class="btn btn-sm btn-light border rounded-pill py-2 text-muted">
+                                <i class="fas fa-external-link-alt me-1"></i> فتح المصدر الأصلي
                             </a>
                         </div>
                     </div>
                     {% endfor %}
                 {% else %}
-                    <div class="text-center py-4">
-                        <p class="small text-muted">ابحث عن مسمى وظيفي لجلب الفرص العالمية من LinkedIn و Indeed.</p>
+                    <div class="text-center py-4 bg-light rounded-4 border border-dashed">
+                        <i class="fas fa-search-plus fa-2x text-muted mb-2"></i>
+                        <p class="small text-muted mb-0 px-3">استخدم مسميات وظائف عالمية (مثل Software Engineer) لجلب الفرص من LinkedIn و Indeed عبر الـ AI.</p>
                     </div>
                 {% endif %}
             </div>
@@ -113,10 +139,19 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        var map = L.map('searchMap').setView([15.5, 32.5], 4);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        // تهيئة الخارطة - مركز السودان
+        var map = L.map('searchMap').setView([15.5, 32.5], 6);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
 
         var bounds = [];
+        var icon = L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
+        });
 
         document.querySelectorAll('.job-item').forEach(function(item) {
             var lat = item.getAttribute('data-lat');
@@ -125,24 +160,42 @@
             var company = item.getAttribute('data-company');
 
             if (lat && lng && lat !== 'None' && lng !== 'None') {
-                var marker = L.marker([lat, lng]).addTo(map)
-                    .bindPopup('<b>' + title + '</b><br>' + company);
+                var marker = L.marker([lat, lng], {icon: icon}).addTo(map)
+                    .bindPopup('<div class="text-end"><b>' + title + '</b><br>' + company + '</div>');
                 bounds.push([lat, lng]);
             }
         });
 
         if (bounds.length > 0) {
-            map.fitBounds(bounds);
+            map.fitBounds(bounds, {padding: [50, 50]});
         }
+
+        // تأثير اللودر عند التقديم التلقائي
+        document.querySelectorAll('.apply-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> جاري التحليل والتقديم...';
+            });
+        });
     });
 </script>
 
 <style>
-    .search-box-wrapper { background: white; padding-right: 15px; }
-    .job-card { transition: all 0.3s; border: 1px solid transparent !important; }
-    .job-card:hover { transform: translateY(-3px); border-color: #0d6efd !important; box-shadow: 0 10px 20px rgba(0,0,0,0.05) !important; }
-    .company-logo { width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; }
-    .g-job-item:last-child { border-bottom: 0 !important; }
-    .btn-success { background: #10b981; border: none; }
+    .search-box-wrapper { transition: all 0.3s ease; }
+    .search-box-wrapper:focus-within { transform: scale(1.02); box-shadow: 0 15px 30px rgba(13, 110, 253, 0.15) !important; }
+    .job-card { 
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+        border: 1px solid #f0f0f0 !important; 
+    }
+    .job-card:hover { 
+        transform: translateY(-5px); 
+        border-color: #0d6efd !important; 
+        box-shadow: 0 12px 25px rgba(0,0,0,0.08) !important; 
+    }
+    .company-logo { width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; }
+    .g-job-item { transition: all 0.2s; }
+    .g-job-item:hover { background-color: #fcfdfd; }
+    .transition-base { transition: all 0.3s ease; }
+    .btn-success { background-color: #10b981; border: none; }
+    .btn-success:hover { background-color: #059669; }
 </style>
 {% endblock %}

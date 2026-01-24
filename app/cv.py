@@ -9,8 +9,6 @@ from werkzeug.utils import secure_filename
 from app.models import CV, db, Application, Job
 from app.openrouter_ai import openrouter_ai
 from fpdf import FPDF
-from arabic_reshaper import reshape
-from bidi.algorithm import get_display
 from app.telegram_bot import send_document
 
 cv_bp = Blueprint('cv', __name__)
@@ -25,11 +23,10 @@ def my_cvs():
 @cv_bp.route('/view-cv/<int:user_id>')
 @login_required
 def view_cv_by_user(user_id):
-    """يسمح لصاحب العمل برؤية الـ CV الخاص بالمتقدم لوظائفه عبر الـ User ID"""
-    # تصحيح: استخدام user_id بدلاً من employer_id بناءً على موديل Job
+    """رؤية الـ CV الخاص بالمتقدم (لصاحب العمل أو المستخدم نفسه)"""
     is_candidate = Application.query.join(Job).filter(
         Application.user_id == user_id,
-        Job.user_id == current_user.id  # تم التصحيح هنا
+        Job.user_id == current_user.id
     ).first()
 
     if not is_candidate and current_user.id != user_id:
@@ -37,12 +34,10 @@ def view_cv_by_user(user_id):
         return redirect(url_for('auth.dashboard'))
 
     cv = CV.query.filter_by(user_id=user_id).order_by(CV.created_at.desc()).first_or_404()
-
     analysis_key = f'analysis_{cv.id}'
     analysis = session.get(analysis_key)
     if not analysis:
-        clean_sample = " ".join(cv.extracted_text.split())[:3000]
-        analysis = openrouter_ai.analyze_cv_complete(clean_sample)
+        analysis = openrouter_ai.analyze_cv_complete(cv.extracted_text[:3000])
         session[analysis_key] = analysis
 
     return render_template('view_cv.html', cv=cv, analysis=analysis)
@@ -50,24 +45,16 @@ def view_cv_by_user(user_id):
 @cv_bp.route('/view/<int:cv_id>')
 @login_required
 def view_cv(cv_id):
-    """عرض تفاصيل سيرة ذاتية محددة والتحليل الخاص بها"""
     cv = CV.query.get_or_404(cv_id)
-
-    # تصحيح: استخدام Job.user_id للتحقق من صاحب العمل
-    is_employer_of_user = Application.query.join(Job).filter(
-        Application.user_id == cv.user_id,
-        Job.user_id == current_user.id  # تم التصحيح هنا
-    ).first()
-
-    if cv.user_id != current_user.id and not is_employer_of_user:
+    is_employer = Application.query.join(Job).filter(Application.user_id == cv.user_id, Job.user_id == current_user.id).first()
+    
+    if cv.user_id != current_user.id and not is_employer:
         abort(403)
 
     analysis_key = f'analysis_{cv.id}'
     analysis = session.get(analysis_key)
-
     if not analysis:
-        clean_sample = " ".join(cv.extracted_text.split())[:3000]
-        analysis = openrouter_ai.analyze_cv_complete(clean_sample)
+        analysis = openrouter_ai.analyze_cv_complete(cv.extracted_text[:3000])
         session[analysis_key] = analysis
 
     return render_template('view_cv.html', cv=cv, analysis=analysis)
@@ -100,62 +87,84 @@ def upload_cv():
                 with pdfplumber.open(file_full_path) as pdf:
                     for page in pdf.pages:
                         page_content = page.extract_text()
-                        if page_content:
-                            extracted_text += page_content + "\n"
-            elif original_ext == 'txt':
-                with open(file_full_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    extracted_text = f.read()
+                        if page_content: extracted_text += page_content + "\n"
+            else:
+                extracted_text = file.read().decode('utf-8', errors='ignore')
 
-            clean_sample = " ".join(extracted_text.split())[:4000]
-            analysis = openrouter_ai.analyze_cv_complete(clean_sample)
+            analysis = openrouter_ai.analyze_cv_complete(extracted_text[:4000])
+            radar_data = openrouter_ai.generate_skills_radar_data(extracted_text[:2000])
 
             new_cv = CV(
                 user_id=current_user.id,
                 filename=filename,
                 extracted_text=extracted_text,
                 skills=analysis.get('skills', []),
-                profession=analysis.get('profession', 'متخصص تقني'),
-                score=analysis.get('overall_score', 50)
+                profession=analysis.get('profession', 'متخصص'),
+                score=analysis.get('overall_score', 50),
+                radar_labels=radar_data.get('labels'),
+                radar_scores=radar_data.get('scores')
             )
             db.session.add(new_cv)
             db.session.commit()
 
             session[f'analysis_{new_cv.id}'] = analysis
-            flash('تم رفع وتحليل سيرتك الذاتية بنجاح! 🎯', 'success')
+            flash('تم تحليل سيرتك الذاتية بنجاح! 🚀', 'success')
             return redirect(url_for('cv.view_cv', cv_id=new_cv.id))
         except Exception as e:
             db.session.rollback()
-            flash(f'حدث خطأ: {str(e)}', 'danger')
+            flash(f'حدث خطأ في المعالجة: {str(e)}', 'danger')
             return redirect(request.url)
 
     return render_template('upload_cv.html')
 
-@cv_bp.route('/cv/optimize/<int:cv_id>')
-@login_required
-def optimize_cv_view(cv_id):
-    cv = CV.query.get_or_404(cv_id)
-    if cv.user_id != current_user.id: abort(403)
-    prompt = f"REWRITE this resume for ATS: {cv.extracted_text[:3000]}"
-    optimized_text = openrouter_ai.generate_improved_text(prompt)
-    if optimized_text:
-        return render_template('cv_comparison.html', cv_id=cv.id, old_text=cv.extracted_text, new_text=optimized_text)
-    flash('المحرك مشغول، حاول لاحقاً.', 'info')
-    return redirect(url_for('cv.view_cv', cv_id=cv.id))
-
-@cv_bp.route('/cv/generate-pdf/<int:cv_id>', methods=['POST'])
+@cv_bp.route('/cv/generate-pdf/<int:cv_id>')
 @login_required
 def generate_ats_pdf(cv_id):
+    """توليد نسخة PDF احترافية بالإنجليزية مطورة بالذكاء الاصطناعي"""
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id: abort(403)
-    # ... بقية كود الـ PDF كما هو ...
-    return redirect(url_for('cv.my_cvs'))
+
+    # 1. استخدام المحرك لتحويل النص إلى نسخة إنجليزية احترافية (Global Upgrade)
+    flash('جاري تطوير سيرتك الذاتية لمعايير الـ ATS العالمية...', 'info')
+    optimized_en_text = openrouter_ai.build_global_cv(cv.extracted_text)
+
+    # 2. إنشاء ملف PDF باستخدام FPDF
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    
+    # الخطوط والعناوين
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(200, 10, txt=f"Professional Profile: {current_user.full_name or current_user.username}", ln=True, align='C')
+    pdf.set_font("Arial", size=10)
+    pdf.cell(200, 10, txt=f"Generated by Jobeni-SD AI Engine | {datetime.datetime.now().strftime('%Y-%m-%d')}", ln=True, align='C')
+    pdf.ln(10)
+
+    # محتوى السيرة الذاتية المطور
+    pdf.set_font("Arial", size=11)
+    # تنظيف النص من الرموز غير المدعومة في FPDF (Standard Latin-1)
+    clean_text = optimized_en_text.encode('latin-1', 'ignore').decode('latin-1')
+    pdf.multi_cell(0, 7, txt=clean_text)
+
+    # حفظ الملف
+    output_filename = f"Jobeni_Global_CV_{current_user.id}.pdf"
+    output_path = os.path.join(current_app.config['UPLOAD_FOLDER'], output_filename)
+    pdf.output(output_path)
+
+    return send_file(output_path, as_attachment=True)
 
 @cv_bp.route('/cv/delete/<int:cv_id>', methods=['POST'])
 @login_required
 def delete_cv(cv_id):
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id: abort(403)
+    
+    # حذف الملف الفعلي من السيرفر
+    try:
+        os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], cv.filename))
+    except: pass
+
     db.session.delete(cv)
     db.session.commit()
-    flash('تم حذف السيرة الذاتية.', 'info')
+    flash('تم حذف السيرة الذاتية بنجاح.', 'info')
     return redirect(url_for('cv.my_cvs'))

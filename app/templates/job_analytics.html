@@ -5,24 +5,24 @@
 <div class="container py-4 text-end" dir="rtl">
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
         <div>
-            <h2 class="fw-bold mb-1"><i class="fas fa-chart-pie text-primary ms-2"></i>تحليلات الوظيفة</h2>
+            <h2 class="fw-bold mb-1"><i class="fas fa-chart-pie text-primary ms-2"></i>تحليلات الوظيفة الذكية</h2>
             <p class="text-muted mb-0">{{ job.title }} | {{ job.company_name }}</p>
         </div>
-        <a href="{{ url_for('jobs.view_candidates', job_id=job.id) }}" class="btn btn-outline-primary rounded-pill px-4">
+        <a href="{{ url_for('jobs.view_candidates', job_id=job.id) }}" class="btn btn-outline-primary rounded-pill px-4 shadow-sm">
             <i class="fas fa-arrow-right ms-2"></i>العودة للمرشحين
         </a>
     </div>
 
     <div class="row g-3 mb-4">
         <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 p-3 border-start border-primary border-4 h-100">
-                <h6 class="text-muted small">إجمالي المتقدمين</h6>
-                <h3 class="fw-bold mb-0">{{ total }}</h3>
+            <div class="card border-0 shadow-sm rounded-4 p-3 border-start border-primary border-4 h-100 transition-hover">
+                <h6 class="text-muted small fw-bold">إجمالي المتقدمين</h6>
+                <h3 class="fw-bold mb-0 text-dark">{{ total }}</h3>
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 p-3 border-start border-success border-4 h-100">
-                <h6 class="text-muted small">نسبة النجاح</h6>
+            <div class="card border-0 shadow-sm rounded-4 p-3 border-start border-success border-4 h-100 transition-hover">
+                <h6 class="text-muted small fw-bold">نسبة النجاح</h6>
                 <h3 class="fw-bold mb-0 text-success">
                     {% if data.quiz_counts[0] + data.quiz_counts[1] > 0 %}
                         {{ ((data.quiz_counts[0] / (data.quiz_counts[0] + data.quiz_counts[1])) * 100) | round(1) }}%
@@ -33,8 +33,8 @@
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 p-3 border-start border-info border-4 h-100">
-                <h6 class="text-muted small">بانتظار المقابلة</h6>
+            <div class="card border-0 shadow-sm rounded-4 p-3 border-start border-info border-4 h-100 transition-hover">
+                <h6 class="text-muted small fw-bold">بانتظار المقابلة</h6>
                 <h3 class="fw-bold mb-0 text-info">
                     {% if 'مقابلة' in data.status_labels %}
                         {{ data.status_values[data.status_labels.index('مقابلة')] }}
@@ -45,36 +45,36 @@
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 p-3 border-start border-warning border-4 h-100">
-                <h6 class="text-muted small">تاريخ النشر</h6>
-                <h6 class="fw-bold mb-0 text-truncate">{{ job.created_at.strftime('%Y-%m-%d') }}</h6>
+            <div class="card border-0 shadow-sm rounded-4 p-3 border-start border-warning border-4 h-100 transition-hover">
+                <h6 class="text-muted small fw-bold">تاريخ النشر</h6>
+                <h6 class="fw-bold mb-0 text-dark text-truncate">{{ job.created_at.strftime('%Y-%m-%d') }}</h6>
             </div>
         </div>
     </div>
 
     <div class="row g-4">
         <div class="col-lg-5">
-            <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
-                <h5 class="fw-bold mb-4 text-center">أداء المتقدمين في الاختبار</h5>
+            <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+                <h5 class="fw-bold mb-4 text-center text-dark">أداء المتقدمين في الاختبار</h5>
                 <div style="position: relative; height: 300px;">
                     <canvas id="quizChart"></canvas>
                 </div>
                 <div class="mt-4">
-                    <div class="d-flex justify-content-between mb-2">
-                        <span><i class="fas fa-check-circle text-success ms-1"></i> ناجحين:</span>
-                        <span class="fw-bold">{{ data.quiz_counts[0] }}</span>
+                    <div class="d-flex justify-content-between align-items-center mb-2 bg-light p-2 rounded-3">
+                        <span><i class="fas fa-check-circle text-success ms-1"></i> ناجحين (أعلى من 50%):</span>
+                        <span class="fw-bold text-success">{{ data.quiz_counts[0] }}</span>
                     </div>
-                    <div class="d-flex justify-content-between">
+                    <div class="d-flex justify-content-between align-items-center bg-light p-2 rounded-3">
                         <span><i class="fas fa-times-circle text-danger ms-1"></i> راسبين:</span>
-                        <span class="fw-bold">{{ data.quiz_counts[1] }}</span>
+                        <span class="fw-bold text-danger">{{ data.quiz_counts[1] }}</span>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="col-lg-7">
-            <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
-                <h5 class="fw-bold mb-4 text-center">توزيع حالات المتقدمين (Pipeline)</h5>
+            <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+                <h5 class="fw-bold mb-4 text-center text-dark">توزيع حالات المتقدمين (Pipeline)</h5>
                 <div style="position: relative; height: 350px;">
                     <canvas id="statusChart"></canvas>
                 </div>
@@ -83,30 +83,51 @@
     </div>
 </div>
 
+<style>
+    .transition-hover:hover {
+        transform: translateY(-5px);
+        transition: all 0.3s ease;
+    }
+    canvas {
+        max-width: 100% !important;
+    }
+</style>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // تهيئة الخطوط لتناسب التصميم
     Chart.defaults.font.family = 'Cairo, sans-serif';
+    Chart.defaults.color = '#555';
 
+    // 1. Doughnut Chart for Quiz Results
     const quizCtx = document.getElementById('quizChart').getContext('2d');
     new Chart(quizCtx, {
         type: 'doughnut',
         data: {
-            labels: {{ data.labels|tojson }},
+            labels: ['ناجح', 'راسب'],
             datasets: [{
                 data: {{ data.quiz_counts|tojson }},
                 backgroundColor: ['#28a745', '#dc3545'],
+                hoverBackgroundColor: ['#218838', '#c82333'],
                 borderWidth: 0,
-                hoverOffset: 10
+                hoverOffset: 15
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom' } },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { padding: 20, usePointStyle: true }
+                },
+                tooltip: { cornerRadius: 10, padding: 12 }
+            },
             cutout: '70%'
         }
     });
 
+    // 2. Horizontal Bar Chart for Status Pipeline
     const statusCtx = document.getElementById('statusChart').getContext('2d');
     new Chart(statusCtx, {
         type: 'bar',
@@ -116,17 +137,28 @@
                 label: 'عدد المتقدمين',
                 data: {{ data.status_values|tojson }},
                 backgroundColor: ['#198754', '#dc3545', '#0dcaf0', '#6c757d'],
-                borderRadius: 10, barThickness: 40
+                borderRadius: 10,
+                barThickness: 35
             }]
         },
         options: {
             indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: {
+                legend: { display: false },
+                tooltip: { cornerRadius: 10 }
+            },
             scales: {
-                x: { beginAtZero: true, grid: { display: false }, ticks: { stepSize: 1 } },
-                y: { grid: { display: false } }
+                x: {
+                    beginAtZero: true,
+                    grid: { display: false },
+                    ticks: { stepSize: 1, font: { weight: 'bold' } }
+                },
+                y: {
+                    grid: { display: false },
+                    ticks: { font: { weight: 'bold' } }
+                }
             }
         }
     });

@@ -5,13 +5,20 @@
         <div class="card-body p-4 bg-primary text-white d-flex justify-content-between align-items-center flex-wrap gap-3">
             <div>
                 <h2 class="fw-bold mb-0">{{ cv.profession or 'متخصص' }}</h2>
-                <p class="mb-0 opacity-75">تحليل الذكاء الاصطناعي للسيرة الذاتية</p>
+                <p class="mb-0 opacity-75">تحليل الذكاء الاصطناعي للسيرة الذاتية | جوبيني 2026</p>
             </div>
             {% if current_user.id == cv.user_id %}
                 <div class="d-flex gap-2">
-                    <a href="{{ url_for('cv.optimize_cv_view', cv_id=cv.id) }}" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm">تحسين الـ ATS ✨</a>
+                    <a href="{{ url_for('cv.generate_ats_pdf', cv_id=cv.id) }}" class="btn btn-light rounded-pill px-4 fw-bold shadow-sm">
+                        <i class="fas fa-file-pdf me-1 text-danger"></i> تحميل النسخة العالمية
+                    </a>
+                    <a href="{{ url_for('cv.optimize_cv_view', cv_id=cv.id) }}" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm">
+                        تحسين الـ ATS ✨
+                    </a>
                     <form action="{{ url_for('cv.delete_cv', cv_id=cv.id) }}" method="POST" onsubmit="return confirm('هل أنت متأكد من حذف هذه السيرة؟');">
-                        <button type="submit" class="btn btn-outline-light rounded-pill px-3"><i class="fas fa-trash"></i></button>
+                        <button type="submit" class="btn btn-outline-light rounded-pill px-3">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </form>
                 </div>
             {% else %}
@@ -22,27 +29,29 @@
 
     <div class="row g-4">
         <div class="col-md-4">
-            <div class="card shadow-sm border-0 rounded-4 p-4 text-center mb-4">
-                <h6 class="text-muted mb-3">قوة السيرة الذاتية</h6>
+            <div class="card shadow-sm border-0 rounded-4 p-4 text-center mb-4 bg-white">
+                <h6 class="text-muted mb-3">قوة السيرة الذاتية (ATS Score)</h6>
                 <div class="position-relative d-inline-block">
                     <h1 class="display-4 fw-bold text-primary mb-0">{{ cv.score }}%</h1>
-                    <div class="progress mt-2" style="height: 8px;">
-                        <div class="progress-bar bg-primary" role="progressbar" style="width: {{ cv.score }}%"></div>
+                    <div class="progress mt-2" style="height: 10px; border-radius: 5px;">
+                        <div class="progress-bar bg-primary progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: {{ cv.score }}%"></div>
                     </div>
                 </div>
+                <p class="small text-muted mt-3">كل ما زادت النسبة، زادت فرصك في القبول الآلي!</p>
             </div>
 
             <div class="card shadow-sm border-0 rounded-4 overflow-hidden" style="background: #fdfcfe; border-right: 5px solid #ffc107 !important;">
                 <div class="card-header bg-white border-0 pt-4">
                     <h5 class="fw-bold text-dark"><i class="fas fa-rocket text-warning me-2"></i>مستشار المهارات</h5>
-                    <p class="small text-muted">مهارات مقترحة بناءً على ملفك:</p>
+                    <p class="small text-muted">مهارات مقترحة لسد الفجوة في سوق العمل:</p>
                 </div>
                 <div class="card-body pt-0">
                     {% if analysis and analysis.missing_skills %}
                         {% for item in analysis.missing_skills %}
-                        <div class="p-3 mb-3 rounded-3 border bg-white shadow-sm">
+                        <div class="p-3 mb-3 rounded-3 border bg-white shadow-sm hover-shadow">
                             <h6 class="fw-bold text-primary mb-1">{{ item.skill }}</h6>
-                            <p class="small text-secondary mb-2" style="font-size: 0.8rem;">{{ item.reason }}</p>
+                            <p class="small text-secondary mb-2" style="font-size: 0.8rem; line-height: 1.4;">{{ item.reason }}</p>
                             <a href="{{ item.learning_link }}" target="_blank" class="btn btn-sm btn-outline-danger w-100 rounded-pill">
                                 <i class="fab fa-youtube me-1"></i> شاهد الكورس المجاني
                             </a>
@@ -50,8 +59,8 @@
                         {% endfor %}
                     {% else %}
                         <div class="text-center py-4">
-                            <i class="fas fa-check-circle text-success mb-2" style="font-size: 2rem;"></i>
-                            <p class="small">مهاراتك ممتازة وتغطي أغلب المتطلبات!</p>
+                            <i class="fas fa-check-circle text-success mb-2" style="font-size: 2.5rem;"></i>
+                            <p class="small fw-bold">يا مكنة مهاراتك فل! <br> تغطي أغلب متطلبات الوظيفة.</p>
                         </div>
                     {% endif %}
                 </div>
@@ -59,30 +68,39 @@
         </div>
 
         <div class="col-md-8">
-            <div class="card shadow-sm border-0 rounded-4 p-4 mb-4" style="background: #eef7ff;">
-                <h5 class="fw-bold mb-2"><i class="fas fa-comment-dots me-2 text-primary"></i>نصيحة الخبير الذكي</h5>
-                <p class="mb-0 text-dark">{{ analysis.feedback if analysis else 'جاري تحليل البيانات...' }}</p>
+            <div class="card shadow-sm border-0 rounded-4 p-4 mb-4" style="background: #eef7ff; border-right: 5px solid #0d6efd !important;">
+                <h5 class="fw-bold mb-2 text-primary"><i class="fas fa-robot me-2"></i>نصيحة الخبير الذكي (بالدارجي)</h5>
+                <p class="mb-0 text-dark fw-medium" style="font-size: 1.1rem; line-height: 1.6;">
+                    {{ analysis.feedback if analysis else 'جاري استدعاء الخبير لتحليل بياناتك...' }}
+                </p>
             </div>
 
-            <div class="card shadow-sm border-0 rounded-4 p-4 mb-4">
-                <h5 class="fw-bold mb-3">المهارات المكتشفة</h5>
+            <div class="card shadow-sm border-0 rounded-4 p-4 mb-4 bg-white">
+                <h5 class="fw-bold mb-3 border-bottom pb-2">المهارات المستخرجة</h5>
                 <div class="d-flex flex-wrap gap-2">
                     {% if cv.skills %}
                         {% for skill in cv.skills %}
-                            <span class="badge bg-light text-primary border px-3 py-2 rounded-pill fw-medium"># {{ skill }}</span>
+                            <span class="badge badge-skill text-primary border px-3 py-2 rounded-pill">
+                                <i class="fas fa-hashtag me-1 opacity-50"></i>{{ skill }}
+                            </span>
                         {% endfor %}
                     {% else %}
-                        <span class="text-muted small">لم يتم تحديد مهارات محددة.</span>
+                        <div class="alert alert-light w-100 mb-0">لم نتمكن من استخراج مهارات واضحة، تأكد من تنسيق الملف.</div>
                     {% endif %}
                 </div>
             </div>
 
-            <div class="card shadow-sm border-0 rounded-4 p-4">
+            <div class="card shadow-sm border-0 rounded-4 p-4 bg-white">
                 <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
                     <h5 class="fw-bold mb-0">النص المستخلص من الملف</h5>
-                    <button class="btn btn-sm btn-link text-decoration-none" onclick="copyText()">نسخ النص <i class="fas fa-copy ms-1"></i></button>
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="copyText()">
+                        <i class="fas fa-copy me-1"></i> نسخ النص
+                    </button>
                 </div>
-                <pre id="cvText" class="bg-light p-3 rounded" style="white-space: pre-wrap; font-size: 0.85rem; max-height: 500px; overflow-y: auto; font-family: 'Courier New', Courier, monospace;">{{ cv.extracted_text }}</pre>
+                <div class="position-relative">
+                    <pre id="cvText" class="bg-light p-4 rounded-3 text-start" 
+                         style="white-space: pre-wrap; font-size: 0.9rem; max-height: 600px; overflow-y: auto; font-family: 'Cascadia Code', 'Courier New', monospace; direction: ltr; color: #333; line-height: 1.5;">{{ cv.extracted_text }}</pre>
+                </div>
             </div>
         </div>
     </div>
@@ -92,14 +110,40 @@
 function copyText() {
     var text = document.getElementById("cvText").innerText;
     navigator.clipboard.writeText(text).then(() => {
-        alert("تم نسخ النص إلى الحافظة!");
+        const btn = event.currentTarget;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> تم النسخ!';
+        btn.classList.replace('btn-outline-secondary', 'btn-success');
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.classList.replace('btn-success', 'btn-outline-secondary');
+        }, 2000);
     });
 }
 </script>
 
 <style>
-    .badge:hover { background-color: #0d6efd !important; color: white !important; transition: 0.3s; }
-    pre::-webkit-scrollbar { width: 6px; }
-    pre::-webkit-scrollbar-thumb { background: #ccc; border-radius: 10px; }
+    .badge-skill {
+        background-color: #f8f9fa;
+        transition: all 0.3s ease;
+        cursor: default;
+        font-size: 0.9rem;
+    }
+    .badge-skill:hover {
+        background-color: #0d6efd !important;
+        color: white !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(13, 110, 253, 0.2);
+    }
+    .hover-shadow {
+        transition: box-shadow 0.3s ease;
+    }
+    .hover-shadow:hover {
+        box-shadow: 0 8px 15px rgba(0,0,0,0.1) !important;
+    }
+    pre::-webkit-scrollbar { width: 8px; }
+    pre::-webkit-scrollbar-track { background: #f1f1f1; }
+    pre::-webkit-scrollbar-thumb { background: #0d6efd; border-radius: 10px; }
+    pre::-webkit-scrollbar-thumb:hover { background: #0a58ca; }
 </style>
 {% endblock %}

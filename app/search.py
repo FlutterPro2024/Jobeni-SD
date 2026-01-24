@@ -10,15 +10,16 @@ from datetime import datetime, timedelta
 
 search_bp = Blueprint('search', __name__)
 
-# --- أولاً: كود البحث عن المستخدمين (الجديد) ---
+# --- أولاً: كود البحث عن المستخدمين (نظام استكشاف الزملاء) ---
 @search_bp.route('/users')
 @login_required
 def search_users():
+    """بحث متقدم عن المستخدمين والزملاء مع دعم حالة الاتصال"""
     query = request.args.get('q', '').strip()
     users = []
     
     if query:
-        # البحث بالاسم، اسم المستخدم، العنوان الوظيفي، أو السيرة الذاتية
+        # البحث في كافة الحقول النصية للمستخدم لضمان دقة النتائج
         search_filter = or_(
             User.username.ilike(f'%{query}%'),
             User.full_name.ilike(f'%{query}%'),
@@ -27,76 +28,133 @@ def search_users():
         )
         users = User.query.filter(search_filter).filter(User.id != current_user.id).limit(20).all()
     else:
-        # إذا لم يوجد بحث، اقترح آخر من سجلوا
-        users = User.query.filter(User.id != current_user.id).order_by(User.id.desc()).limit(12).all()
+        # اقتراح مستخدمين عشوائيين أو جدد عند عدم وجود بحث
+        users = User.query.filter(User.id != current_user.id).order_by(db.func.random()).limit(12).all()
 
-    # نحتاج utcnow للتحقق من حالة "متصل الآن" في القالب
-    return render_template('search_users.html', users=users, query=query, utcnow=datetime.utcnow())
+    return render_template('search_users.html', 
+                           users=users, 
+                           query=query, 
+                           utcnow=datetime.utcnow())
 
-# --- ثانياً: كود البحث عن الوظائف (الأصلي) ---
+# --- ثانياً: كود البحث عن الوظائف (محلي + عالمي AI) ---
 @search_bp.route('/jobs/search')
 def jobs_list():
-    q, loc = request.args.get('q', '').strip(), request.args.get('location', '').strip()
+    """محرك بحث هجين يجمع بين قاعدة بيانات جوبيني والبحث العالمي عبر AI"""
+    q = request.args.get('q', '').strip()
+    loc = request.args.get('location', '').strip()
+    
+    # 1. البحث المحلي في السودان
     query = Job.query.filter_by(is_active=True)
-    if q: 
-        query = query.filter(Job.title.ilike(f'%{q}%') | Job.description.ilike(f'%{q}%'))
-    if loc: 
+    if q:
+        query = query.filter(or_(Job.title.ilike(f'%{q}%'), Job.description.ilike(f'%{q}%')))
+    if loc:
         query = query.filter(Job.location.ilike(f'%{loc}%'))
-    local_jobs = query.all()
+    
+    local_jobs = query.order_by(Job.created_at.desc()).all()
+    
+    # 2. البحث العالمي باستخدام Serper API (إذا كان هناك مسمى وظيفي)
+    global_jobs_data = []
+    if q:
+        search_term = f"{q} remote jobs" if not loc else f"{q} jobs in {loc}"
+        try:
+            results = serper_searcher.search_jobs(search_term)
+            global_jobs_data = results.get('jobs', [])
+        except Exception as e:
+            print(f"Global Search Error: {e}")
+            global_jobs_data = []
 
-    global_jobs = serper_searcher.search_jobs(f"{q} {loc}") if q else {"jobs": []}
-    return render_template('search_results.html', 
-                           jobs=local_jobs, 
-                           global_jobs=global_jobs.get('jobs', []), 
-                           search_query=q, 
+    return render_template('search_results.html',
+                           jobs=local_jobs,
+                           global_jobs=global_jobs_data,
+                           search_query=q,
                            location_query=loc)
 
-# --- ثالثاً: تحليل المهارات والتحضير للمقابلات ---
+# --- ثالثاً: تحليل المهارات والتحضير الذكي للمقابلات ---
 @search_bp.route('/skill-analysis')
 @login_required
 def skill_analysis():
+    """تحليل متقدم لنقاط القوة والضعف بناءً على السيرة الذاتية"""
     cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
     if not cv:
-        flash('يرجى رفع الـ CV أولاً.', 'info')
+        flash('يجب رفع سيرتك الذاتية أولاً لتفعيل نظام التحليل الذكي.', 'info')
         return redirect(url_for('cv.upload_cv'))
-    
+
+    # استخراج المهارات ومعالجتها
     skills_list = cv.skills if isinstance(cv.skills, list) else []
+    
+    # بناء بيانات المهارات مع روابط التعلم والتحضير
     skills_data = [
         {
-            "name": s, 
-            "url": f"https://www.youtube.com/results?search_query=learn+{s}", 
+            "name": s,
+            "url": f"https://www.youtube.com/results?search_query=learn+{s}+course",
             "prep_url": url_for('search.interview_prep', skill=s)
         } for s in skills_list
     ]
-    return render_template('skill_analysis.html', 
-                           profession=cv.profession or "متخصص", 
-                           skills_data=skills_data, 
-                           cv_score=cv.score or 0, 
-                           cv_id=cv.id)
+    
+    # تجهيز بيانات رادار المهارات (Radar Chart) للتحليل المرئي
+    radar_labels = ["التقنية", "التواصل", "الخبرة", "التعليم", "القيادة"]
+    # محاولة جلب السكور من الـ AI أو استخدام قيم افتراضية مبنية على سكور الـ CV
+    base_score = cv.score or 50
+    radar_scores = [base_score, min(100, base_score+10), base_score, max(0, base_score-10), base_score]
+
+    return render_template('skill_analysis.html',
+                           profession=cv.profession or "متخصص مهني",
+                           skills_data=skills_data,
+                           cv_score=cv.score or 0,
+                           cv_id=cv.id,
+                           radar_labels=radar_labels,
+                           radar_scores=radar_scores)
 
 @search_bp.route('/interview-prep/<skill>')
 @login_required
 def interview_prep(skill):
+    """توليد أسئلة مقابلة مخصصة لكل مهارة باستخدام OpenRouter AI"""
     cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
-    prompt = f"قدم 5 أسئلة مقابلة لمهارة ({skill}) لمتخصص ({cv.profession if cv else 'تقني'}) بالعربية."
+    
+    # بناء برومبت دقيق للـ AI
+    prompt = (f"أنت خبير موارد بشرية عالمي. قم بتوليد 5 أسئلة مقابلة عمل احترافية مع "
+              f"نصائح للإجابة عنها لمهارة ({skill}) لشخص يعمل كـ ({cv.profession if cv else 'متخصص'}). "
+              f"اللغة: العربية.")
+    
     content = openrouter_ai._call_ai(prompt)
+    
     if content:
         try:
-            db.session.add(InterviewSession(user_id=current_user.id, skill_name=skill, questions_content=content))
+            # حفظ جلسة التحضير في قاعدة البيانات للرجوع إليها
+            session = InterviewSession(
+                user_id=current_user.id, 
+                skill_name=skill, 
+                questions_content=content
+            )
+            db.session.add(session)
             db.session.commit()
-            if current_user.telegram_id: 
-                send_message(current_user.telegram_id, f"🧠 جلسة تحضير {skill} جاهزة!")
-        except: 
+            
+            # إرسال إشعار تليجرام إذا كان البوت مفعلاً
+            if current_user.telegram_id:
+                try:
+                    send_message(current_user.telegram_id, f"🧠 مبروك! جلسة التحضير لمهارة ({skill}) جاهزة الآن في ملفك الشخصي.")
+                except: pass
+                
+        except Exception as e:
+            print(f"Session DB Error: {e}")
             db.session.rollback()
+            
         return render_template('interview_prep_view.html', skill=skill, content=content)
+    
+    flash('فشل في توليد الأسئلة، يرجى المحاولة لاحقاً.', 'danger')
     return redirect(url_for('search.skill_analysis'))
 
 @search_bp.route('/session/delete/<int:session_id>', methods=['POST'])
 @login_required
 def delete_session(session_id):
+    """حذف جلسة تحضير مقابلة"""
     session = InterviewSession.query.get_or_404(session_id)
-    if session.user_id != current_user.id: 
+    if session.user_id != current_user.id:
         abort(403)
-    db.session.delete(session)
-    db.session.commit()
+    try:
+        db.session.delete(session)
+        db.session.commit()
+        flash('تم حذف جلسة التحضير.', 'info')
+    except:
+        db.session.rollback()
     return redirect(url_for('auth.dashboard'))

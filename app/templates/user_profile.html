@@ -28,6 +28,14 @@
         bottom: 10px;
         right: 15px;
     }
+    .radar-container {
+        background: #f8f9fa;
+        border-radius: 20px;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    .transition { transition: all 0.3s ease; }
+    .hover-shadow:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
 </style>
 
 <div class="container mt-4 text-end" dir="rtl">
@@ -38,11 +46,33 @@
                     <i class="fas fa-qrcode ms-2 text-primary"></i> الهوية الرقمية
                 </h6>
                 <div class="p-3 bg-light rounded-4 border border-dashed mb-3">
-                    <img src="data:image/png;base64,{{ user_qr }}" 
-                         class="img-fluid rounded-3 shadow-sm bg-white p-2" 
+                    <img src="data:image/png;base64,{{ user_qr }}"
+                         class="img-fluid rounded-3 shadow-sm bg-white p-2"
                          alt="QR Code">
                 </div>
                 <p class="small text-muted mb-0">امسح الكود لمشاركة ملف <strong>{{ user.username }}</strong> مع الآخرين.</p>
+                
+                {% if user.role != 'employer' %}
+                <hr class="my-3">
+                <h6 class="fw-bold text-dark mb-3">
+                    <i class="fas fa-brain ms-2 text-info"></i> تحليل القوى الذكي
+                </h6>
+                <div class="radar-container">
+                    <canvas id="userRadarChart" style="max-height: 180px;"></canvas>
+                </div>
+                <div class="d-flex flex-wrap gap-1 justify-content-center mt-2">
+                    {% if cv_skills %}
+                        {% for skill in cv_skills %}
+                        <span class="badge bg-white text-primary border rounded-pill px-2 py-1 shadow-sm" style="font-size: 0.7rem;">
+                            #{{ skill }}
+                        </span>
+                        {% endfor %}
+                    {% else %}
+                        <small class="text-muted italic">لا توجد مهارات محللة حالياً</small>
+                    {% endif %}
+                </div>
+                {% endif %}
+
                 <hr class="my-3">
                 <div class="text-start small">
                     <p class="mb-1 text-muted"><i class="fas fa-map-marker-alt ms-2"></i> {{ user.location_name or 'السودان' }}</p>
@@ -61,10 +91,10 @@
                             <div class="online-badge" title="متصل الآن"></div>
                         {% endif %}
                     </div>
-                    
+
                     <h3 class="fw-bold mb-1 text-dark">{{ user.full_name or user.username }}</h3>
                     <p class="text-primary fw-medium mb-3">{{ user.headline or 'مهني في منصة جوبيني' }}</p>
-                    
+
                     {% if user.bio %}
                         <p class="text-muted px-md-5 mb-4">{{ user.bio }}</p>
                     {% endif %}
@@ -106,10 +136,9 @@
             </div>
 
             <h5 class="fw-bold mb-3 text-dark d-flex align-items-center">
-                <i class="fas fa-feather-alt ms-2 text-primary"></i> 
-                آخر المشاركات
+                <i class="fas fa-feather-alt ms-2 text-primary"></i> آخر المشاركات
             </h5>
-            
+
             {% for post in posts %}
                 <div class="card border-0 shadow-sm rounded-4 mb-3 hover-shadow transition">
                     <div class="card-body p-4">
@@ -133,8 +162,39 @@
     </div>
 </div>
 
-<style>
-    .transition { transition: all 0.3s ease; }
-    .hover-shadow:hover { transform: translateY(-5px); shadow: 0 10px 20px rgba(0,0,0,0.1); }
-</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    {% if user.role != 'employer' %}
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('userRadarChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: ['التقنية', 'التواصل', 'الخبرة', 'التعليم', 'القيادة'],
+                datasets: [{
+                    label: 'القدرات',
+                    data: {{ radar_data|tojson if radar_data else [65, 70, 80, 55, 75] }},
+                    backgroundColor: 'rgba(13, 110, 253, 0.2)',
+                    borderColor: '#0d6efd',
+                    pointBackgroundColor: '#0d6efd',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    r: {
+                        angleLines: { display: true },
+                        suggestedMin: 0,
+                        suggestedMax: 100,
+                        ticks: { display: false }
+                    }
+                }
+            }
+        });
+    });
+    {% endif %}
+</script>
 {% endblock %}

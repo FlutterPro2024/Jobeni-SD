@@ -134,15 +134,16 @@ def apply_to_job(job_id):
         return redirect(url_for('jobs.job_detail', job_id=job_id))
 
     user_cv = CV.query.filter_by(id=cv_id, user_id=current_user.id).first()
+
     match_score = 50
     explanation = "تم التقييم بناءً على المهارات العامة."
 
     if user_cv and user_cv.extracted_text:
         try:
             prompt = (
-                f"حلل بدقة المطابقة بين الوظيفة: ({job.title} - {job.description[:500]}) "
-                f"والسيرة الذاتية: ({user_cv.extracted_text[:1000]}). "
-                f"أعطني النسبة المئوية للمطابقة كأول كلمة في ردك (مثال: 85%) ثم اشرح السبب باختصار."
+                f"أنت خبير توظيف تقني. حلل المطابقة بين الوظيفة: ({job.title} - {job.description[:400]}) "
+                f"والسيرة الذاتية: ({user_cv.extracted_text[:800]}). "
+                f"أعطني نسبة مئوية (مثلاً 85) ثم شرح قصير جداً باللهجة السودانية."
             )
             ai_res = openrouter_ai.get_ai_response(prompt)
             score_match = re.search(r'\d+', ai_res)
@@ -161,6 +162,12 @@ def apply_to_job(job_id):
         status='pending'
     )
     db.session.add(new_app)
+    
+    # --- التنبيهات الجديدة (المطابقة العالية) ---
+    if match_score >= 80:
+        employer_msg = f"🚀 مرشح لقطة! {current_user.full_name or current_user.username} قدم لوظيفة {job.title} بنسبة مطابقة {match_score}%."
+        add_notification(job.user_id, employer_msg, 'warning')
+    
     db.session.commit()
 
     flash(f'تم التقديم بنجاح! نسبة المطابقة الذكية: {match_score}%', 'success')
@@ -179,7 +186,6 @@ def view_candidates(job_id):
 @jobs_bp.route('/job/status/<int:app_id>', methods=['POST'])
 @login_required
 def update_application_status(app_id):
-    """تحديث حالة الطلب مع نظام إشعارات ورسائل مقابلة آلية"""
     application = Application.query.get_or_404(app_id)
     job = Job.query.get(application.job_id)
 
@@ -204,15 +210,14 @@ def update_application_status(app_id):
             job_id=job.id,
             details=interview_details
         )
-
-        flash('تم إرسال دعوة المقابلة وتفاصيل الموعد وبدء دردشة مع المتقدم.', 'success')
+        flash('تم إرسال دعوة المقابلة وبدء دردشة مع المتقدم.', 'success')
 
     elif new_status == 'accepted':
         add_notification(application.user_id, f"✅ مبروك! تم قبولك مبدئياً لوظيفة {job.title}.", 'success')
         flash('تم تحديث الحالة إلى مقبول بنجاح.', 'success')
 
     elif new_status == 'rejected':
-        add_notification(application.user_id, f"نعتذر، لم يتم اختيارك لوظيفة {job.title} هذه المرة. نتمنى لك التوفيق.", 'secondary')
+        add_notification(application.user_id, f"نعتذر، لم يتم اختيارك لوظيفة {job.title}.", 'secondary')
         flash('تم تحديث الحالة إلى مرفوض.', 'info')
 
     db.session.commit()
@@ -221,7 +226,6 @@ def update_application_status(app_id):
 @jobs_bp.route('/job/evaluate/<int:app_id>', methods=['POST'])
 @login_required
 def evaluate_candidate(app_id):
-    """تقييم المتقدم بعد المقابلة وإصدار القرار النهائي"""
     application = Application.query.get_or_404(app_id)
     job = Job.query.get(application.job_id)
 
@@ -238,53 +242,51 @@ def evaluate_candidate(app_id):
     application.status = decision
 
     if decision == 'accepted':
-        msg = f"🎊 مبروك! بعد تقييم المقابلة، تم قبولك نهائياً لوظيفة {job.title}. سيتواصل معك قسم الموارد البشرية."
+        msg = f"🎊 مبروك! تم قبولك نهائياً لوظيفة {job.title}."
         category = 'success'
     else:
-        msg = f"نعتذر، لم يتم اختيارك لوظيفة {job.title} بعد مرحلة المقابلة. نتمنى لك التوفيق في فرص قادمة."
+        msg = f"نعتذر، لم يتم اختيارك لوظيفة {job.title} بعد المقابلة."
         category = 'secondary'
 
     add_notification(application.user_id, msg, category)
     db.session.commit()
 
-    flash('تم تسجيل التقييم وإرسال القرار النهائي للمتقدم.', 'success')
+    flash('تم تسجيل التقييم وإرسال القرار النهائي.', 'success')
     return redirect(url_for('jobs.view_candidates', job_id=job.id))
 
 @jobs_bp.route('/job/<int:job_id>/analytics')
 @login_required
 def job_analytics(job_id):
-    """لوحة تحكم التحليلات والرسوم البيانية للوظيفة"""
     job = Job.query.get_or_404(job_id)
     if job.user_id != current_user.id:
-        abort(403)
+        flash("غير مسموح لك بالوصول لبيانات هذه الوظيفة.", "danger")
+        return redirect(url_for('auth.dashboard'))
 
-    total_apps = Application.query.filter_by(job_id=job_id).count()
-    accepted = Application.query.filter_by(job_id=job_id, status='accepted').count()
-    rejected = Application.query.filter_by(job_id=job_id, status='rejected').count()
-    pending = Application.query.filter_by(job_id=job_id, status='pending').count()
-    interviewing = Application.query.filter_by(job_id=job_id, status='interview').count()
+    applications = Application.query.filter_by(job_id=job_id).all()
+    total_apps = len(applications)
 
     questions = JobQuestion.query.filter_by(job_id=job_id).all()
-    max_score = sum(q.points for q in questions) if questions else 100
-    pass_mark = max_score * 0.5
+    max_pts = sum(q.points for q in questions) if questions else 100
+    pass_mark = max_pts * 0.5
 
-    apps_with_quiz = Application.query.filter(
-        Application.job_id == job_id,
-        Application.quiz_score.isnot(None)
-    ).all()
+    pass_count = len([a for a in applications if (a.quiz_score or 0) >= pass_mark and a.quiz_score is not None])
+    fail_count = len([a for a in applications if a.quiz_score is not None and a.quiz_score < pass_mark])
+    
+    status_counts = {'pending': 0, 'accepted': 0, 'rejected': 0, 'interview': 0}
+    status_map_ar = {'pending': 'قيد الانتظار', 'accepted': 'مقبول', 'rejected': 'مرفوض', 'interview': 'مقابلة'}
 
-    passed_quiz = len([a for a in apps_with_quiz if a.quiz_score >= pass_mark])
-    failed_quiz = len(apps_with_quiz) - passed_quiz
+    for app in applications:
+        if app.status in status_counts:
+            status_counts[app.status] += 1
 
-    # تم تغيير التسمية هنا لتجنب التعارض مع دوال القواميس الأصلية
-    chart_data = {
-        "labels": ["ناجح", "راسب"],
-        "quiz_counts": [passed_quiz, failed_quiz],
-        "status_labels": ["مقبول", "مرفوض", "مقابلة", "قيد الانتظار"],
-        "status_values": [accepted, rejected, interviewing, pending]
+    analytics_data = {
+        'quiz_counts': [pass_count, fail_count],
+        'labels': ['ناجح', 'راسب'],
+        'status_labels': [status_map_ar[k] for k in status_counts.keys()],
+        'status_values': list(status_counts.values())
     }
 
-    return render_template('job_analytics.html', job=job, data=chart_data, total=total_apps)
+    return render_template('job_analytics.html', job=job, total=total_apps, data=analytics_data)
 
 @jobs_bp.route('/job/delete/<int:job_id>', methods=['POST'])
 @login_required
@@ -304,9 +306,11 @@ def delete_job(job_id):
 def get_cv_api(user_id):
     cv = CV.query.filter_by(user_id=user_id).order_by(CV.created_at.desc()).first()
     if cv:
+        radar_data = openrouter_ai.generate_skills_radar_data(cv.extracted_text or "")
         return jsonify({
             'parsed_text': cv.extracted_text or "لا يوجد نص مستخلص.",
             'skills': cv.skills if hasattr(cv, 'skills') else [],
+            'radar': radar_data,
             'created_at': cv.created_at.strftime('%Y-%m-%d')
         })
     return jsonify({'error': 'No CV found'}), 404

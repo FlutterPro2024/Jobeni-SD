@@ -47,7 +47,7 @@ class User(db.Model, UserMixin):
     applications = db.relationship('Application', backref='applicant', lazy=True)
     posts = db.relationship('Post', backref='author', lazy='dynamic')
     notifications = db.relationship('Notification', backref='recipient', lazy='dynamic')
-    
+
     # علاقة نتائج الاختبارات
     quiz_results = db.relationship('QuizResult', backref='user', lazy=True)
 
@@ -105,8 +105,8 @@ class Job(db.Model):
     employer_user = db.relationship('User', back_populates='jobs')
 
     applications = db.relationship('Application', backref='job_ref', lazy=True, cascade="all, delete-orphan")
-    
-    # علاقة الأسئلة الاختبارية (جديد)
+
+    # علاقة الأسئلة الاختبارية
     questions = db.relationship('JobQuestion', backref='job', lazy=True, cascade="all, delete-orphan")
 
 class JobQuestion(db.Model):
@@ -136,7 +136,13 @@ class CV(db.Model):
     extracted_text = db.Column(db.Text)
     profession = db.Column(db.String(100))
     score = db.Column(db.Integer, default=0)
-    skills = db.Column(db.JSON)
+    skills = db.Column(db.JSON) # تخزين المهارات المستخرجة من الـ AI
+
+    # حقول إضافية لدعم رادار المهارات
+    radar_labels = db.Column(db.JSON) # مثل: ["تقني", "تواصل", "قيادة"]
+    radar_scores = db.Column(db.JSON) # مثل: [80, 70, 90]
+    course_recommendations = db.Column(db.Text) # تخزين توصيات الكورسات المقترحة
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
@@ -144,12 +150,12 @@ class Application(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     job_id = db.Column(db.Integer, db.ForeignKey('job.id'))
-    status = db.Column(db.String(20), default='pending') # pending, accepted, rejected, suggested
+    status = db.Column(db.String(20), default='pending') # pending, accepted, rejected, suggested, interview
     match_score = db.Column(db.Integer)
     match_explanation = db.Column(db.Text)
     applied_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # ربط درجة الاختبار بطلب التقديم (جديد)
+
+    # ربط درجة الاختبار بطلب التقديم
     quiz_score = db.Column(db.Integer, nullable=True)
 
 class InterviewSession(db.Model):

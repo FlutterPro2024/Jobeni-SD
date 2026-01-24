@@ -7,20 +7,20 @@
     <div class="row justify-content-center">
         <div class="col-lg-6">
             <div class="card border-0 shadow-lg rounded-5 overflow-hidden">
-                <div style="height: 6px; background: var(--gradient-blue);"></div>
+                <div style="height: 6px; background: linear-gradient(90deg, #0d6efd, #0dcaf0);"></div>
 
                 <div class="card-header bg-white text-center py-5 border-0">
                     <div class="ai-orb mb-4 mx-auto">
                         <i class="fas fa-magic fa-2x text-white"></i>
                     </div>
                     <h2 class="fw-bold text-dark mb-2">محرك التحليل الذكي</h2>
-                    <p class="text-muted px-4">ارفع ملفك الآن وسيقوم نظام <span class="text-primary fw-bold">Gemini AI</span> بتحليل خبراتك واستخراج مهاراتك بدقة متناهية</p>
+                    <p class="text-muted px-4">ارفع ملفك الآن وسيقوم نظام <span class="text-primary fw-bold">Jobeni AI</span> بتحليل خبراتك واستخراج مهاراتك بدقة متناهية</p>
                 </div>
 
                 <div class="card-body p-4 p-md-5 pt-0">
                     <form id="uploadForm" method="POST" enctype="multipart/form-data" action="{{ url_for('cv.upload_cv') }}">
                         <div class="upload-zone p-5 mb-4 border-dashed rounded-4 text-center position-relative transition-all" id="dropZone">
-                            <input type="file" name="cv_file" id="cvInput" class="position-absolute w-100 h-100 top-0 start-0 opacity-0 cursor-pointer" accept=".pdf" required>
+                            <input type="file" name="cv_file" id="cvInput" class="position-absolute w-100 h-100 top-0 start-0 opacity-0 cursor-pointer" accept=".pdf,.txt" required>
 
                             <div id="uploadPlaceholder">
                                 <div class="upload-anim mb-3">
@@ -28,6 +28,10 @@
                                 </div>
                                 <h5 class="fw-bold text-secondary">اسحب ملف الـ PDF هنا</h5>
                                 <p class="small text-muted mb-0">أو انقر لاختيار ملف من جهازك</p>
+                                <div class="mt-2">
+                                    <span class="badge bg-light text-muted border">PDF</span>
+                                    <span class="badge bg-light text-muted border">TXT</span>
+                                </div>
                             </div>
 
                             <div id="fileInfo" class="d-none">
@@ -35,11 +39,11 @@
                                     <i class="fas fa-check-circle fa-3x text-success"></i>
                                 </div>
                                 <h6 id="fileName" class="fw-bold text-primary mb-1 text-truncate px-3"></h6>
-                                <span class="badge bg-success rounded-pill px-3 shadow-sm">جاهز للتحليل</span>
+                                <span class="badge bg-success rounded-pill px-3 shadow-sm">جاهز للتحليل 🚀</span>
                             </div>
                         </div>
 
-                        <button type="submit" id="submitBtn" class="btn btn-primary btn-lg w-100 rounded-pill py-3 fw-bold shadow-lg border-0" style="background: var(--gradient-blue);">
+                        <button type="submit" id="submitBtn" class="btn btn-primary btn-lg w-100 rounded-pill py-3 fw-bold shadow-lg border-0 btn-hover-grow" style="background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);">
                             <i class="fas fa-rocket me-2"></i> بدء التحليل واستخراج البيانات
                         </button>
                     </form>
@@ -58,16 +62,18 @@
                 </div>
             </div>
 
-            <p class="text-center text-muted mt-4 small">
-                <i class="fas fa-shield-alt me-1 text-success"></i> خصوصيتك محمية بالكامل. نظامنا مشفر ولا يتم حفظ الملفات بشكل دائم.
-            </p>
+            <div class="text-center mt-4">
+                <p class="text-muted small">
+                    <i class="fas fa-shield-alt me-1 text-success"></i> خصوصيتك محمية بالكامل بنظام تشفير جوبيني 2026.
+                </p>
+            </div>
         </div>
     </div>
 </div>
 
 <style>
     :root { --primary-color: #0d6efd; }
-    
+
     .ai-orb {
         width: 75px; height: 75px;
         background: linear-gradient(135deg, #0d6efd 0%, #0dcaf0 100%);
@@ -77,11 +83,14 @@
         animation: float 3s ease-in-out infinite;
     }
 
-    .border-dashed { border: 2px dashed #cbd5e0; transition: 0.3s; background: #f8fafc; }
-    .upload-zone:hover { border-color: var(--primary-color); background-color: #f0f7ff; transform: translateY(-2px); }
+    .border-dashed { border: 2px dashed #cbd5e0; transition: all 0.3s ease; background: #f8fafc; }
+    .upload-zone:hover { border-color: var(--primary-color); background-color: #f0f7ff; transform: translateY(-5px); }
     .cursor-pointer { cursor: pointer; }
 
     .bg-soft-success { background-color: #ecfdf5; width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+
+    .btn-hover-grow { transition: transform 0.2s; }
+    .btn-hover-grow:hover { transform: scale(1.02); }
 
     /* أنيميشن الماسح الضوئي */
     .scanner-container {
@@ -92,7 +101,7 @@
     .scanner-line {
         position: absolute;
         top: 0; left: 0;
-        width: 100%; height: 3px;
+        width: 100%; height: 4px;
         background: #0d6efd;
         box-shadow: 0 0 15px #0d6efd;
         animation: scan 2s ease-in-out infinite;
@@ -105,8 +114,6 @@
     .animate-pulse { animation: pulse 1.5s infinite; }
 </style>
 
-
-
 <script>
     const cvInput = document.getElementById('cvInput');
     const uploadPlaceholder = document.getElementById('uploadPlaceholder');
@@ -117,21 +124,27 @@
 
     const facts = [
         "الذكاء الاصطناعي يحلل الآن سنوات خبرتك...",
-        "يتم الآن مطابقة مهاراتك مع متطلبات السوق السوداني...",
+        "يتم الآن مطابقة مهاراتك مع متطلبات السوق...",
         "نحن نستخرج الآن الكلمات المفتاحية لتحسين ظهورك...",
-        "لحظات قليلة وينتهي التقرير المهني الخاص بك..."
+        "لحظات قليلة وينتهي التقرير المهني الخاص بك...",
+        "يتم الآن بناء رادار المهارات الخاص بك..."
     ];
 
     cvInput.onchange = function() {
         if (this.files[0]) {
-            if (this.files[0].type !== "application/pdf") {
-                alert("عذراً، المحرك يدعم ملفات PDF فقط حالياً.");
+            const ext = this.files[0].name.split('.').pop().toLowerCase();
+            if (ext !== "pdf" && ext !== "txt") {
+                alert("عذراً، المحرك يدعم ملفات PDF و TXT فقط.");
                 this.value = "";
                 return;
             }
             uploadPlaceholder.classList.add('d-none');
             fileInfo.classList.remove('d-none');
             fileName.innerText = this.files[0].name;
+            
+            // إضافة لمسة حركية
+            document.getElementById('dropZone').style.borderColor = "#198754";
+            document.getElementById('dropZone').style.backgroundColor = "#f0fff4";
         }
     };
 
@@ -141,7 +154,7 @@
 
         let progress = 0;
         const progressBar = document.getElementById('uploadProgress');
-        
+
         // تغيير الرسائل التوضيحية أثناء التحميل
         let factIndex = 0;
         const factInterval = setInterval(() => {
@@ -150,10 +163,16 @@
         }, 2500);
 
         const interval = setInterval(() => {
-            progress += (98 - progress) * 0.08; 
+            // حركة ذكية للتقدم (سريعة في البداية وبطيئة في النهاية لانتظار الـ AI)
+            if (progress < 70) {
+                progress += 2;
+            } else if (progress < 95) {
+                progress += 0.5;
+            }
+            
             progressBar.style.width = progress + '%';
-            if (progress >= 97) clearInterval(interval);
-        }, 400);
+            if (progress >= 98) clearInterval(interval);
+        }, 200);
     };
 </script>
 {% endblock %}

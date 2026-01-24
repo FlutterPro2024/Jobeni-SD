@@ -5,66 +5,134 @@
 <div class="container py-5 text-center" dir="rtl">
     <div class="row justify-content-center">
         <div class="col-md-6">
-            <div class="card border-0 shadow-lg rounded-4 overflow-hidden bg-white">
-                <div class="card-header bg-primary text-white py-3">
-                    <h5 class="mb-0 fw-bold"><i class="fas fa-expand ms-2"></i> رادار جوبيني الضوئي</h5>
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden bg-white animate__animated animate__fadeInUp">
+                <div class="card-header bg-primary text-white py-3 shadow-sm">
+                    <h5 class="mb-0 fw-bold"><i class="fas fa-qrcode ms-2"></i> رادار جوبيني الضوئي</h5>
                 </div>
-                <div class="card-body p-0 position-relative">
+                
+                <div class="card-body p-0 position-relative bg-dark" style="min-height: 350px;">
                     <div id="reader" style="width: 100%;"></div>
-                    <div id="scan-overlay" class="position-absolute top-50 start-50 translate-middle w-75 h-50 border border-primary border-3 rounded-4" style="pointer-events: none; opacity: 0.5; box-shadow: 0 0 0 1000px rgba(0,0,0,0.3);"></div>
+                    
+                    <div id="scan-overlay" class="position-absolute top-50 start-50 translate-middle w-75 h-50 border border-primary border-3 rounded-4" 
+                         style="pointer-events: none; opacity: 0.7; box-shadow: 0 0 0 1000px rgba(0,0,0,0.5); z-index: 10;">
+                        <div class="scanner-line"></div>
+                    </div>
                 </div>
-                <div class="card-footer bg-light p-4">
-                    <p class="small text-muted mb-0">وجه الكاميرا نحو الرمز الخاص بصديقك أو صاحب العمل للانتقال لملفه فوراً.</p>
+
+                <div class="card-footer bg-light p-4 border-0">
+                    <div class="d-flex align-items-center justify-content-center text-secondary mb-2">
+                        <i class="fas fa-info-circle ms-2"></i>
+                        <p class="small mb-0 fw-bold">وجه الكاميرا نحو الرمز الخاص بصديقك أو صاحب العمل.</p>
+                    </div>
+                    <p class="x-small text-muted">سيتم نقلك فوراً إلى الملف الشخصي بمجرد التعرف على الكود.</p>
                 </div>
             </div>
 
-            <div class="mt-4">
-                <a href="{{ url_for('auth.dashboard') }}" class="btn btn-light rounded-pill px-4 shadow-sm border">رجوع للوحة التحكم</a>
+            <div class="mt-4 d-flex justify-content-center gap-2">
+                <a href="{{ url_for('auth.dashboard') }}" class="btn btn-outline-dark rounded-pill px-4 shadow-sm fw-bold">
+                    <i class="fas fa-arrow-right ms-2"></i> العودة للوحة التحكم
+                </a>
             </div>
         </div>
     </div>
 </div>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
+
 <script>
     function onScanSuccess(decodedText, decodedResult) {
-        // --- تعديل "المكنات" لضمان قبول الروابط من المنصتين ---
-        // بنفتش على كلمة jobeni عشان نضمن إنه تبعنا
-        const isJobeni = decodedText.includes('jobeni-sd') || decodedText.includes('vercel.app');
+        // فحص الرابط لضمان الأمان والتبعية للمنصة
+        const isJobeni = decodedText.includes('jobeni') || 
+                         decodedText.includes('127.0.0.1') || 
+                         decodedText.includes('localhost') ||
+                         decodedText.includes('vercel.app');
 
         if (isJobeni) {
-            // توجيه فوري للملف الشخصي أو الرابط الممسوح
+            // تشغيل صوت تنبيه خفيف عند النجاح (اختياري)
+            console.log("Scan Success:", decodedText);
+            // الانتقال للرابط
             window.location.href = decodedText;
+            
+            // إيقاف الماسح بعد النجاح لتوفير الموارد
+            html5QrcodeScanner.clear();
         } else {
-            alert("⚠️ عذراً، هذا الرمز لا يتبع لمنصة جوبيني السودان!");
+            // إظهار تنبيه في حالة الكود الغريب
+            Swal.fire({
+                icon: 'error',
+                title: 'رمز غير مدعوم',
+                text: 'عذراً، هذا الرمز لا يتبع لمنصة جوبيني السودان!',
+                confirmButtonText: 'حاول مرة أخرى',
+                confirmButtonColor: '#0d6efd'
+            });
         }
     }
 
+    function onScanFailure(error) {
+        // لا نحتاج لإظهار أخطاء الفشل المستمر أثناء البحث عن كود
+    }
+
     let html5QrcodeScanner = new Html5QrcodeScanner(
-        "reader", {
-            fps: 20,
-            qrbox: {width: 250, height: 250},
-            aspectRatio: 1.0
-        });
-    html5QrcodeScanner.render(onScanSuccess);
+        "reader", 
+        { 
+            fps: 25, // زيادة الفريمات لسرعة الاستجابة
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+            showTorchButtonIfSupported: true // زر الكشاف للإضاءة الضعيفة
+        },
+        /* verbose= */ false
+    );
+    
+    html5QrcodeScanner.render(onScanSuccess, onScanFailure);
 </script>
 
 <style>
-    /* تحسين شكل زر تشغيل الكاميرا الافتراضي للمكتبة */
-    #reader__dashboard_section_csr button {
+    /* تحسين شكل أزرار المكتبة الافتراضية */
+    #reader__dashboard_section_csr button, 
+    #reader__dashboard_section_fsr button {
         background-color: #0d6efd !important;
         color: white !important;
         border-radius: 50px !important;
         border: none !important;
-        padding: 8px 20px !important;
+        padding: 10px 25px !important;
         font-weight: bold !important;
-        margin: 10px 0 !important;
+        margin: 15px 5px !important;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 10px rgba(13, 110, 253, 0.3) !important;
     }
+
+    #reader__dashboard_section_csr button:hover {
+        background-color: #0b5ed7 !important;
+        transform: scale(1.05);
+    }
+
     #reader {
         border: none !important;
     }
+
     #reader video {
         border-radius: 0 !important;
+        object-fit: cover !important;
+    }
+
+    /* أنيميشن خط الماسح */
+    .scanner-line {
+        height: 2px;
+        width: 100%;
+        background: #0d6efd;
+        position: absolute;
+        top: 0;
+        box-shadow: 0 0 15px 2px rgba(13, 110, 253, 0.8);
+        animation: scanLoop 2s linear infinite;
+    }
+
+    @keyframes scanLoop {
+        0% { top: 0%; }
+        50% { top: 100%; }
+        100% { top: 0%; }
+    }
+
+    .x-small {
+        font-size: 0.7rem;
     }
 </style>
 {% endblock %}
