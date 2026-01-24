@@ -47,7 +47,7 @@ def view_cv_by_user(user_id):
 def view_cv(cv_id):
     cv = CV.query.get_or_404(cv_id)
     is_employer = Application.query.join(Job).filter(Application.user_id == cv.user_id, Job.user_id == current_user.id).first()
-    
+
     if cv.user_id != current_user.id and not is_employer:
         abort(403)
 
@@ -91,6 +91,7 @@ def upload_cv():
             else:
                 extracted_text = file.read().decode('utf-8', errors='ignore')
 
+            # تحليل AI لبيانات الرادار والـ ATS
             analysis = openrouter_ai.analyze_cv_complete(extracted_text[:4000])
             radar_data = openrouter_ai.generate_skills_radar_data(extracted_text[:2000])
 
@@ -108,7 +109,7 @@ def upload_cv():
             db.session.commit()
 
             session[f'analysis_{new_cv.id}'] = analysis
-            flash('تم تحليل سيرتك الذاتية بنجاح! 🚀', 'success')
+            flash('تم تحليل سيرتك الذاتية بنجاح! 🚀 حرك الرادار الآن في لوحة التحكم.', 'success')
             return redirect(url_for('cv.view_cv', cv_id=new_cv.id))
         except Exception as e:
             db.session.rollback()
@@ -125,14 +126,13 @@ def generate_ats_pdf(cv_id):
     if cv.user_id != current_user.id: abort(403)
 
     # 1. استخدام المحرك لتحويل النص إلى نسخة إنجليزية احترافية (Global Upgrade)
-    flash('جاري تطوير سيرتك الذاتية لمعايير الـ ATS العالمية...', 'info')
     optimized_en_text = openrouter_ai.build_global_cv(cv.extracted_text)
 
     # 2. إنشاء ملف PDF باستخدام FPDF
     pdf = FPDF()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
-    
+
     # الخطوط والعناوين
     pdf.set_font("Arial", 'B', 16)
     pdf.cell(200, 10, txt=f"Professional Profile: {current_user.full_name or current_user.username}", ln=True, align='C')
@@ -158,7 +158,7 @@ def generate_ats_pdf(cv_id):
 def delete_cv(cv_id):
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id: abort(403)
-    
+
     # حذف الملف الفعلي من السيرفر
     try:
         os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], cv.filename))
@@ -168,3 +168,17 @@ def delete_cv(cv_id):
     db.session.commit()
     flash('تم حذف السيرة الذاتية بنجاح.', 'info')
     return redirect(url_for('cv.my_cvs'))
+
+@cv_bp.route('/cv/improve_global')
+@login_required
+def improve_global_cv_ajax():
+    """تحسين الـ CV لنسخة عالمية عبر طلب AJAX لتقديمه في الـ Modal"""
+    last_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
+    if not last_cv:
+        return jsonify({"content": None})
+    
+    try:
+        optimized_text = openrouter_ai.build_global_cv(last_cv.extracted_text[:4000])
+        return jsonify({"content": optimized_text})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

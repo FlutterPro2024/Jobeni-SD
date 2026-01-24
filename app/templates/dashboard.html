@@ -55,7 +55,7 @@
                             <canvas id="skillsRadarChart" style="max-height: 280px;"></canvas>
                         </div>
                         <div class="col-md-6 mt-4 mt-md-0">
-                            <h6 class="fw-bold text-primary mb-3"><i class="fas fa-lightbulb ms-2"></i>توصيات المساعد الذكي:</h6>
+                            <h6 class="fw-bold text-primary mb-3"><i class="fas fa-lightbulb ms-2"></i> توصيات المساعد الذكي:</h6>
                             <div class="course-suggestions small text-secondary p-3 bg-light rounded-4">
                                 {{ course_suggestions | safe if course_suggestions else 'ارفع سيرتك الذاتية للحصول على توصيات مخصصة لعام 2026.' }}
                             </div>
@@ -88,7 +88,7 @@
                                     <p class="text-muted small mb-2"><i class="fas fa-building me-1"></i> {{ match.job_ref.company_name }}</p>
                                 </div>
                             </div>
-                            <p class="x-small text-secondary mb-3">{{ match.match_explanation[:150] }}...</p>
+                            <p class="x-small text-secondary mb-3">{{ match.match_explanation[:150] if match.match_explanation else 'جاري تحليل الملاءمة...' }}...</p>
                             <div class="d-flex gap-2">
                                 <a href="{{ url_for('jobs.job_detail', job_id=match.job_id) }}" class="btn btn-primary btn-sm rounded-pill px-3">عرض التفاصيل</a>
                                 <a href="{{ url_for('chat.open_chat', job_id=match.job_id, recipient_id=(match.job_ref.user_id or 0)) }}" class="btn btn-outline-primary btn-sm rounded-pill px-3">نقاش المساعد</a>
@@ -208,11 +208,11 @@
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
             <div class="modal-header bg-dark text-white border-0 py-3">
-                <h5 class="modal-title fw-bold"><i class="fas fa-star text-warning ms-2"></i>النسخة العالمية المقترحة (ATS Ready)</h5>
+                <h5 class="modal-title fw-bold"><i class="fas fa-star text-warning ms-2"></i> النسخة العالمية المقترحة (ATS Ready)</h5>
                 <button type="button" class="btn-close btn-close-white ms-0 me-auto" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4 text-start" dir="ltr" id="improvedCVBody" style="background: #fdfdfd; max-height: 70vh; overflow-y: auto; font-family: 'Courier New', Courier, monospace;">
-                </div>
+            </div>
             <div class="modal-footer border-0 bg-light">
                 <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">إغلاق</button>
                 <button class="btn btn-primary rounded-pill px-4 fw-bold" onclick="copyImprovedCV()">
@@ -226,7 +226,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // الرسم البياني لمؤشر ATS
+        // 1. الرسم البياني لمؤشر ATS (Line Chart)
         const ctxPerformance = document.getElementById('performanceChart').getContext('2d');
         new Chart(ctxPerformance, {
             type: 'line',
@@ -248,14 +248,14 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
-                scales: { 
+                scales: {
                     y: { beginAtZero: true, max: 100 },
                     x: { grid: { display: false } }
                 }
             }
         });
 
-        // رادار المهارات
+        // 2. رادار المهارات (Radar Chart)
         const ctxRadar = document.getElementById('skillsRadarChart').getContext('2d');
         new Chart(ctxRadar, {
             type: 'radar',
@@ -272,12 +272,19 @@
             },
             options: {
                 responsive: true,
-                scales: { r: { suggestMin: 0, suggestMax: 100 } },
+                scales: {
+                    r: {
+                        angleLines: { display: true },
+                        suggestMin: 0,
+                        suggestMax: 100
+                    }
+                },
                 plugins: { legend: { display: false } }
             }
         });
     });
 
+    // دالة التحسين العالمي عبر AI
     function improveMyCV() {
         const body = document.getElementById('improvedCVBody');
         body.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary mb-3"></div><p class="text-muted">يقوم الذكي الآن بإعادة صياغة خبراتك بمعايير عالمية...</p></div>';
@@ -308,7 +315,8 @@
     .transition { transition: all 0.3s ease; }
     .animate-pulse { animation: pulse-red 2s infinite; }
     @keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-    .course-suggestions ul { padding-right: 1rem; list-style-type: square; }
+    .course-suggestions ul { padding-right: 1.5rem; list-style-type: square; margin-bottom: 0; }
+    .course-suggestions li { margin-bottom: 0.5rem; }
     .x-small { font-size: 0.75rem; }
     #improvedCVBody::-webkit-scrollbar { width: 6px; }
     #improvedCVBody::-webkit-scrollbar-thumb { background: #ccc; border-radius: 10px; }
