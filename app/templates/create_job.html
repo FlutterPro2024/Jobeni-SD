@@ -6,9 +6,12 @@
     <title>نشر وظيفة جديدة - Jobeni-SD</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         .question-card { border-right: 5px solid #198754; background: #f8f9fa; transition: all 0.3s; }
         .question-card:hover { transform: scale(1.01); box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        #map-selector { height: 350px; width: 100%; border-radius: 15px; border: 2px solid #e0e0e0; z-index: 1; }
+        .map-hint { font-size: 0.85rem; color: #198754; margin-top: 5px; font-weight: bold; }
     </style>
 </head>
 <body class="bg-light">
@@ -25,11 +28,11 @@
     <div class="container py-5">
         <div class="row justify-content-center">
             <div class="col-md-10">
-                <div class="card shadow">
-                    <div class="card-header bg-success text-white">
-                        <h4 class="mb-0"><i class="fas fa-plus-circle"></i> نشر وظيفة جديدة وإعداد الاختبار</h4>
+                <div class="card shadow border-0 rounded-4">
+                    <div class="card-header bg-success text-white p-3">
+                        <h4 class="mb-0"><i class="fas fa-plus-circle"></i> نشر وظيفة جديدة وإعداد الموقع</h4>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body p-4">
                         {% with messages = get_flashed_messages(with_categories=true) %}
                             {% if messages %}
                                 {% for category, message in messages %}
@@ -42,28 +45,28 @@
                             <div class="row">
                                 <div class="col-md-12 mb-3">
                                     <label for="title" class="form-label fw-bold">عنوان الوظيفة *</label>
-                                    <input type="text" class="form-control" id="title" name="title" placeholder="مثلاً: مطور بايثون محترف" required>
+                                    <input type="text" class="form-control rounded-3" id="title" name="title" placeholder="مثلاً: مطور بايثون محترف" required>
                                 </div>
                                 <div class="col-md-12 mb-3">
                                     <label for="description" class="form-label fw-bold">وصف الوظيفة والمتطلبات *</label>
-                                    <textarea class="form-control" id="description" name="description" rows="5" required placeholder="اكتب تفاصيل الوظيفة هنا..."></textarea>
+                                    <textarea class="form-control rounded-3" id="description" name="description" rows="5" required placeholder="اكتب تفاصيل الوظيفة هنا..."></textarea>
                                 </div>
                             </div>
 
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label for="location" class="form-label fw-bold">المكان</label>
-                                    <input type="text" class="form-control" id="location" name="location" placeholder="بورتسودان، عطبرة، أو Remote">
+                                    <label for="location" class="form-label fw-bold">المكان (نصي)</label>
+                                    <input type="text" class="form-control rounded-3" id="location" name="location" placeholder="بورتسودان، عطبرة، أو Remote">
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label for="salary" class="form-label fw-bold">الراتب المتوقع</label>
-                                    <input type="text" class="form-control" id="salary" name="salary" placeholder="مثلاً: 500,000 - 800,000 ج.س">
+                                    <input type="text" class="form-control rounded-3" id="salary" name="salary" placeholder="مثلاً: 500,000 - 800,000 ج.س">
                                 </div>
                             </div>
 
                             <div class="mb-4">
                                 <label for="job_type" class="form-label fw-bold">نوع الوظيفة</label>
-                                <select class="form-select" id="job_type" name="job_type">
+                                <select class="form-select rounded-3" id="job_type" name="job_type">
                                     <option value="">اختر النوع</option>
                                     <option value="دوام كامل">دوام كامل</option>
                                     <option value="دوام جزئي">دوام جزئي</option>
@@ -73,16 +76,27 @@
                                 </select>
                             </div>
 
+                            <div class="card mb-4 border-0 bg-light rounded-4 overflow-hidden">
+                                <div class="card-body p-3">
+                                    <label class="form-label fw-bold text-success"><i class="fas fa-map-marked-alt"></i> تحديد موقع العمل على الخريطة</label>
+                                    <p class="small text-muted mb-2">اضغط على الموقع بالخريطة لوضع علامة (Marker) ليرى المتقدمون مكان شركتك.</p>
+                                    <div id="map-selector"></div>
+                                    <div class="map-hint" id="coords-text">الموقع لم يحدد بعد (سيتم استخدام الموقع النصي أعلاه)</div>
+                                    
+                                    <input type="hidden" name="latitude" id="lat-input">
+                                    <input type="hidden" name="longitude" id="lng-input">
+                                </div>
+                            </div>
+
                             <hr class="my-4">
 
                             <div class="bg-light p-3 rounded-3 border">
                                 <h5 class="text-primary fw-bold mb-3"><i class="fas fa-tasks"></i> إعداد اختبار التصفية (اختياري)</h5>
-                                <p class="small text-muted mb-4">أضف أسئلة تظهر للمتقدمين لتصفية الكفاءات آلياً. سيتم ترتيب المتقدمين حسب درجة الاختبار.</p>
-                                
-                                <div id="questionsContainer">
-                                    </div>
+                                <p class="small text-muted mb-4">أضف أسئلة تظهر للمتقدمين لتصفية الكفاءات آلياً.</p>
 
-                                <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="addQuestion()">
+                                <div id="questionsContainer"></div>
+
+                                <button type="button" class="btn btn-outline-primary btn-sm mt-2 shadow-sm" onclick="addQuestion()">
                                     <i class="fas fa-plus"></i> إضافة سؤال جديد
                                 </button>
                             </div>
@@ -98,9 +112,35 @@
         </div>
     </div>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        let questionCount = 0;
+        // إعداد الخريطة - التركيز الافتراضي على السودان
+        var map = L.map('map-selector').setView([15.5007, 32.5599], 6); 
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
 
+        var marker;
+
+        map.on('click', function(e) {
+            var lat = e.latlng.lat;
+            var lng = e.latlng.lng;
+
+            if (marker) {
+                marker.setLatLng(e.latlng);
+            } else {
+                marker = L.marker(e.latlng).addTo(map);
+            }
+
+            // تحديث الحقول المخفية
+            document.getElementById('lat-input').value = lat;
+            document.getElementById('lng-input').value = lng;
+            document.getElementById('coords-text').innerHTML = 
+                `<i class="fas fa-check-circle"></i> تم تحديد الإحداثيات: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        });
+
+        // سكربت الأسئلة الأصلي
+        let questionCount = 0;
         function addQuestion() {
             questionCount++;
             const container = document.getElementById('questionsContainer');
@@ -114,7 +154,7 @@
                             </button>
                         </div>
                         <div class="mb-3">
-                            <input type="text" class="form-control" name="q_text[]" placeholder="نص السؤال (مثلاً: ما هي ميزة Python الأساسية؟)" required>
+                            <input type="text" class="form-control" name="q_text[]" placeholder="نص السؤال" required>
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-2">
@@ -129,18 +169,6 @@
                                     <input type="text" class="form-control" name="q_b[]" placeholder="الخيار الثاني" required>
                                 </div>
                             </div>
-                            <div class="col-md-6 mb-2">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text">C</span>
-                                    <input type="text" class="form-control" name="q_c[]" placeholder="الخيار الثالث (اختياري)">
-                                </div>
-                            </div>
-                            <div class="col-md-6 mb-2">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text">D</span>
-                                    <input type="text" class="form-control" name="q_d[]" placeholder="الخيار الرابع (اختياري)">
-                                </div>
-                            </div>
                         </div>
                         <div class="row mt-2">
                             <div class="col-md-6">
@@ -148,8 +176,6 @@
                                 <select class="form-select form-select-sm" name="q_correct[]">
                                     <option value="A">الخيار A</option>
                                     <option value="B">الخيار B</option>
-                                    <option value="C">الخيار C</option>
-                                    <option value="D">الخيار D</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
@@ -158,18 +184,13 @@
                             </div>
                         </div>
                     </div>
-                </div>
-            `;
+                </div>`;
             container.insertAdjacentHTML('beforeend', questionHtml);
         }
 
         function removeQuestion(id) {
-            const block = document.getElementById(`q_block_${id}`);
-            block.remove();
+            document.getElementById(`q_block_${id}`).remove();
         }
-
-        // إضافة سؤال واحد تلقائياً عند الفتح (اختياري)
-        // window.onload = addQuestion;
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

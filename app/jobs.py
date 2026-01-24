@@ -4,7 +4,7 @@ from flask_login import login_required, current_user
 from app.models import Job, Application, CV, User, db, Notification, JobQuestion, QuizResult
 from app.openrouter_ai import openrouter_ai
 from app.serper_search import serper_searcher
-from app.notifications import send_new_application_email, send_application_status_email, add_notification
+from app.notifications import add_notification
 from sqlalchemy import text
 from datetime import datetime
 import re
@@ -23,7 +23,10 @@ def jobs_list():
     global_jobs = []
 
     if query:
-        jobs = Job.query.with_entities(Job.id, Job.title, Job.company_name, Job.location, Job.description, Job.category, Job.salary, Job.job_type, Job.created_at).filter(
+        jobs = Job.query.with_entities(
+            Job.id, Job.title, Job.company_name, Job.location, 
+            Job.description, Job.category, Job.salary, Job.job_type, Job.created_at
+        ).filter(
             (Job.title.ilike(f'%{query}%')) |
             (Job.description.ilike(f'%{query}%')) |
             (Job.company_name.ilike(f'%{query}%'))
@@ -60,10 +63,16 @@ def create_job():
         return redirect(url_for('auth.dashboard'))
 
     if request.method == 'POST':
+        # استقبال الإحداثيات الجغرافية الجديدة
+        lat = request.form.get('latitude')
+        lng = request.form.get('longitude')
+        
         new_job = Job(
             title=request.form.get('title'),
-            company_name=request.form.get('company_name'),
+            company_name=request.form.get('company_name') or current_user.full_name or current_user.username,
             location=request.form.get('location'),
+            latitude=float(lat) if lat and lat.strip() else None,
+            longitude=float(lng) if lng and lng.strip() else None,
             description=request.form.get('description'),
             salary=request.form.get('salary'),
             job_type=request.form.get('job_type'),
@@ -72,6 +81,7 @@ def create_job():
         db.session.add(new_job)
         db.session.flush()
 
+        # معالجة أسئلة الاختبار التقييمي
         q_texts = request.form.getlist('q_text[]')
         if q_texts:
             q_as = request.form.getlist('q_a[]')
@@ -86,17 +96,17 @@ def create_job():
                     new_q = JobQuestion(
                         job_id=new_job.id,
                         question_text=q_texts[i],
-                        option_a=q_as[i],
-                        option_b=q_bs[i],
+                        option_a=q_as[i] if i < len(q_as) else "",
+                        option_b=q_bs[i] if i < len(q_bs) else "",
                         option_c=q_cs[i] if i < len(q_cs) else None,
                         option_d=q_ds[i] if i < len(q_ds) else None,
-                        correct_answer=q_corrects[i],
-                        points=int(q_points[i]) if q_points[i] else 10
+                        correct_answer=q_corrects[i] if i < len(q_corrects) else "A",
+                        points=int(q_points[i]) if i < len(q_points) and q_points[i] else 10
                     )
                     db.session.add(new_q)
 
         db.session.commit()
-        flash('تم نشر الوظيفة مع الاختبار التقييمي بنجاح!', 'success')
+        flash('تم نشر الوظيفة وتحديد الموقع بنجاح! 🚀', 'success')
         return redirect(url_for('auth.dashboard'))
 
     return render_template('create_job.html')
@@ -112,6 +122,7 @@ def apply_to_job(job_id):
     job = Job.query.get_or_404(job_id)
     questions = JobQuestion.query.filter_by(job_id=job_id).all()
 
+    # إذا كان هناك اختبار ولم يتم إرسال الإجابات بعد، نعرض صفحة الاختبار
     if questions and 'answers[]' not in request.form:
         return render_template('take_quiz.html', job=job, questions=questions)
 
@@ -134,16 +145,15 @@ def apply_to_job(job_id):
         return redirect(url_for('jobs.job_detail', job_id=job_id))
 
     user_cv = CV.query.filter_by(id=cv_id, user_id=current_user.id).first()
-
     match_score = 50
     explanation = "تم التقييم بناءً على المهارات العامة."
 
     if user_cv and user_cv.extracted_text:
         try:
             prompt = (
-                f"أنت خبير توظيف تقني. حلل المطابقة بين الوظيفة: ({job.title} - {job.description[:400]}) "
+                f"أنت خبير توظيف تقني سوداني. حلل المطابقة بين الوظيفة: ({job.title} - {job.description[:400]}) "
                 f"والسيرة الذاتية: ({user_cv.extracted_text[:800]}). "
-                f"أعطني نسبة مئوية (مثلاً 85) ثم شرح قصير جداً باللهجة السودانية."
+                f"أعطني نسبة مئوية (مثلاً 85) ثم شرح قصير جداً باللهجة السودانية المحببة."
             )
             ai_res = openrouter_ai.get_ai_response(prompt)
             score_match = re.search(r'\d+', ai_res)
@@ -162,14 +172,12 @@ def apply_to_job(job_id):
         status='pending'
     )
     db.session.add(new_app)
-    
-    # --- التنبيهات الجديدة (المطابقة العالية) ---
+
     if match_score >= 80:
         employer_msg = f"🚀 مرشح لقطة! {current_user.full_name or current_user.username} قدم لوظيفة {job.title} بنسبة مطابقة {match_score}%."
         add_notification(job.user_id, employer_msg, 'warning')
-    
-    db.session.commit()
 
+    db.session.commit()
     flash(f'تم التقديم بنجاح! نسبة المطابقة الذكية: {match_score}%', 'success')
     return redirect(url_for('auth.dashboard'))
 
@@ -179,7 +187,6 @@ def view_candidates(job_id):
     job = Job.query.get_or_404(job_id)
     if job.user_id != current_user.id:
         abort(403)
-
     apps = Application.query.filter_by(job_id=job_id).order_by(Application.match_score.desc()).all()
     return render_template('view_candidates.html', job=job, applications=apps)
 
@@ -188,37 +195,23 @@ def view_candidates(job_id):
 def update_application_status(app_id):
     application = Application.query.get_or_404(app_id)
     job = Job.query.get(application.job_id)
-
     if job.user_id != current_user.id:
         abort(403)
 
     new_status = request.form.get('status')
     interview_details = request.form.get('interview_details', '').strip()
-
     application.status = new_status
 
     if new_status == 'interview':
-        msg = f"🚀 خبر رائع! تم اختيارك لمقابلة لوظيفة {job.title}."
-        if interview_details:
-            msg += f" تفاصيل الموعد: {interview_details}"
-
+        msg = f"🚀 تم اختيارك لمقابلة لوظيفة {job.title}."
+        if interview_details: msg += f" التفاصيل: {interview_details}"
         add_notification(application.user_id, msg, 'info')
-
-        send_automated_interview_message(
-            sender_id=current_user.id,
-            recipient_id=application.user_id,
-            job_id=job.id,
-            details=interview_details
-        )
-        flash('تم إرسال دعوة المقابلة وبدء دردشة مع المتقدم.', 'success')
-
+        send_automated_interview_message(sender_id=current_user.id, recipient_id=application.user_id, job_id=job.id, details=interview_details)
+        flash('تمت دعوة المتقدم للمقابلة.', 'success')
     elif new_status == 'accepted':
-        add_notification(application.user_id, f"✅ مبروك! تم قبولك مبدئياً لوظيفة {job.title}.", 'success')
-        flash('تم تحديث الحالة إلى مقبول بنجاح.', 'success')
-
+        add_notification(application.user_id, f"✅ مبروك! تم قبولك في وظيفة {job.title}.", 'success')
     elif new_status == 'rejected':
         add_notification(application.user_id, f"نعتذر، لم يتم اختيارك لوظيفة {job.title}.", 'secondary')
-        flash('تم تحديث الحالة إلى مرفوض.', 'info')
 
     db.session.commit()
     return redirect(url_for('jobs.view_candidates', job_id=job.id))
@@ -228,30 +221,23 @@ def update_application_status(app_id):
 def evaluate_candidate(app_id):
     application = Application.query.get_or_404(app_id)
     job = Job.query.get(application.job_id)
-
     if job.user_id != current_user.id:
         abort(403)
 
-    technical_score = int(request.form.get('technical_score', 0))
-    soft_skills_score = int(request.form.get('soft_skills_score', 0))
+    tech_score = int(request.form.get('technical_score', 0))
+    soft_score = int(request.form.get('soft_skills_score', 0))
     final_notes = request.form.get('final_notes', '')
     decision = request.form.get('decision')
 
-    avg_score = (technical_score + soft_skills_score) / 2
-    application.match_explanation += f"\n\n--- تقييم المقابلة ---\nالدرجة: {avg_score}/5\nالملاحظات: {final_notes}"
+    avg = (tech_score + soft_score) / 2
+    application.match_explanation += f"\n\n--- تقييم المقابلة ---\nالدرجة: {avg}/5\nالملاحظات: {final_notes}"
     application.status = decision
-
-    if decision == 'accepted':
-        msg = f"🎊 مبروك! تم قبولك نهائياً لوظيفة {job.title}."
-        category = 'success'
-    else:
-        msg = f"نعتذر، لم يتم اختيارك لوظيفة {job.title} بعد المقابلة."
-        category = 'secondary'
-
-    add_notification(application.user_id, msg, category)
+    
+    msg = f"🎊 تم قبولك نهائياً!" if decision == 'accepted' else f"نعتذر، لم يتم اختيارك."
+    add_notification(application.user_id, f"{msg} لوظيفة {job.title}", 'success' if decision == 'accepted' else 'secondary')
+    
     db.session.commit()
-
-    flash('تم تسجيل التقييم وإرسال القرار النهائي.', 'success')
+    flash('تم تسجيل التقييم النهائي.', 'success')
     return redirect(url_for('jobs.view_candidates', job_id=job.id))
 
 @jobs_bp.route('/job/<int:job_id>/analytics')
@@ -259,34 +245,26 @@ def evaluate_candidate(app_id):
 def job_analytics(job_id):
     job = Job.query.get_or_404(job_id)
     if job.user_id != current_user.id:
-        flash("غير مسموح لك بالوصول لبيانات هذه الوظيفة.", "danger")
-        return redirect(url_for('auth.dashboard'))
+        abort(403)
 
-    applications = Application.query.filter_by(job_id=job_id).all()
-    total_apps = len(applications)
-
+    apps = Application.query.filter_by(job_id=job_id).all()
     questions = JobQuestion.query.filter_by(job_id=job_id).all()
-    max_pts = sum(q.points for q in questions) if questions else 100
-    pass_mark = max_pts * 0.5
+    pass_mark = (sum(q.points for q in questions) if questions else 100) * 0.5
 
-    pass_count = len([a for a in applications if (a.quiz_score or 0) >= pass_mark and a.quiz_score is not None])
-    fail_count = len([a for a in applications if a.quiz_score is not None and a.quiz_score < pass_mark])
-    
+    pass_count = len([a for a in apps if (a.quiz_score or 0) >= pass_mark and a.quiz_score is not None])
+    fail_count = len([a for a in apps if a.quiz_score is not None and a.quiz_score < pass_mark])
+
     status_counts = {'pending': 0, 'accepted': 0, 'rejected': 0, 'interview': 0}
-    status_map_ar = {'pending': 'قيد الانتظار', 'accepted': 'مقبول', 'rejected': 'مرفوض', 'interview': 'مقابلة'}
-
-    for app in applications:
-        if app.status in status_counts:
-            status_counts[app.status] += 1
+    for a in apps:
+        if a.status in status_counts: status_counts[a.status] += 1
 
     analytics_data = {
         'quiz_counts': [pass_count, fail_count],
         'labels': ['ناجح', 'راسب'],
-        'status_labels': [status_map_ar[k] for k in status_counts.keys()],
-        'status_values': list(status_counts.values())
+        'status_labels': ['قيد الانتظار', 'مقبول', 'مرفوض', 'مقابلة'],
+        'status_values': [status_counts['pending'], status_counts['accepted'], status_counts['rejected'], status_counts['interview']]
     }
-
-    return render_template('job_analytics.html', job=job, total=total_apps, data=analytics_data)
+    return render_template('job_analytics.html', job=job, total=len(apps), data=analytics_data)
 
 @jobs_bp.route('/job/delete/<int:job_id>', methods=['POST'])
 @login_required
@@ -294,11 +272,9 @@ def delete_job(job_id):
     job = Job.query.get_or_404(job_id)
     if job.user_id != current_user.id:
         abort(403)
-
     db.session.delete(job)
     db.session.commit()
-
-    flash('تم حذف الوظيفة نهائياً.', 'info')
+    flash('تم حذف الوظيفة.', 'info')
     return redirect(url_for('auth.dashboard'))
 
 @jobs_bp.route('/api/get_cv/<int:user_id>')
@@ -308,7 +284,7 @@ def get_cv_api(user_id):
     if cv:
         radar_data = openrouter_ai.generate_skills_radar_data(cv.extracted_text or "")
         return jsonify({
-            'parsed_text': cv.extracted_text or "لا يوجد نص مستخلص.",
+            'parsed_text': cv.extracted_text or "لا يوجد نص.",
             'skills': cv.skills if hasattr(cv, 'skills') else [],
             'radar': radar_data,
             'created_at': cv.created_at.strftime('%Y-%m-%d')
