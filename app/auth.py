@@ -169,19 +169,17 @@ def update_agent_settings():
         whatsapp = request.form.get('whatsapp_number')
         if whatsapp:
             clean_wa = whatsapp.strip().replace('+', '').replace(' ', '').replace('-', '')
-            
-            # إذا تغير الرقم أو تم إدخاله لأول مرة، نرسل رسالة ترحيب
+
             if clean_wa != current_user.whatsapp_number:
                 current_user.whatsapp_number = clean_wa
                 try:
-                    from app.tasks import send_whatsapp_ai_agent
+                    from app.agent_worker import send_whatsapp_via_whapi
                     welcome_msg = (
-                        f"مرحباً بك يا {current_user.full_name or current_user.username} في خدمة جوبيني الذكية! 🤖✨\n\n"
-                        f"تم تفعيل الرادار الوظيفي بنجاح على هذا الرقم. من الآن فصاعداً، الأيجنت حقنا حيفحص الوظائف "
-                        f"ويرسل ليك الأنسب لمهاراتك كل 24 ساعة.\n\n"
-                        f"خليك قريب، وبالتوفيق في مشوارك المهني! 🇸🇩"
+                        f"مرحباً بك يا *{current_user.full_name or current_user.username}* في جوبيني! 🤖✨\n\n"
+                        f"تم تفعيل الرادار الوظيفي بنجاح. من الآن وصاعداً، حتصلك هنا أفضل الوظائف العالمية والمحلية المناسبة لمهاراتك.\n\n"
+                        f"🇸🇩 صنع بكل فخر في السودان"
                     )
-                    send_whatsapp_ai_agent(clean_wa, welcome_msg)
+                    send_whatsapp_via_whapi(clean_wa, welcome_msg)
                 except Exception as e:
                     print(f"WhatsApp Welcome Error: {e}")
 
@@ -192,32 +190,43 @@ def update_agent_settings():
         flash(f'خطأ في الحفظ: {str(e)}', 'danger')
     return redirect(url_for('auth.dashboard'))
 
-@auth_bp.route('/test_whatsapp_agent', methods=['POST'])
+@auth_bp.route('/test_whatsapp_agent', methods=['POST', 'GET'])
 @login_required
 def test_whatsapp_agent():
-    """إرسال رسالة اختبار فورية للتأكد من ربط الواتساب"""
+    """إرسال رسالة اختبار فورية للتأكد من ربط الواتساب بـ Whapi"""
     if not current_user.whatsapp_number:
-        return jsonify({'status': 'error', 'message': 'يرجى حفظ رقم الواتساب أولاً'}), 400
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'status': 'error', 'message': 'يرجى حفظ رقم الواتساب أولاً'}), 400
+        flash('يرجى حفظ رقم الواتساب أولاً', 'warning')
+        return redirect(url_for('auth.dashboard'))
 
-    from app.tasks import send_whatsapp_ai_agent
+    from app.agent_worker import send_whatsapp_via_whapi
     test_msg = (
         f"🔔 *إشعار اختبار الرادار* 🚀\n\n"
         f"يا {current_user.full_name or current_user.username}، مبروك! السيستم اتصل بجوالك بنجاح.\n\n"
         f"🤖 *حالة الأيجنت:* جاهز للعمل\n"
-        f"🔬 *الدقة:* نظام الفحص الصارم (Active)\n\n"
-        f"من الآن وصاعداً، لو لقينا أي وظيفة تطابق خبرتك بنسبة 85% وفوق، حنرسل ليك التحليل الفني هنا طوالي. "
-        f"بالتوفيق يا بطل! 🇸🇩"
+        f"من الآن وصاعداً، لو لقينا أي وظيفة تطابق خبرتك، حنرسل ليك التفاصيل هنا طوالي. 🇸🇩"
     )
+
+    res = send_whatsapp_via_whapi(current_user.whatsapp_number, test_msg)
     
-    success = send_whatsapp_ai_agent(current_user.whatsapp_number, test_msg)
-    if success:
-        return jsonify({'status': 'success', 'message': 'تم إرسال رسالة الاختبار بنجاح ✅'})
+    # التحقق من نجاح الإرسال حسب رد Whapi
+    is_success = res and ('id' in str(res) or 'sent' in str(res).lower())
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        if is_success:
+            return jsonify({'status': 'success', 'message': 'تم إرسال رسالة الاختبار بنجاح ✅'})
+        return jsonify({'status': 'error', 'message': f'فشل الإرسال: {res}'}), 500
+    
+    if is_success:
+        flash('وصلت رسالة الاختبار لواتسابك! ✅', 'success')
     else:
-        return jsonify({'status': 'error', 'message': 'فشل الإرسال، تأكد من صحة الرقم أو مفتاح الدولة'}), 500
+        flash(f'فشل الإرسال. تأكد من التوكن في Vercel. الرد: {res}', 'danger')
+    return redirect(url_for('auth.dashboard'))
 
 @auth_bp.route('/force_upgrade')
 def force_upgrade():
-    """تحديث قاعدة البيانات لإضافة أعمدة الواتساب والرادار الجديدة"""
+    """تحديث قاعدة البيانات لإضافة الأعمدة الجديدة"""
     try:
         from sqlalchemy import text
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)'))
@@ -231,7 +240,7 @@ def force_upgrade():
         db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS radar_scores JSON'))
         db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS course_recommendations TEXT'))
         db.session.commit()
-        return "<h1>✅ تم تحديث النظام بنجاح!</h1><p>خانات الواتساب والرادار جاهزة للاستخدام الآن.</p>"
+        return "<h1>✅ تم تحديث النظام بنجاح!</h1>"
     except Exception as e:
         db.session.rollback()
         return f"<h1>❌ فشل التحديث</h1><p>{str(e)}</p>"
@@ -260,7 +269,7 @@ def profile():
         db.session.commit()
         flash('تم تحديث الملف الشخصي بنجاح', 'success')
         return redirect(url_for('auth.profile'))
-    
+
     cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
     applications = Application.query.filter_by(user_id=current_user.id).order_by(Application.applied_at.desc()).all()
     radar_data = cv.radar_scores if cv and cv.radar_scores else [0, 0, 0, 0, 0]
@@ -292,7 +301,7 @@ def user_profile(username):
         is_online = (datetime.utcnow() - user.last_seen).total_seconds() < 300
     last_cv = CV.query.filter_by(user_id=user.id).order_by(CV.created_at.desc()).first()
     radar_data = last_cv.radar_scores if last_cv and last_cv.radar_scores else [50, 50, 50, 50, 50]
-    
+
     profile_url = url_for('auth.user_profile', username=user.username, _external=True)
     qr = qrcode.QRCode(version=1, box_size=10, border=2)
     qr.add_data(profile_url)
