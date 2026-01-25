@@ -29,6 +29,35 @@ SKILLS_RESOURCES = {
     "Communication": {"title": "مهارات التواصل الفعال", "url": "https://youtu.be/WIdYv86OthY"}
 }
 
+def send_whatsapp_via_whapi(to_number, message):
+    """إرسال رسالة واتساب عبر Whapi.cloud باستخدام التوكن المربوط"""
+    token = os.getenv('WHAPI_TOKEN')
+    api_url = "https://gate.whapi.cloud/messages/text"
+    
+    # تنظيف الرقم وتجهيزه بصيغة واتساب العالمية
+    clean_number = str(to_number).replace('+', '').replace(' ', '').strip()
+    if not clean_number.startswith('249') and len(clean_number) == 9:
+        clean_number = '249' + clean_number
+
+    payload = {
+        "to": f"{clean_number}@s.whatsapp.net",
+        "body": message,
+        "typing_time": 0
+    }
+    
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "authorization": f"Bearer {token}"
+    }
+
+    try:
+        response = requests.post(api_url, json=payload, headers=headers)
+        return response.json()
+    except Exception as e:
+        print(f"❌ WhatsApp Error: {e}")
+        return None
+
 class JobeniAgent:
 
     @staticmethod
@@ -163,6 +192,7 @@ def get_certificate():
     cert_img = JobeniAgent.create_certificate_image(display_name, evaluation)
 
     if cert_img:
+        # يفضل وضع التوكن في env لكن سنبقي عليه كما هو في الكود الأصلي بناء على طلبك
         BOT_TOKEN = "8450110637:AAEMNOzpc8phiBr0Dmjm2UHoEWfKi30Ja_s"
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
         files = {'photo': ('jobeni_certified.png', cert_img, 'image/png')}
@@ -190,7 +220,7 @@ def toggle_agent():
 
 @agent_bp.route('/run-jobs-agent')
 def run_agent():
-    """رابط تشغيل الرادار العالمي (Search Engine)"""
+    """رادار الوظائف: يكتشف الفرص ويرسلها عبر تليجرام وواتساب"""
     try:
         user = User.query.filter_by(agent_enabled=True).order_by(db.func.random()).first()
         if not user: return "No active agents found.", 200
@@ -208,6 +238,7 @@ def run_agent():
 
         target_jobs = list({j['link']: j for j in all_found_jobs}.values())[:15]
         processed_count = 0
+        
         for j in target_jobs:
             job_obj = Job.query.filter_by(title=j['title'], company_name=j['company']).first()
             if not job_obj:
@@ -229,6 +260,7 @@ def run_agent():
                 ))
                 processed_count += 1
 
+                # 1. الإرسال عبر تليجرام (كما هو)
                 if user.telegram_id and processed_count <= 5:
                     job_msg = (f"🎯 <b>فرصة عمل جديدة تناسبك:</b>\n\n"
                                f"🔹 <b>الوظيفة:</b> {j['title']}\n"
@@ -236,6 +268,18 @@ def run_agent():
                                f"📊 <b>المطابقة:</b> {match.get('percentage', 0)}%")
                     inline_kb = [[{"text": "🔗 تفاصيل الوظيفة", "url": j['link']}], [{"text": "📱 لوحة التحكم", "url": "https://jobeni-sd.vercel.app"}]]
                     send_message(user.telegram_id, job_msg, reply_markup={"inline_keyboard": inline_kb})
+
+                # 2. الإرسال عبر واتساب (الإضافة الجديدة باستخدام Whapi)
+                if user.whatsapp_number and processed_count <= 3:
+                    wa_msg = (
+                        f"🎯 *رادار جوبيني لقى ليك وظيفة مكنة!*\n\n"
+                        f"🔹 *الوظيفة:* {j['title']}\n"
+                        f"🏢 *الشركة:* {j['company']}\n"
+                        f"📊 *المطابقة:* {match.get('percentage', 0)}%\n\n"
+                        f"🔗 *رابط التفاصيل:* {j['link']}\n\n"
+                        f"🇸🇩 بالتوفيق من فريق جوبيني!"
+                    )
+                    send_whatsapp_via_whapi(user.whatsapp_number, wa_msg)
 
         db.session.commit()
         return f"Agent success. Processed {processed_count} jobs.", 200
