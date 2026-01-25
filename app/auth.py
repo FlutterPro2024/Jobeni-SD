@@ -31,7 +31,7 @@ def upload_to_imgbb(file):
             return data['data']['url']
     except Exception as e:
         print(f"❌ ImgBB Upload Error: {e}")
-    return None
+        return None
 
 @auth_bp.before_app_request
 def update_last_seen():
@@ -108,7 +108,6 @@ def dashboard():
         jobs = Job.query.filter_by(user_id=current_user.id).all()
         return render_template('dashboard_employer.html', jobs=jobs)
 
-    # بيانات رادار المهارات الافتراضية والذكاء الاصطناعي
     last_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
     radar_labels = ["تقني", "شخصي", "خبرة", "تعليم", "مشاريع"]
     radar_scores = [50, 50, 50, 50, 50]
@@ -116,25 +115,20 @@ def dashboard():
 
     if last_cv and last_cv.extracted_text:
         try:
-            # محاولة جلب البيانات المخزنة أولاً
             if last_cv.radar_labels and last_cv.radar_scores:
                 radar_labels = last_cv.radar_labels
                 radar_scores = last_cv.radar_scores
             else:
-                # إذا لم تكن مخزنة، نولدها الآن
                 radar_data = openrouter_ai.generate_skills_radar_data(last_cv.extracted_text)
                 radar_labels = radar_data.get('labels', radar_labels)
                 radar_scores = radar_data.get('scores', radar_scores)
-                # حفظها في الداتابيز للاستخدام المستقبلي
                 last_cv.radar_labels = radar_labels
                 last_cv.radar_scores = radar_scores
                 db.session.commit()
-            
             course_suggestions = openrouter_ai.suggest_courses_for_gaps({"labels": radar_labels, "scores": radar_scores})
         except Exception as e:
             print(f"Radar Generation Error: {e}")
 
-    # جلب تاريخ مؤشرات الملاءمة (ATS Progress Chart)
     radar_history = Application.query.filter_by(user_id=current_user.id, status='suggested')\
         .order_by(Application.applied_at.desc()).limit(7).all()
     radar_history.reverse()
@@ -146,7 +140,6 @@ def dashboard():
         chart_labels = ["البداية", "جاري الفحص"]
         chart_scores = [0, 10]
 
-    # توليد QR Code للهوية الرقمية للمستخدم
     user_link = url_for('auth.user_profile', username=current_user.username, _external=True)
     qr = qrcode.QRCode(version=1, box_size=10, border=2)
     qr.add_data(user_link)
@@ -165,49 +158,87 @@ def dashboard():
                            course_suggestions=course_suggestions,
                            user_qr=user_qr_base64)
 
-@auth_bp.route('/user/<path:username>')
-def user_profile(username):
-    """عرض الملف الشخصي العام (Public Profile) مع التحليلات"""
-    user = User.query.filter_by(username=username).first_or_404()
-    posts = Post.query.filter_by(user_id=user.id).order_by(Post.timestamp.desc()).all()
+@auth_bp.route('/update_agent_settings', methods=['POST'])
+@login_required
+def update_agent_settings():
+    """تحديث إعدادات الرادار الذكي ورقم الواتساب مع إرسال رسالة ترحيبية"""
+    try:
+        current_user.agent_enabled = 'agent_enabled' in request.form
+        current_user.agent_query = request.form.get('agent_query')
 
-    is_online = False
-    if user.last_seen:
-        is_online = (datetime.utcnow() - user.last_seen).total_seconds() < 300
+        whatsapp = request.form.get('whatsapp_number')
+        if whatsapp:
+            clean_wa = whatsapp.strip().replace('+', '').replace(' ', '').replace('-', '')
+            
+            # إذا تغير الرقم أو تم إدخاله لأول مرة، نرسل رسالة ترحيب
+            if clean_wa != current_user.whatsapp_number:
+                current_user.whatsapp_number = clean_wa
+                try:
+                    from app.tasks import send_whatsapp_ai_agent
+                    welcome_msg = (
+                        f"مرحباً بك يا {current_user.full_name or current_user.username} في خدمة جوبيني الذكية! 🤖✨\n\n"
+                        f"تم تفعيل الرادار الوظيفي بنجاح على هذا الرقم. من الآن فصاعداً، الأيجنت حقنا حيفحص الوظائف "
+                        f"ويرسل ليك الأنسب لمهاراتك كل 24 ساعة.\n\n"
+                        f"خليك قريب، وبالتوفيق في مشوارك المهني! 🇸🇩"
+                    )
+                    send_whatsapp_ai_agent(clean_wa, welcome_msg)
+                except Exception as e:
+                    print(f"WhatsApp Welcome Error: {e}")
 
-    last_cv = CV.query.filter_by(user_id=user.id).order_by(CV.created_at.desc()).first()
-    radar_data = [70, 65, 80, 60, 75]
-    cv_skills = []
+        db.session.commit()
+        flash('تم تحديث إعدادات الرادار والواتساب بنجاح ✅', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'خطأ في الحفظ: {str(e)}', 'danger')
+    return redirect(url_for('auth.dashboard'))
 
-    if last_cv:
-        cv_skills = getattr(last_cv, 'skills', [])
-        if last_cv.radar_scores:
-            radar_data = last_cv.radar_scores
-        else:
-            try:
-                ai_radar = openrouter_ai.generate_skills_radar_data(last_cv.extracted_text or "")
-                radar_data = ai_radar.get('scores', radar_data)
-            except: pass
+@auth_bp.route('/test_whatsapp_agent', methods=['POST'])
+@login_required
+def test_whatsapp_agent():
+    """إرسال رسالة اختبار فورية للتأكد من ربط الواتساب"""
+    if not current_user.whatsapp_number:
+        return jsonify({'status': 'error', 'message': 'يرجى حفظ رقم الواتساب أولاً'}), 400
+
+    from app.tasks import send_whatsapp_ai_agent
+    test_msg = (
+        f"🔔 *إشعار اختبار الرادار* 🚀\n\n"
+        f"يا {current_user.full_name or current_user.username}، مبروك! السيستم اتصل بجوالك بنجاح.\n\n"
+        f"🤖 *حالة الأيجنت:* جاهز للعمل\n"
+        f"🔬 *الدقة:* نظام الفحص الصارم (Active)\n\n"
+        f"من الآن وصاعداً، لو لقينا أي وظيفة تطابق خبرتك بنسبة 85% وفوق، حنرسل ليك التحليل الفني هنا طوالي. "
+        f"بالتوفيق يا بطل! 🇸🇩"
+    )
     
-    # توليد QR Code الخاص بالبروفايل
-    profile_url = url_for('auth.user_profile', username=user.username, _external=True)
-    qr = qrcode.QRCode(version=1, box_size=10, border=2)
-    qr.add_data(profile_url)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-    buffered = io.BytesIO()
-    img.save(buffered, format="PNG")
-    user_qr_base64 = base64.b64encode(buffered.getvalue()).decode()
+    success = send_whatsapp_ai_agent(current_user.whatsapp_number, test_msg)
+    if success:
+        return jsonify({'status': 'success', 'message': 'تم إرسال رسالة الاختبار بنجاح ✅'})
+    else:
+        return jsonify({'status': 'error', 'message': 'فشل الإرسال، تأكد من صحة الرقم أو مفتاح الدولة'}), 500
 
-    return render_template('user_profile.html', 
-                           user=user, posts=posts,
-                           is_online=is_online, user_qr=user_qr_base64,
-                           radar_data=radar_data, cv_skills=cv_skills)
+@auth_bp.route('/force_upgrade')
+def force_upgrade():
+    """تحديث قاعدة البيانات لإضافة أعمدة الواتساب والرادار الجديدة"""
+    try:
+        from sqlalchemy import text
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)'))
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_enabled BOOLEAN DEFAULT FALSE'))
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_query VARCHAR(200)'))
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS cover_photo VARCHAR(200)'))
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_evaluation TEXT'))
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS qr_code_key VARCHAR(50)'))
+        db.session.execute(text('ALTER TABLE "application" ADD COLUMN IF NOT EXISTS quiz_score INTEGER'))
+        db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS radar_labels JSON'))
+        db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS radar_scores JSON'))
+        db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS course_recommendations TEXT'))
+        db.session.commit()
+        return "<h1>✅ تم تحديث النظام بنجاح!</h1><p>خانات الواتساب والرادار جاهزة للاستخدام الآن.</p>"
+    except Exception as e:
+        db.session.rollback()
+        return f"<h1>❌ فشل التحديث</h1><p>{str(e)}</p>"
 
 @auth_bp.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
-    """تعديل الملف الشخصي وعرض إحصائيات الباحث"""
     if request.method == 'POST':
         current_user.full_name = request.form.get('full_name')
         current_user.bio = request.form.get('bio')
@@ -227,12 +258,12 @@ def profile():
                 if cover_url: current_user.cover_photo = cover_url
 
         db.session.commit()
-        flash('تم تحديث الملف الشخصي والبيانات بنجاح', 'success')
+        flash('تم تحديث الملف الشخصي بنجاح', 'success')
         return redirect(url_for('auth.profile'))
-
+    
     cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
     applications = Application.query.filter_by(user_id=current_user.id).order_by(Application.applied_at.desc()).all()
-    radar_data = cv.radar_scores if cv and cv.radar_scores else ([80, 70, 90, 65, 75] if cv else [0, 0, 0, 0, 0])
+    radar_data = cv.radar_scores if cv and cv.radar_scores else [0, 0, 0, 0, 0]
 
     user_link = url_for('auth.user_profile', username=current_user.username, _external=True)
     qr = qrcode.QRCode(version=1, box_size=10, border=2)
@@ -243,66 +274,51 @@ def profile():
     img.save(buffered, format="PNG")
     user_qr_base64 = base64.b64encode(buffered.getvalue()).decode()
 
-    return render_template('profile.html',
-                           user_qr=user_qr_base64,
-                           cv=cv,
-                           applications=applications,
-                           radar_data=radar_data)
-
-@auth_bp.route('/update_agent_settings', methods=['POST'])
-@login_required
-def update_agent_settings():
-    """تحديث إعدادات المستشار الذكي (Agent)"""
-    current_user.agent_enabled = 'agent_enabled' in request.form
-    current_user.agent_query = request.form.get('agent_query')
-    db.session.commit()
-    flash('تم تحديث إعدادات المستشار الذكي بنجاح', 'success')
-    return redirect(url_for('auth.dashboard'))
-
-@auth_bp.route('/scanner')
-@login_required
-def scanner():
-    """صفحة الماسح الضوئي للهويات الرقمية"""
-    return render_template('scanner.html')
-
-@auth_bp.route('/force_upgrade')
-def force_upgrade():
-    """أداة تحديث قاعدة البيانات وإضافة الأعمدة الجديدة للنظام المطوّر"""
-    try:
-        from sqlalchemy import text
-        # تحديثات الهوية والتقييم في جدول User
-        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS cover_photo VARCHAR(200)'))
-        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_evaluation TEXT'))
-        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS qr_code_key VARCHAR(50)'))
-        
-        # تحديث جدول Application
-        db.session.execute(text('ALTER TABLE "application" ADD COLUMN IF NOT EXISTS quiz_score INTEGER'))
-        
-        # تحديثات نظام الرادار في جدول CV
-        db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS radar_labels JSON'))
-        db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS radar_scores JSON'))
-        db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS course_recommendations TEXT'))
-
-        db.session.commit()
-        return "<h1>✅ تم تحديث قاعدة البيانات بنجاح!</h1><p>نظام الرادار والهوية الرقمية يعمل الآن.</p>"
-    except Exception as e:
-        db.session.rollback()
-        return f"<h1>❌ خطأ في التحديث</h1><p>{str(e)}</p>"
+    return render_template('profile.html', user_qr=user_qr_base64, cv=cv, applications=applications, radar_data=radar_data)
 
 @auth_bp.route('/logout')
 @login_required
 def logout():
     logout_user()
-    flash('تم تسجيل الخروج بنجاح. نراك قريباً!', 'info')
+    flash('تم تسجيل الخروج بنجاح.', 'info')
     return redirect(url_for('auth.login'))
+
+@auth_bp.route('/user/<path:username>')
+def user_profile(username):
+    user = User.query.filter_by(username=username).first_or_404()
+    posts = Post.query.filter_by(user_id=user.id).order_by(Post.timestamp.desc()).all()
+    is_online = False
+    if user.last_seen:
+        is_online = (datetime.utcnow() - user.last_seen).total_seconds() < 300
+    last_cv = CV.query.filter_by(user_id=user.id).order_by(CV.created_at.desc()).first()
+    radar_data = last_cv.radar_scores if last_cv and last_cv.radar_scores else [50, 50, 50, 50, 50]
+    
+    profile_url = url_for('auth.user_profile', username=user.username, _external=True)
+    qr = qrcode.QRCode(version=1, box_size=10, border=2)
+    qr.add_data(profile_url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buffered = io.BytesIO()
+    img.save(buffered, format="PNG")
+    user_qr_base64 = base64.b64encode(buffered.getvalue()).decode()
+
+    return render_template('user_profile.html', user=user, posts=posts, is_online=is_online, user_qr=user_qr_base64, radar_data=radar_data)
+
+@auth_bp.route('/scanner')
+@login_required
+def scanner():
+    return render_template('scanner.html')
 
 @auth_bp.route('/verify/<username>')
 def verify_certificate(username):
-    """التحقق من صحة شهادة التقييم الرقمية للمستخدم"""
     clean_name = urllib.parse.unquote(username).replace('_', ' ')
     user = User.query.filter((User.username.ilike(clean_name)) | (User.full_name.ilike(clean_name))).first()
     if not user:
         return render_template('errors/404.html'), 404
-    
-    report = user.last_evaluation or "Expert Technical Assessment: Verified proficiency in Digital Workflow & Systems."
+    report = user.last_evaluation or "Expert Technical Assessment Verified."
     return render_template('certificate_verify.html', user=user, evaluation=report)
+
+@auth_bp.route('/smart-radar')
+def smart_radar_landing():
+    """عرض صفحة الهبوط الخاصة بالرادار الذكي"""
+    return render_template('agent_landing.html')

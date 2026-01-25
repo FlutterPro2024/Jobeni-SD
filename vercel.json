@@ -10,5 +10,15 @@
     { "src": "/webhook", "dest": "run.py" },
     { "src": "/telegram/webhook", "dest": "run.py" },
     { "src": "/(.*)", "dest": "run.py" }
+  ],
+  "crons": [
+    {
+      "path": "/agent/run-discovery",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/agent/weekly-summary",
+      "schedule": "0 10 * * 0"
+    }
   ]
 }

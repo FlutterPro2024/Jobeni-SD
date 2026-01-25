@@ -48,46 +48,33 @@ class JobeniAgent:
         """توليد صورة شهادة احترافية بالألوان الملكية (أسود وذهبي) مع اللوجو والتوثيق"""
         try:
             width, height = 800, 1100
-            # إنشاء خلفية بيضاء نقية
             img = Image.new('RGB', (width, height), color=(255, 255, 255))
             draw = ImageDraw.Draw(img)
 
-            # 1. رسم الإطارات الفخمة
-            draw.rectangle([20, 20, 780, 1080], outline=(15, 15, 15), width=18)  # إطار أسود خارجي
-            draw.rectangle([35, 35, 765, 1065], outline=(218, 165, 32), width=5)   # إطار ذهبي داخلي
+            draw.rectangle([20, 20, 780, 1080], outline=(15, 15, 15), width=18)
+            draw.rectangle([35, 35, 765, 1065], outline=(218, 165, 32), width=5)
 
-            # 2. إضافة اللوجو الرسمي (icons.png) من مجلد الـ static
             try:
                 base_dir = os.path.dirname(os.path.dirname(__file__))
                 logo_path = os.path.join(base_dir, 'app', 'static', 'icons.png')
                 if os.path.exists(logo_path):
                     logo = Image.open(logo_path).convert("RGBA")
                     logo = logo.resize((120, 120))
-                    # وضع اللوجو في المنتصف العلوي
                     img.paste(logo, (340, 60), logo)
             except Exception as e:
                 print(f"⚠️ Logo loading skipped: {e}")
 
-            # 3. النصوص العلوية
-            draw.text((310, 190), "JOBENI SUDAN", fill=(184, 134, 11)) # نص ذهبي غامق
+            draw.text((310, 190), "JOBENI SUDAN", fill=(184, 134, 11))
             draw.text((250, 230), "AI-POWERED CAREER VERIFICATION", fill=(0, 0, 0))
-
-            # العنوان الرئيسي للشهادة
             draw.text((240, 300), "CERTIFICATE OF EXCELLENCE", fill=(218, 165, 32))
             draw.text((320, 340), "This is to certify that", fill=(100, 100, 100))
-
-            # اسم المستخدم - تحسين الحجم والموقع ليكون بارزاً
             draw.text((240, 380), user_name.upper(), fill=(0, 0, 0))
-
-            # خط فاصل ذهبي تحت الاسم
             draw.line((150, 440, 650, 440), fill=(218, 165, 32), width=2)
 
-            # 4. محتوى التقييم الفني مع معالجة النصوص التلقائية
             margin, offset = 80, 480
             draw.text((margin, offset), "Technical Assessment Summary:", fill=(184, 134, 11))
             offset += 40
 
-            # معالجة النص: إذا كان فارغاً أو به خطأ AI يتم استبداله بنص احترافي
             display_eval = evaluation_text or ""
             if "provide the following" in display_eval.lower() or len(display_eval) < 20:
                 display_eval = (
@@ -106,11 +93,9 @@ class JobeniAgent:
                     offset += 25
                 offset += 5
 
-            # 5. التوقيع والختم الرقمي في الأسفل
             draw.text((80, 950), "Issued by Jobeni AI Certification Engine", fill=(150, 150, 150))
             draw.text((80, 975), f"Verification Date: {datetime.now().strftime('%d %B %Y')}", fill=(150, 150, 150))
 
-            # 6. كيو أر التوثيق (Verification QR) يربط بصفحة البروفايل
             safe_name = urllib.parse.quote(user_name.replace(" ", "_"))
             verify_url = f"https://jobeni-sd.vercel.app/verify/{safe_name}"
 
@@ -119,7 +104,6 @@ class JobeniAgent:
             img.paste(qr_img, (600, 900))
             draw.text((615, 1045), "SCAN TO VERIFY", fill=(218, 165, 32))
 
-            # تحويل النتيجة لـ Bytes لإرسالها عبر API تليجرام
             img_byte_arr = io.BytesIO()
             img.save(img_byte_arr, format='PNG')
             img_byte_arr.seek(0)
@@ -144,16 +128,27 @@ class JobeniAgent:
         except:
             return {"percentage": 50, "missing": "تعذر التحليل", "action": "راجع المتطلبات يدوياً"}
 
-    @staticmethod
-    def get_skill_suggestions(missing_text):
-        """اقتراح مصادر تعلم بناءً على النواقص"""
-        suggestions = []
-        for skill, data in SKILLS_RESOURCES.items():
-            if skill.lower() in missing_text.lower():
-                suggestions.append(data)
-        return suggestions[:2]
-
 # --- Routes (المسارات) ---
+
+@agent_bp.route('/run-discovery')
+def trigger_discovery():
+    """رابط خاص لـ Vercel Cron لتشغيل رادار الواتساب اليومي"""
+    from app.tasks import run_ai_agent_discovery
+    try:
+        run_ai_agent_discovery()
+        return jsonify({"status": "success", "message": "رادار الواتساب اشتغل بنجاح"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@agent_bp.route('/weekly-summary')
+def trigger_weekly_summary():
+    """رابط خاص لـ Vercel Cron لإرسال التقرير الأسبوعي"""
+    from app.tasks import send_weekly_agent_summary
+    try:
+        send_weekly_agent_summary()
+        return jsonify({"status": "success", "message": "التقارير الأسبوعية أرسلت بنجاح"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @agent_bp.route('/get-my-certificate')
 @login_required
@@ -165,7 +160,6 @@ def get_certificate():
 
     display_name = current_user.full_name or current_user.username
     evaluation = current_user.last_evaluation or ""
-
     cert_img = JobeniAgent.create_certificate_image(display_name, evaluation)
 
     if cert_img:
@@ -196,7 +190,7 @@ def toggle_agent():
 
 @agent_bp.route('/run-jobs-agent')
 def run_agent():
-    """تشغيل الوكيل كـ 'رادار عالمي' لجلب وظائف حقيقية ومطابقتها للمستخدمين"""
+    """رابط تشغيل الرادار العالمي (Search Engine)"""
     try:
         user = User.query.filter_by(agent_enabled=True).order_by(db.func.random()).first()
         if not user: return "No active agents found.", 200
@@ -218,8 +212,7 @@ def run_agent():
             job_obj = Job.query.filter_by(title=j['title'], company_name=j['company']).first()
             if not job_obj:
                 job_obj = Job(
-                    title=j['title'],
-                    company_name=j['company'],
+                    title=j['title'], company_name=j['company'],
                     location=j.get('location', 'Remote'),
                     description=f"فرصة عمل مكتشفة عبر رادار جوبيني: {j['link']}"
                 )
@@ -241,15 +234,11 @@ def run_agent():
                                f"🔹 <b>الوظيفة:</b> {j['title']}\n"
                                f"🏢 <b>الشركة:</b> {j['company']}\n"
                                f"📊 <b>المطابقة:</b> {match.get('percentage', 0)}%")
-                    inline_kb = [
-                        [{"text": "🔗 تفاصيل الوظيفة", "url": j['link']}],
-                        [{"text": "📱 لوحة التحكم", "url": "https://jobeni-sd.vercel.app"}]
-                    ]
+                    inline_kb = [[{"text": "🔗 تفاصيل الوظيفة", "url": j['link']}], [{"text": "📱 لوحة التحكم", "url": "https://jobeni-sd.vercel.app"}]]
                     send_message(user.telegram_id, job_msg, reply_markup={"inline_keyboard": inline_kb})
 
-        user.last_agent_run = datetime.utcnow()
         db.session.commit()
-        return f"Agent success. Processed {processed_count} jobs for {user.username}.", 200
+        return f"Agent success. Processed {processed_count} jobs.", 200
     except Exception as e:
         db.session.rollback()
         return f"Error: {str(e)}", 500

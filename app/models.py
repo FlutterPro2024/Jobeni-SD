@@ -29,8 +29,9 @@ class User(db.Model, UserMixin):
     lat = db.Column(db.Float)
     lng = db.Column(db.Float)
 
-    # بيانات التليجرام والوكيل الذكي
+    # بيانات التليجرام والوكيل الذكي والواتساب
     telegram_id = db.Column(db.String(50))
+    whatsapp_number = db.Column(db.String(20)) # الإضافة الأخيرة لربط الرادار بالواتساب
     last_seen = db.Column(db.DateTime, default=datetime.utcnow)
     is_typing_now = db.Column(db.DateTime, default=datetime.utcnow)
     agent_enabled = db.Column(db.Boolean, default=False)

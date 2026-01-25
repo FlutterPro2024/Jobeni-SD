@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="agent-landing py-5">
+    <div class="container text-center">
+        <div class="row justify-content-center mb-5">
+            <div class="col-md-10">
+                <div class="badge bg-soft-primary text-primary px-3 py-2 rounded-pill mb-3">
+                    <i class="fas fa-robot me-2"></i> مدعوم بتقنيات Gemini 1.5 Pro
+                </div>
+                <h1 class="display-4 fw-bold mb-3">رادار جوبيني: <span class="text-primary">وكيلك الذكي</span> الذي لا ينام 🇸🇩</h1>
+                <p class="lead text-muted mb-4">
+                    انسَ البحث التقليدي. نظامنا يحلل مهاراتك بدقة جراحية ويرسل لك الفرص "المطابقة فقط" مباشرة إلى واتسابك، بدون مجاملة وبكل صرامة تقنية.
+                </p>
+                <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+                    <a href="{{ url_for('auth.dashboard') }}" class="btn btn-primary btn-lg px-5 py-3 shadow">
+                        <i class="fas fa-satellite-dish me-2"></i> تفعيل الرادار الآن
+                    </a>
+                    <a href="#how-it-works" class="btn btn-outline-secondary btn-lg px-5 py-3">كيف يعمل؟</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-5 text-start">
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100 p-3">
+                    <div class="card-body">
+                        <div class="icon-box bg-primary text-white mb-3">
+                            <i class="fas fa-vial"></i>
+                        </div>
+                        <h5 class="fw-bold">مطابقة بنسبة 85%</h5>
+                        <p class="text-muted small">الأيجنت يرفض تلقائياً أي وظيفة لا تناسب خبرتك الفعلية، نحن لا نضيع وقتك.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100 p-3">
+                    <div class="card-body">
+                        <div class="icon-box bg-success text-white mb-3">
+                            <i class="fab fa-whatsapp"></i>
+                        </div>
+                        <h5 class="fw-bold">تنبيهات فورية</h5>
+                        <p class="text-muted small">ستصلك رسالة واتساب تحتوي على "تحليل نقاط القوة والضعف" بمجرد العثور على الفرصة.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100 p-3">
+                    <div class="card-body">
+                        <div class="icon-box bg-info text-white mb-3">
+                            <i class="fas fa-microchip"></i>
+                        </div>
+                        <h5 class="fw-bold">تحليل فني عميق</h5>
+                        <p class="text-muted small">لا يكتفي بالكلمات المفتاحية، بل يحلل "القيمة المضافة" التي ستقدمها للشركة.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="how-it-works" class="bg-light rounded-5 p-5 mb-5 shadow-inner">
+            <div class="row align-items-center">
+                <div class="col-md-6 mb-4 mb-md-0">
+                    <h2 class="fw-bold mb-4">كيف يراك الأيجنت؟ 🤖</h2>
+                    <ul class="list-unstyled text-start">
+                        <li class="mb-3 d-flex align-items-center">
+                            <i class="fas fa-check-circle text-success me-3 fs-4"></i>
+                            <span>يقرأ سيرتك الذاتية ويفهم تخصصك الدقيق.</span>
+                        </li>
+                        <li class="mb-3 d-flex align-items-center">
+                            <i class="fas fa-check-circle text-success me-3 fs-4"></i>
+                            <span>يقارنها مع مئات الوظائف المتاحة يومياً.</span>
+                        </li>
+                        <li class="mb-3 d-flex align-items-center">
+                            <i class="fas fa-check-circle text-success me-3 fs-4"></i>
+                            <span>يستبعد الفرص الضعيفة (REJECT Mode).</span>
+                        </li>
+                        <li class="mb-3 d-flex align-items-center">
+                            <i class="fas fa-check-circle text-success me-3 fs-4"></i>
+                            <span>يرسل لك "خارطة طريق" للنجاح في المقابلة.</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <div class="whatsapp-card shadow-lg mx-auto" style="max-width: 320px; border-radius: 20px; overflow: hidden; border: 1px solid #ddd;">
+                        <div class="wa-header bg-success p-3 text-white d-flex align-items-center">
+                            <i class="fab fa-whatsapp me-2 fs-4"></i>
+                            <strong>Jobeni Smart Agent</strong>
+                        </div>
+                        <div class="wa-body p-3 bg-white text-start" style="font-size: 0.85rem; height: 350px; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');">
+                            <div class="msg bg-light p-2 rounded shadow-sm mb-2" style="border-radius: 0 10px 10px 10px;">
+                                🎯 *تحليل مطابقة تقني صارم*<br><br>
+                                يا بشمهندس، السيستم لقى إنك مناسب لـ: *مطور واجهات*<br><br>
+                                - الملاءمة: 92%<br>
+                                - نقاط القوة: خبرتك في React و Tailwind قوية جداً.<br>
+                                - فجوات: الشركة تطلب Redux وأنت تملك خبرة بسيطة فيها.<br><br>
+                                🔗 جرب تقدم من هنا...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .icon-box {
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        font-size: 1.5rem;
+    }
+    .shadow-inner {
+        box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+    }
+    .agent-landing {
+        background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%);
+    }
+</style>
+{% endblock %}
