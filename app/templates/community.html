@@ -3,162 +3,204 @@
 
 {% block content %}
 <style>
-    body { background-color: #f0f2f5 !important; }
-    .post-card { border-radius: 12px; border: none; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    .user-avatar { width: 48px; height: 48px; object-fit: cover; border-radius: 50%; border: 2px solid #fff; }
-    .online-badge { position: absolute; bottom: 2px; right: 2px; width: 12px; height: 12px; background-color: #28a745; border: 2px solid #fff; border-radius: 50%; }
-    .interact-btn { color: #65676b; font-weight: 600; border: none; background: none; width: 100%; padding: 8px; border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; }
-    .interact-btn:hover { background-color: #f2f2f2; color: #0d6efd; }
-    .interact-btn.liked { color: #dc3545; }
+    :root {
+        --linkedin-blue: #0a66c2;
+        --linkedin-gray: #666666;
+        --bg-gray: #f3f2ef;
+    }
 
-    .comment-bubble {
-        background-color: #f0f2f5;
-        border-radius: 18px;
-        padding: 8px 15px;
-        display: inline-block;
-        max-width: 90%;
+    body { background-color: var(--bg-gray) !important; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    
+    /* Post Card Styling */
+    .post-card { 
+        border-radius: 10px; 
+        border: 1px solid #e0e0e0; 
+        background: #fff;
+        margin-bottom: 16px; 
+        transition: box-shadow 0.3s ease;
+    }
+    .post-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
+    .user-avatar { width: 52px; height: 52px; object-fit: cover; border-radius: 50%; }
+    .user-avatar-sm { width: 36px; height: 36px; border-radius: 50%; }
+    
+    .post-header-info h6 { font-size: 0.95rem; color: #000; margin-bottom: 0; }
+    .post-header-info small { font-size: 0.8rem; color: var(--linkedin-gray); }
+
+    /* Interaction Bar */
+    .interaction-bar { border-top: 1px solid #ebebeb; padding: 4px 12px; }
+    .interact-btn { 
+        color: var(--linkedin-gray); 
+        font-weight: 600; 
+        font-size: 0.9rem;
+        border: none; 
+        background: none; 
+        flex: 1;
+        padding: 10px; 
+        border-radius: 4px; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        gap: 8px; 
+        transition: 0.2s; 
+    }
+    .interact-btn:hover { background-color: #f3f3f3; color: var(--linkedin-blue); }
+    .interact-btn.liked { color: var(--linkedin-blue); }
+
+    /* Comment Section */
+    .comment-bubble-container { display: flex; gap: 8px; margin-bottom: 12px; }
+    .comment-content {
+        background-color: #f2f2f2;
+        border-radius: 0 12px 12px 12px;
+        padding: 8px 12px;
         position: relative;
     }
-    .comment-user-name { font-weight: bold; font-size: 0.85rem; color: #050505; margin-bottom: 1px; text-decoration: none; }
-    .comment-user-name:hover { text-decoration: underline; }
-    .comment-text { font-size: 0.92rem; color: #050505; line-height: 1.4; }
-    .comment-actions { margin-right: 12px; margin-top: 2px; display: flex; gap: 15px; }
-    .comment-actions-item { font-size: 0.75rem; font-weight: bold; color: #65676b; text-decoration: none; cursor: pointer; }
-    .comment-actions-item:hover { text-decoration: underline; }
-    .comment-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+    .comment-user-name { font-weight: 600; font-size: 0.85rem; color: #000; text-decoration: none; }
+    .comment-text { font-size: 0.88rem; color: #191919; margin-bottom: 0; }
+    
+    .comment-meta-actions { 
+        display: flex; 
+        gap: 12px; 
+        font-size: 0.75rem; 
+        font-weight: 600; 
+        color: var(--linkedin-gray); 
+        margin-top: 4px;
+        margin-right: 45px;
+    }
+    .meta-item { cursor: pointer; transition: 0.2s; }
+    .meta-item:hover { color: var(--linkedin-blue); text-decoration: underline; }
+    .meta-item.delete:hover { color: #dc3545; }
 
-    .post-body { white-space: pre-wrap; font-size: 1.05rem; line-height: 1.6; }
-    .sticky-sidebar { position: sticky; top: 90px; }
-    a.user-link { text-decoration: none; color: inherit; }
-    a.user-link:hover { color: #0d6efd; }
-    .reply-branch { border-right: 2px solid #e0e0e0; margin-right: 15px; padding-right: 15px; }
+    .post-body { white-space: pre-wrap; font-size: 0.95rem; color: #191919; padding: 0 16px 12px 16px; }
+    
+    .sticky-sidebar { position: sticky; top: 80px; }
+    
+    /* LinkedIn Sidebar Style */
+    .sidebar-card { border-radius: 10px; overflow: hidden; border: 1px solid #e0e0e0; }
+    .sidebar-header-bg { height: 60px; background: var(--linkedin-blue); }
 </style>
 
 <div class="container mt-4" dir="rtl">
     <div class="row">
-        <div class="col-lg-3 d-none d-lg-block text-end">
+        <div class="col-lg-3 d-none d-lg-block">
             <div class="sticky-sidebar">
-                <div class="card post-card p-3 text-center shadow-sm">
-                    <a href="{{ url_for('auth.user_profile', username=current_user.username) }}">
-                        <img src="{{ current_user.get_avatar() }}" class="user-avatar mx-auto mb-2" style="width: 70px; height: 70px;">
-                    </a>
-                    <h6 class="fw-bold mb-0">{{ current_user.full_name or current_user.username }}</h6>
-                    <small class="text-muted d-block mb-3">{{ current_user.headline or 'عضو في جوبيني' }}</small>
-                    <div class="d-flex justify-content-around border-top pt-3 text-center">
-                        <div><small class="text-muted d-block">متابعين</small><b>{{ current_user.followers.count() }}</b></div>
-                        <div class="border-start"></div>
-                        <div><small class="text-muted d-block">تتابع</small><b>{{ current_user.followed.count() }}</b></div>
+                <div class="card sidebar-card shadow-sm text-center">
+                    <div class="sidebar-header-bg"></div>
+                    <div class="card-body pt-0" style="margin-top: -30px;">
+                        <img src="{{ current_user.get_avatar() }}" class="rounded-circle border border-3 border-white mb-2" width="70" height="70">
+                        <h6 class="fw-bold">{{ current_user.full_name or current_user.username }}</h6>
+                        <small class="text-muted d-block mb-3 border-bottom pb-3">{{ current_user.headline or 'عضو مجتمع جوبيني' }}</small>
+                        <div class="row text-end small fw-bold">
+                            <div class="col-12 py-1"><span class="text-muted">المتابعين:</span> <span class="text-primary">{{ current_user.followers.count() }}</span></div>
+                            <div class="col-12 py-1"><span class="text-muted">المنشورات:</span> <span class="text-primary">{{ current_user.posts.count() }}</span></div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="col-lg-6">
-            <div class="card post-card p-3 shadow-sm mb-4">
-                <div class="d-flex gap-2 align-items-center">
-                    <img src="{{ current_user.get_avatar() }}" class="user-avatar ms-2">
-                    <button class="form-control rounded-pill bg-light text-end text-muted border-0 px-4 py-2" data-bs-toggle="modal" data-bs-target="#newPostModal">
-                        بماذا تفكر يا {{ current_user.username }}؟
+            <div class="card post-card p-3 shadow-sm mb-3">
+                <div class="d-flex gap-3 align-items-center">
+                    <img src="{{ current_user.get_avatar() }}" class="user-avatar-sm">
+                    <button class="form-control rounded-pill bg-light text-end text-muted border-1 px-4 py-2 fw-bold" style="cursor: pointer; border-color: #ddd;" data-bs-toggle="modal" data-bs-target="#newPostModal">
+                        ابدأ منشوراً جديداً...
                     </button>
                 </div>
             </div>
 
             <div id="feed">
                 {% for post in posts %}
-                <div class="card post-card shadow-sm">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center justify-content-between mb-3">
+                <div class="card post-card">
+                    <div class="card-body p-0">
+                        <div class="d-flex align-items-center justify-content-between p-3 pb-2">
                             <div class="d-flex align-items-center">
                                 <a href="{{ url_for('auth.user_profile', username=post.author.username) }}">
                                     <img src="{{ post.author.get_avatar() }}" class="user-avatar ms-2">
                                 </a>
-                                <div class="text-end">
-                                    <a href="{{ url_for('auth.user_profile', username=post.author.username) }}" class="user-link">
-                                        <h6 class="mb-0 fw-bold">{{ post.author.full_name or post.author.username }}</h6>
+                                <div class="post-header-info text-end">
+                                    <a href="{{ url_for('auth.user_profile', username=post.author.username) }}" class="text-decoration-none">
+                                        <h6 class="fw-bold">{{ post.author.full_name or post.author.username }}</h6>
                                     </a>
-                                    <small class="text-muted">{{ post.timestamp.strftime('%Y-%m-%d') }}</small>
+                                    <small class="d-block">{{ post.author.headline or 'مستخدم جوبيني' }}</small>
+                                    <small class="text-muted">{{ post.timestamp.strftime('%Y-%m-%d') }} <i class="fas fa-globe-americas ms-1"></i></small>
                                 </div>
                             </div>
-                            <div class="d-flex gap-2 align-items-center">
-                                {% if post.author != current_user and post.author not in current_user.followed %}
-                                <a href="{{ url_for('community.follow', username=post.author.username) }}" class="btn btn-sm btn-outline-primary rounded-pill">+ متابعة</a>
-                                {% endif %}
-                                {% if post.author == current_user %}
-                                <div class="dropdown">
-                                    <button class="btn btn-link text-muted p-0" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-h"></i></button>
-                                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
-                                        <li><button class="dropdown-item py-2 text-end" data-bs-toggle="modal" data-bs-target="#editModal{{post.id}}"><i class="fas fa-edit me-2 text-primary"></i> تعديل</button></li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li>
-                                            <form action="{{ url_for('community.delete_post', post_id=post.id) }}" method="POST">
-                                                <button type="submit" class="dropdown-item py-2 text-danger text-end" onclick="return confirm('حذف نهائي؟')"><i class="fas fa-trash me-2"></i> حذف</button>
-                                            </form>
-                                        </li>
-                                    </ul>
-                                </div>
-                                {% endif %}
+                            
+                            <div class="dropdown">
+                                <button class="btn btn-link text-muted p-2 rounded-circle" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-h"></i></button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                                    {% if post.author == current_user %}
+                                    <li><button class="dropdown-item text-end py-2" data-bs-toggle="modal" data-bs-target="#editModal{{post.id}}"><i class="fas fa-edit me-2 text-primary"></i> تعديل المنشور</button></li>
+                                    <li>
+                                        <form action="{{ url_for('community.delete_post', post_id=post.id) }}" method="POST">
+                                            <button type="submit" class="dropdown-item text-end py-2 text-danger" onclick="return confirm('هل أنت متأكد من الحذف؟')"><i class="fas fa-trash me-2"></i> حذف نهائي</button>
+                                        </form>
+                                    </li>
+                                    {% else %}
+                                    <li><button class="dropdown-item text-end py-2"><i class="fas fa-flag me-2"></i> إبلاغ عن منشور</button></li>
+                                    {% endif %}
+                                </ul>
                             </div>
                         </div>
 
-                        <div class="post-body text-dark mb-3 text-end">{{ post.body }}</div>
+                        <div class="post-body text-end">{{ post.body }}</div>
 
-                        <div class="d-flex justify-content-between text-muted small px-1 border-top pt-2">
+                        <div class="px-3 d-flex justify-content-between small text-muted pb-2">
+                            <span><i class="fas fa-thumbs-up text-primary"></i> <span id="like-count-{{ post.id }}">{{ post.likes.count() }}</span></span>
                             <span>{{ post.comments.count() }} تعليق</span>
-                            <span>❤️ <span id="like-count-{{ post.id }}">{{ post.likes.count() }}</span> إعجاب</span>
                         </div>
 
-                        <div class="row g-0 mt-1 border-bottom pb-2">
-                            <div class="col-6">
-                                <button class="interact-btn" onclick="document.getElementById('comment-input-{{ post.id }}').focus()">
-                                    <i class="far fa-comment"></i> تعليق
-                                </button>
-                            </div>
-                            <div class="col-6">
-                                {% set liked = post.likes.filter_by(user_id=current_user.id).first() %}
-                                <button class="interact-btn {% if liked %}liked{% endif %}" onclick="handleLike({{ post.id }}, this)">
-                                    <i class="{% if liked %}fas{% else %}far{% endif %} fa-heart"></i> إعجاب
-                                </button>
-                            </div>
+                        <div class="interaction-bar d-flex">
+                            {% set liked = post.likes.filter_by(user_id=current_user.id).first() %}
+                            <button class="interact-btn {% if liked %}liked{% endif %}" onclick="handleLike({{ post.id }}, this)">
+                                <i class="{% if liked %}fas{% else %}far{% endif %} fa-thumbs-up"></i> إعجاب
+                            </button>
+                            <button class="interact-btn" onclick="document.getElementById('comment-input-{{ post.id }}').focus()">
+                                <i class="far fa-comment-dots"></i> تعليق
+                            </button>
                         </div>
 
-                        <div class="mt-3">
+                        <div class="bg-light p-3 rounded-bottom">
                             <div id="comments-list-{{ post.id }}">
                                 {% for comment in post.comments.filter_by(parent_id=None).all() %}
                                 <div class="mb-3">
-                                    <div class="d-flex gap-2 align-items-start">
-                                        <a href="{{ url_for('auth.user_profile', username=comment.user.username) }}">
-                                            <img src="{{ comment.user.get_avatar() }}" class="comment-avatar ms-1">
-                                        </a>
-                                        <div class="flex-grow-1">
-                                            <div class="comment-bubble text-end">
-                                                <a href="{{ url_for('auth.user_profile', username=comment.user.username) }}" class="comment-user-name d-block">{{ comment.user.username }}</a>
-                                                <p class="mb-0 comment-text">{{ comment.body }}</p>
+                                    <div class="comment-bubble-container">
+                                        <img src="{{ comment.user.get_avatar() }}" class="user-avatar-sm ms-2">
+                                        <div class="comment-content flex-grow-1 text-end">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <a href="{{ url_for('auth.user_profile', username=comment.user.username) }}" class="comment-user-name">{{ comment.user.full_name or comment.user.username }}</a>
+                                                <small class="text-muted" style="font-size: 0.7rem;">{{ comment.timestamp.strftime('%H:%M') }}</small>
                                             </div>
-                                            <div class="comment-actions">
-                                                <span class="comment-actions-item" onclick="toggleReplyForm('{{ comment.id }}')">رد</span>
-                                                <span class="comment-actions-item">تفاعل</span>
-                                                <span class="text-muted small">{{ comment.timestamp.strftime('%H:%M') }}</span>
-                                            </div>
+                                            <p class="comment-text">{{ comment.body }}</p>
                                         </div>
                                     </div>
+                                    <div class="comment-meta-actions text-end mb-2">
+                                        <span class="meta-item" onclick="toggleReplyForm('{{ comment.id }}')">رد</span>
+                                        <span class="meta-item">تفاعل</span>
+                                        {% if comment.user == current_user %}
+                                        <span class="meta-item">تعديل</span>
+                                        <span class="meta-item delete text-danger">حذف</span>
+                                        {% endif %}
+                                    </div>
 
-                                    <div class="reply-branch ms-4 mt-2">
+                                    <div class="reply-thread border-end me-4 pr-3 mt-1" style="border-right: 2px solid #ddd; padding-right: 15px;">
                                         {% for reply in post.comments.filter_by(parent_id=comment.id).all() %}
                                         <div class="d-flex gap-2 mb-2 align-items-start">
-                                            <img src="{{ reply.user.get_avatar() }}" class="comment-avatar" style="width: 24px; height: 24px;">
-                                            <div class="comment-bubble bg-light shadow-none border py-1">
+                                            <img src="{{ reply.user.get_avatar() }}" class="user-avatar-sm" style="width: 28px; height: 28px;">
+                                            <div class="comment-content bg-white border py-1 px-3 text-end" style="border-radius: 12px;">
                                                 <small class="fw-bold d-block">{{ reply.user.username }}</small>
                                                 <p class="mb-0 small">{{ reply.body }}</p>
                                             </div>
                                         </div>
                                         {% endfor %}
-
+                                        
                                         <div id="reply-form-{{ comment.id }}" class="mt-2 d-none">
                                             <form action="{{ url_for('community.add_comment', post_id=post.id) }}" method="POST">
                                                 <input type="hidden" name="parent_id" value="{{ comment.id }}">
                                                 <div class="input-group input-group-sm">
-                                                    <input type="text" name="comment_body" class="form-control rounded-pill bg-light text-end" placeholder="اكتب رداً..." required>
-                                                    <button class="btn btn-sm text-primary" type="submit"><i class="fas fa-paper-plane"></i></button>
+                                                    <input type="text" name="comment_body" class="form-control rounded-pill px-3 text-end" placeholder="اكتب رداً..." required>
+                                                    <button class="btn btn-primary btn-sm rounded-pill ms-2" type="submit"><i class="fas fa-paper-plane"></i></button>
                                                 </div>
                                             </form>
                                         </div>
@@ -167,11 +209,11 @@
                                 {% endfor %}
                             </div>
 
-                            <form action="{{ url_for('community.add_comment', post_id=post.id) }}" method="POST" class="mt-2 d-flex gap-2 align-items-center">
-                                <img src="{{ current_user.get_avatar() }}" class="comment-avatar">
+                            <form action="{{ url_for('community.add_comment', post_id=post.id) }}" method="POST" class="mt-3 d-flex gap-2 align-items-center">
+                                <img src="{{ current_user.get_avatar() }}" class="user-avatar-sm ms-1">
                                 <div class="input-group">
-                                    <input type="text" name="comment_body" id="comment-input-{{ post.id }}" class="form-control rounded-pill bg-light text-end border-0" placeholder="اكتب تعليقاً..." required>
-                                    <button class="btn text-primary" type="submit"><i class="fas fa-paper-plane"></i></button>
+                                    <input type="text" name="comment_body" id="comment-input-{{ post.id }}" class="form-control rounded-pill bg-white border-1 text-end" style="font-size: 0.9rem;" placeholder="إضافة تعليق..." required>
+                                    <button class="btn btn-outline-primary border-0 ms-1 rounded-circle" type="submit"><i class="fas fa-paper-plane"></i></button>
                                 </div>
                             </form>
                         </div>
@@ -181,13 +223,13 @@
                 <div class="modal fade" id="editModal{{post.id}}" tabindex="-1">
                     <div class="modal-dialog modal-dialog-centered">
                         <div class="modal-content border-0 rounded-4">
-                            <div class="modal-header border-0 flex-row-reverse"><h5 class="fw-bold">تعديل المنشور</h5><button type="button" class="btn-close ms-0" data-bs-dismiss="modal"></button></div>
+                            <div class="modal-header flex-row-reverse border-0"><h5 class="fw-bold">تعديل المنشور</h5><button type="button" class="btn-close ms-0" data-bs-dismiss="modal"></button></div>
                             <form action="{{ url_for('community.edit_post', post_id=post.id) }}" method="POST">
-                                <div class="modal-body pb-0 text-end">
-                                    <textarea name="content" class="form-control border-0 bg-light text-end" rows="4">{{ post.body }}</textarea>
+                                <div class="modal-body text-end">
+                                    <textarea name="content" class="form-control border-light bg-light text-end p-3" rows="5" style="border-radius: 12px;">{{ post.body }}</textarea>
                                 </div>
                                 <div class="modal-footer border-0">
-                                    <button type="submit" class="btn btn-primary rounded-pill px-4 w-100">تحديث الآن</button>
+                                    <button type="submit" class="btn btn-primary rounded-pill px-5 w-100">حفظ التغييرات</button>
                                 </div>
                             </form>
                         </div>
@@ -199,13 +241,13 @@
 
         <div class="col-lg-3 d-none d-lg-block">
             <div class="sticky-sidebar">
-                <div class="card post-card p-3 shadow-sm mb-3 text-end">
-                    <h6 class="fw-bold mb-3 text-primary"><i class="fas fa-circle text-success small ms-1"></i> متصلون الآن</h6>
-                    <div class="d-flex flex-wrap justify-content-start gap-2 flex-row-reverse">
+                <div class="card sidebar-card p-3 shadow-sm text-end bg-white">
+                    <h6 class="fw-bold mb-3 border-bottom pb-2">الأعضاء المتصلون <i class="fas fa-circle text-success small ms-1"></i></h6>
+                    <div class="d-flex flex-wrap gap-2 justify-content-start flex-row-reverse">
                         {% for friend in online_friends %}
                         <a href="{{ url_for('auth.user_profile', username=friend.username) }}" class="position-relative" title="{{ friend.username }}">
                             <img src="{{ friend.get_avatar() }}" class="rounded-circle border" width="40" height="40">
-                            <span class="online-badge"></span>
+                            <span style="position: absolute; bottom: 0; right: 0; width: 10px; height: 10px; background: #28a745; border: 2px solid #fff; border-radius: 50%;"></span>
                         </a>
                         {% endfor %}
                     </div>
@@ -217,15 +259,24 @@
 
 <div class="modal fade" id="newPostModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 rounded-4 shadow">
-            <form action="{{ url_for('community.new_post') }}" method="POST">
-                <div class="modal-body">
-                    <textarea name="body" class="form-control border-0 fs-5 text-end" rows="5" placeholder="عن ماذا تود التحدث؟" required></textarea>
+        <div class="modal-content border-0 rounded-4 shadow-lg">
+            <div class="modal-header flex-row-reverse border-0 pb-0">
+                <h5 class="fw-bold">إنشاء منشور</h5>
+                <button type="button" class="btn-close ms-0" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex align-items-center mb-3 text-end flex-row-reverse">
+                    <img src="{{ current_user.get_avatar() }}" class="user-avatar-sm ms-2">
+                    <div>
+                        <h6 class="mb-0 fw-bold">{{ current_user.full_name or current_user.username }}</h6>
+                        <span class="badge bg-light text-muted border"><i class="fas fa-globe-americas me-1"></i> العام</span>
+                    </div>
                 </div>
-                <div class="modal-footer border-0">
-                    <button type="submit" class="btn btn-primary w-100 rounded-pill py-2">نشر المنشور</button>
-                </div>
-            </form>
+                <form action="{{ url_for('community.new_post') }}" method="POST">
+                    <textarea name="body" class="form-control border-0 fs-5 text-end mb-3" rows="5" placeholder="عن ماذا تود التحدث يا {{ current_user.username }}؟" required style="resize: none;"></textarea>
+                    <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">نشر المنشور</button>
+                </form>
+            </div>
         </div>
     </div>
 </div>
@@ -239,10 +290,10 @@ function handleLike(postId, btn) {
         const icon = btn.querySelector('i');
         if (data.action === 'liked') {
             btn.classList.add('liked');
-            icon.className = 'fas fa-heart';
+            icon.className = 'fas fa-thumbs-up';
         } else {
             btn.classList.remove('liked');
-            icon.className = 'far fa-heart';
+            icon.className = 'far fa-thumbs-up';
         }
     });
 }
