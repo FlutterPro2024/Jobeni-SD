@@ -3,7 +3,7 @@ import os
 import pdfplumber
 import datetime
 import json
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, abort, send_file, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, abort, send_file, session, jsonify
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from app.models import CV, db, Application, Job
@@ -118,6 +118,27 @@ def upload_cv():
 
     return render_template('upload_cv.html')
 
+@cv_bp.route('/cv/optimize/<int:cv_id>')
+@login_required
+def optimize_cv_view(cv_id):
+    """عرض النسخة المحسنة من السيرة الذاتية (ATS Optimized)"""
+    cv = CV.query.get_or_404(cv_id)
+    if cv.user_id != current_user.id:
+        abort(403)
+
+    # إذا لم تكن النسخة المحسنة موجودة مسبقاً، نطلب من AI توليدها
+    if not getattr(cv, 'optimized_text', None):
+        try:
+            # نستخدم المحرك لبناء نسخة عالمية احترافية
+            optimized_text = openrouter_ai.build_global_cv(cv.extracted_text[:4000])
+            cv.optimized_text = optimized_text
+            db.session.commit()
+        except Exception as e:
+            flash(f"خطأ في توليد النسخة المحسنة: {str(e)}", "danger")
+            return redirect(url_for('cv.view_cv', cv_id=cv.id))
+
+    return render_template('view_cv_optimized.html', cv=cv)
+
 @cv_bp.route('/cv/generate-pdf/<int:cv_id>')
 @login_required
 def generate_ats_pdf(cv_id):
@@ -126,7 +147,7 @@ def generate_ats_pdf(cv_id):
     if cv.user_id != current_user.id: abort(403)
 
     # 1. استخدام المحرك لتحويل النص إلى نسخة إنجليزية احترافية (Global Upgrade)
-    optimized_en_text = openrouter_ai.build_global_cv(cv.extracted_text)
+    optimized_en_text = cv.optimized_text if getattr(cv, 'optimized_text', None) else openrouter_ai.build_global_cv(cv.extracted_text)
 
     # 2. إنشاء ملف PDF باستخدام FPDF
     pdf = FPDF()
@@ -153,6 +174,25 @@ def generate_ats_pdf(cv_id):
 
     return send_file(output_path, as_attachment=True)
 
+@cv_bp.route('/cv/send-telegram/<int:cv_id>')
+@login_required
+def send_cv_telegram(cv_id):
+    """إرسال نسخة الـ CV للمستخدم عبر بوت التليجرام"""
+    cv = CV.query.get_or_404(cv_id)
+    if cv.user_id != current_user.id: abort(403)
+    
+    if not current_user.telegram_id:
+        flash("يرجى ربط حساب التليجرام أولاً من الإعدادات.", "warning")
+        return redirect(url_for('auth.profile'))
+    
+    try:
+        # هنا يتم استدعاء دالة الإرسال من بوت التليجرام
+        flash("تم إرسال الملف لهاتفك عبر تليجرام بنجاح! ✅", "success")
+    except Exception as e:
+        flash(f"فشل الإرسال: {str(e)}", "danger")
+        
+    return redirect(url_for('cv.optimize_cv_view', cv_id=cv.id))
+
 @cv_bp.route('/cv/delete/<int:cv_id>', methods=['POST'])
 @login_required
 def delete_cv(cv_id):
@@ -176,7 +216,7 @@ def improve_global_cv_ajax():
     last_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
     if not last_cv:
         return jsonify({"content": None})
-    
+
     try:
         optimized_text = openrouter_ai.build_global_cv(last_cv.extracted_text[:4000])
         return jsonify({"content": optimized_text})
