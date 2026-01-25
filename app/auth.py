@@ -84,7 +84,7 @@ def register():
         if User.query.filter((User.email == email) | (User.username == username)).first():
             flash('البريد أو اسم المستخدم مسجل مسبقاً.', 'warning')
             return redirect(url_for('auth.register'))
-
+        
         new_user = User(
             username=username,
             email=email,
@@ -130,7 +130,7 @@ def dashboard():
             print(f"Radar Generation Error: {e}")
 
     radar_history = Application.query.filter_by(user_id=current_user.id, status='suggested')\
-        .order_by(Application.applied_at.desc()).limit(7).all()
+                                   .order_by(Application.applied_at.desc()).limit(7).all()
     radar_history.reverse()
 
     chart_labels = [a.applied_at.strftime('%m/%d') for a in radar_history]
@@ -165,11 +165,9 @@ def update_agent_settings():
     try:
         current_user.agent_enabled = 'agent_enabled' in request.form
         current_user.agent_query = request.form.get('agent_query')
-
         whatsapp = request.form.get('whatsapp_number')
         if whatsapp:
             clean_wa = whatsapp.strip().replace('+', '').replace(' ', '').replace('-', '')
-
             if clean_wa != current_user.whatsapp_number:
                 current_user.whatsapp_number = clean_wa
                 try:
@@ -182,7 +180,6 @@ def update_agent_settings():
                     send_whatsapp_via_whapi(clean_wa, welcome_msg)
                 except Exception as e:
                     print(f"WhatsApp Welcome Error: {e}")
-
         db.session.commit()
         flash('تم تحديث إعدادات الرادار والواتساب بنجاح ✅', 'success')
     except Exception as e:
@@ -207,38 +204,45 @@ def test_whatsapp_agent():
         f"🤖 *حالة الأيجنت:* جاهز للعمل\n"
         f"من الآن وصاعداً، لو لقينا أي وظيفة تطابق خبرتك، حنرسل ليك التفاصيل هنا طوالي. 🇸🇩"
     )
-
     res = send_whatsapp_via_whapi(current_user.whatsapp_number, test_msg)
-    
-    # التحقق من نجاح الإرسال حسب رد Whapi
     is_success = res and ('id' in str(res) or 'sent' in str(res).lower())
-    
+
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         if is_success:
             return jsonify({'status': 'success', 'message': 'تم إرسال رسالة الاختبار بنجاح ✅'})
         return jsonify({'status': 'error', 'message': f'فشل الإرسال: {res}'}), 500
-    
+
     if is_success:
         flash('وصلت رسالة الاختبار لواتسابك! ✅', 'success')
     else:
-        flash(f'فشل الإرسال. تأكد من التوكن في Vercel. الرد: {res}', 'danger')
+        flash(f'فشل الإرسال. تأكد من التوكن. الرد: {res}', 'danger')
     return redirect(url_for('auth.dashboard'))
 
 @auth_bp.route('/force_upgrade')
 def force_upgrade():
-    """تحديث قاعدة البيانات لإضافة الأعمدة الجديدة"""
+    """تحديث قاعدة البيانات لإضافة الأعمدة الجديدة 2026"""
     try:
         from sqlalchemy import text
-        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)'))
-        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_enabled BOOLEAN DEFAULT FALSE'))
-        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_query VARCHAR(200)'))
-        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS cover_photo VARCHAR(200)'))
-        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_evaluation TEXT'))
-        db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS qr_code_key VARCHAR(50)'))
+        # قائمة الأعمدة الأساسية للمستخدم
+        cols = [
+            ('whatsapp_number', 'VARCHAR(20)'), ('agent_enabled', 'BOOLEAN DEFAULT FALSE'),
+            ('agent_query', 'VARCHAR(200)'), ('cover_photo', 'VARCHAR(200)'),
+            ('last_evaluation', 'TEXT'), ('qr_code_key', 'VARCHAR(50)')
+        ]
+        for col, col_type in cols:
+            db.session.execute(text(f'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS {col} {col_type}'))
+        
         db.session.execute(text('ALTER TABLE "application" ADD COLUMN IF NOT EXISTS quiz_score INTEGER'))
         db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS radar_labels JSON'))
         db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS radar_scores JSON'))
         db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS course_recommendations TEXT'))
+        
+        # أعمدة المجتمع والميديا 2026
+        db.session.execute(text('ALTER TABLE "post" ADD COLUMN IF NOT EXISTS image_file VARCHAR(100)'))
+        db.session.execute(text('ALTER TABLE "post" ADD COLUMN IF NOT EXISTS video_file VARCHAR(100)'))
+        db.session.execute(text('ALTER TABLE "notification" ADD COLUMN IF NOT EXISTS sender_id INTEGER'))
+        db.session.execute(text('ALTER TABLE "notification" ADD COLUMN IF NOT EXISTS post_id INTEGER'))
+
         db.session.commit()
         return "<h1>✅ تم تحديث النظام بنجاح!</h1>"
     except Exception as e:
@@ -260,6 +264,7 @@ def profile():
             if file and file.filename != '':
                 img_url = upload_to_imgbb(file)
                 if img_url: current_user.avatar = img_url
+
         if 'cover_photo' in request.files:
             file = request.files['cover_photo']
             if file and file.filename != '':
@@ -299,6 +304,7 @@ def user_profile(username):
     is_online = False
     if user.last_seen:
         is_online = (datetime.utcnow() - user.last_seen).total_seconds() < 300
+    
     last_cv = CV.query.filter_by(user_id=user.id).order_by(CV.created_at.desc()).first()
     radar_data = last_cv.radar_scores if last_cv and last_cv.radar_scores else [50, 50, 50, 50, 50]
 
@@ -329,5 +335,4 @@ def verify_certificate(username):
 
 @auth_bp.route('/smart-radar')
 def smart_radar_landing():
-    """عرض صفحة الهبوط الخاصة بالرادار الذكي"""
     return render_template('agent_landing.html')

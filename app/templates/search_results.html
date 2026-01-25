@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}نتائج البحث الذكي - Jobeni SD{% endblock %}
+{% block title %}نتائج البحث الشامل - Jobeni SD{% endblock %}
 
 {% block content %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -9,22 +9,22 @@
     <div class="row mb-4 justify-content-center">
         <div class="col-lg-10">
             <div class="search-box-wrapper p-2 rounded-pill shadow-lg bg-white border animate__animated animate__fadeInDown">
-                <form action="{{ url_for('search.jobs_list') }}" method="GET" class="row g-0 align-items-center">
+                <form action="{{ url_for('community.search') }}" method="GET" class="row g-0 align-items-center">
                     <div class="col-md-5">
                         <div class="input-group border-start">
                             <span class="input-group-text bg-transparent border-0 text-muted"><i class="fas fa-search"></i></span>
-                            <input type="text" name="q" class="form-control border-0 shadow-none px-2" placeholder="المسمى الوظيفي (مثلاً: محاسب، مهندس)..." value="{{ search_query }}">
+                            <input type="text" name="q" class="form-control border-0 shadow-none px-2" placeholder="ابحث عن وظائف، أشخاص، أو منشورات..." value="{{ query }}">
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="input-group">
-                            <span class="input-group-text bg-transparent border-0 text-muted"><i class="fas fa-map-marker-alt"></i></span>
-                            <input type="text" name="location" class="form-control border-0 shadow-none px-2" placeholder="الموقع (الخرطوم، بورتسودان...)" value="{{ location_query }}">
+                            <span class="input-group-text bg-transparent border-0 text-muted"><i class="fas fa-filter"></i></span>
+                            <input type="text" class="form-control border-0 shadow-none px-2" placeholder="فلترة ذكية..." readonly>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm transition-base">
-                            <i class="fas fa-sync-alt me-1"></i> تحديث البحث
+                            <i class="fas fa-search me-1"></i> ابحث الآن
                         </button>
                     </div>
                 </form>
@@ -38,16 +38,39 @@
                 <h5 class="fw-bold mb-0"><i class="fas fa-map-marked-alt text-primary ms-2"></i> رادار الوظائف المحلية</h5>
                 <span class="text-muted small">توزيع الفرص جغرافياً في السودان</span>
             </div>
-            <div id="searchMap" style="height: 350px; border-radius: 24px;" class="shadow-sm border"></div>
+            <div id="searchMap" style="height: 300px; border-radius: 24px;" class="shadow-sm border"></div>
         </div>
     </div>
 
     <div class="row g-4">
         <div class="col-lg-8">
+            
+            {% if users %}
+            <div class="mb-5 animate__animated animate__fadeInUp">
+                <h5 class="fw-bold mb-3"><i class="fas fa-users text-primary ms-2"></i>أشخاص من النتائج</h5>
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                    <div class="list-group list-group-flush">
+                        {% for user in users %}
+                        <div class="list-group-item d-flex align-items-center justify-content-between p-3 border-bottom-light">
+                            <div class="d-flex align-items-center">
+                                <img src="{{ user.avatar or 'https://ui-avatars.com/api/?name=' + user.username }}" class="rounded-circle ms-3" style="width: 48px; height: 48px; object-fit: cover; border: 2px solid #0d6efd20;">
+                                <div>
+                                    <h6 class="mb-0 fw-bold text-dark">{{ user.full_name or user.username }}</h6>
+                                    <small class="text-muted">@{{ user.username }}</small>
+                                </div>
+                            </div>
+                            <a href="{{ url_for('auth.user_profile', username=user.username) }}" class="btn btn-light btn-sm rounded-pill px-3 border">الملف الشخصي</a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             <div class="d-flex align-items-center justify-content-between mb-4">
-                <h4 class="fw-bold mb-0">الوظائف المتاحة في جوبيني</h4>
+                <h4 class="fw-bold mb-0">وظائف جوبيني المتاحة</h4>
                 <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-2">
-                    {{ jobs|length if jobs else 0 }} وظيفة محلية
+                    {{ jobs|length if jobs else 0 }} وظيفة
                 </span>
             </div>
 
@@ -57,7 +80,7 @@
                     <div class="col-12">
                         <div class="card border-0 shadow-sm rounded-4 p-4 job-card job-item h-100"
                              data-lat="{{ job.latitude }}" data-lng="{{ job.longitude }}"
-                             data-title="{{ job.title }}" data-company="{{ job.company_name }}">
+                             data-title="{{ job.title }}" data-company="{{ job.company }}">
                             <div class="row align-items-center">
                                 <div class="col-md-2 text-center d-none d-md-block">
                                     <div class="company-logo bg-primary bg-opacity-10 rounded-4 p-3 mx-auto">
@@ -67,28 +90,38 @@
                                 <div class="col-md-7">
                                     <h5 class="fw-bold mb-1 text-dark">{{ job.title }}</h5>
                                     <div class="d-flex flex-wrap gap-3 text-muted small">
-                                        <span><i class="far fa-building ms-1"></i> {{ job.company_name }}</span>
-                                        <span><i class="fas fa-map-pin ms-1 text-danger"></i> {{ job.location }}</span>
+                                        <span><i class="far fa-building ms-1"></i> {{ job.company }}</span>
+                                        <span><i class="fas fa-map-pin ms-1 text-danger"></i> {{ job.location or 'السودان' }}</span>
                                         <span><i class="far fa-clock ms-1"></i> {{ job.created_at.strftime('%Y-%m-%d') if job.created_at else 'اليوم' }}</span>
                                     </div>
                                 </div>
                                 <div class="col-md-3 text-start mt-3 mt-md-0">
-                                    <a href="{{ url_for('jobs.job_detail', job_id=job.id) }}" class="btn btn-outline-primary rounded-pill px-4 w-100 fw-bold">
-                                        عرض التفاصيل
-                                    </a>
+                                    <a href="{{ url_for('jobs.job_details', job_id=job.id) }}" class="btn btn-outline-primary rounded-pill px-4 w-100 fw-bold">عرض التفاصيل</a>
                                 </div>
                             </div>
                         </div>
                     </div>
                     {% endfor %}
                 {% else %}
-                    <div class="col-12 text-center py-5 bg-white rounded-4 border-2 border-dashed shadow-sm">
-                        <img src="https://cdn-icons-png.flaticon.com/512/7486/7486744.png" width="80" class="mb-3 opacity-25">
-                        <p class="text-muted fw-bold">عذراً، لم نجد وظائف تطابق بحثك حالياً.</p>
-                        <a href="{{ url_for('search.jobs_list') }}" class="btn btn-link text-primary">عرض كافة الوظائف</a>
+                    <div class="col-12 text-center py-5 bg-white rounded-4 border-2 border-dashed shadow-sm mb-4">
+                        <img src="https://cdn-icons-png.flaticon.com/512/7486/7486744.png" width="60" class="mb-3 opacity-25">
+                        <p class="text-muted fw-bold">لا توجد وظائف محلية تطابق هذا البحث حالياً.</p>
                     </div>
                 {% endif %}
             </div>
+
+            {% if posts %}
+            <div class="mt-5">
+                <h5 class="fw-bold mb-4"><i class="fas fa-stream text-warning ms-2"></i>منشورات من المجتمع</h5>
+                <div class="row g-3">
+                    {% for post in posts %}
+                        <div class="col-12 mb-3">
+                            {% include 'community/_post_card.html' %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </div>
 
         <div class="col-lg-4">
@@ -110,7 +143,6 @@
                             <span class="text-muted small"><i class="fas fa-globe-africa"></i> Remote</span>
                         </div>
                         <h6 class="fw-bold mb-3 text-dark" style="font-size: 0.95rem; line-height: 1.4;">{{ g_job.get('title', 'بدون عنوان') }}</h6>
-
                         <div class="d-grid gap-2">
                             <form action="{{ url_for('applications.auto_apply_global') }}" method="POST">
                                 <input type="hidden" name="job_title" value="{{ g_job.get('title') }}">
@@ -121,15 +153,15 @@
                                 </button>
                             </form>
                             <a href="{{ g_job.get('link', '#') }}" target="_blank" class="btn btn-sm btn-light border rounded-pill py-2 text-muted">
-                                <i class="fas fa-external-link-alt me-1"></i> فتح المصدر الأصلي
+                                <i class="fas fa-external-link-alt me-1"></i> فتح المصدر
                             </a>
                         </div>
                     </div>
                     {% endfor %}
                 {% else %}
                     <div class="text-center py-4 bg-light rounded-4 border border-dashed">
-                        <i class="fas fa-search-plus fa-2x text-muted mb-2"></i>
-                        <p class="small text-muted mb-0 px-3">استخدم مسميات وظائف عالمية (مثل Software Engineer) لجلب الفرص من LinkedIn و Indeed عبر الـ AI.</p>
+                        <i class="fas fa-microchip fa-2x text-muted mb-2 opacity-50"></i>
+                        <p class="small text-muted mb-0 px-3">استخدم مسميات وظائف تقنية لجلب الفرص العالمية عبر الـ AI.</p>
                     </div>
                 {% endif %}
             </div>
@@ -158,7 +190,6 @@
             var lng = item.getAttribute('data-lng');
             var title = item.getAttribute('data-title');
             var company = item.getAttribute('data-company');
-
             if (lat && lng && lat !== 'None' && lng !== 'None') {
                 var marker = L.marker([lat, lng], {icon: icon}).addTo(map)
                     .bindPopup('<div class="text-end"><b>' + title + '</b><br>' + company + '</div>');
@@ -173,7 +204,7 @@
         // تأثير اللودر عند التقديم التلقائي
         document.querySelectorAll('.apply-btn').forEach(btn => {
             btn.addEventListener('click', function() {
-                this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> جاري التحليل والتقديم...';
+                this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> جاري التقديم...';
             });
         });
     });
@@ -181,20 +212,12 @@
 
 <style>
     .search-box-wrapper { transition: all 0.3s ease; }
-    .search-box-wrapper:focus-within { transform: scale(1.02); box-shadow: 0 15px 30px rgba(13, 110, 253, 0.15) !important; }
-    .job-card { 
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
-        border: 1px solid #f0f0f0 !important; 
-    }
-    .job-card:hover { 
-        transform: translateY(-5px); 
-        border-color: #0d6efd !important; 
-        box-shadow: 0 12px 25px rgba(0,0,0,0.08) !important; 
-    }
+    .search-box-wrapper:focus-within { transform: scale(1.01); box-shadow: 0 15px 30px rgba(13, 110, 253, 0.1) !important; }
+    .job-card { transition: all 0.3s ease; border: 1px solid #f0f0f0 !important; }
+    .job-card:hover { transform: translateY(-3px); border-color: #0d6efd !important; box-shadow: 0 8px 20px rgba(0,0,0,0.05) !important; }
     .company-logo { width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; }
-    .g-job-item { transition: all 0.2s; }
-    .g-job-item:hover { background-color: #fcfdfd; }
     .transition-base { transition: all 0.3s ease; }
+    .border-bottom-light { border-bottom: 1px solid #f8f9fa; }
     .btn-success { background-color: #10b981; border: none; }
     .btn-success:hover { background-color: #059669; }
 </style>

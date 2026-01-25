@@ -23,7 +23,7 @@ class User(db.Model, UserMixin):
     cover_photo = db.Column(db.String(200))
     headline = db.Column(db.String(200))
     bio = db.Column(db.Text)
-
+    
     # الموقع الجغرافي
     location_name = db.Column(db.String(100))
     lat = db.Column(db.Float)
@@ -31,14 +31,14 @@ class User(db.Model, UserMixin):
 
     # بيانات التليجرام والوكيل الذكي والواتساب
     telegram_id = db.Column(db.String(50))
-    whatsapp_number = db.Column(db.String(20)) # الإضافة الأخيرة لربط الرادار بالواتساب
+    whatsapp_number = db.Column(db.String(20))
     last_seen = db.Column(db.DateTime, default=datetime.utcnow)
     is_typing_now = db.Column(db.DateTime, default=datetime.utcnow)
     agent_enabled = db.Column(db.Boolean, default=False)
     agent_query = db.Column(db.String(200))
     last_agent_run = db.Column(db.DateTime)
 
-    # حقول الشهادات والتوثيق (مهمة جداً للكل)
+    # حقول الشهادات والتوثيق
     last_evaluation = db.Column(db.Text)
     qr_code_key = db.Column(db.String(50), unique=True, default=lambda: str(uuid.uuid4())[:8])
 
@@ -47,8 +47,10 @@ class User(db.Model, UserMixin):
     jobs = db.relationship('Job', back_populates='employer_user', lazy=True, foreign_keys='Job.user_id')
     applications = db.relationship('Application', backref='applicant', lazy=True)
     posts = db.relationship('Post', backref='author', lazy='dynamic')
-    notifications = db.relationship('Notification', backref='recipient', lazy='dynamic')
-
+    
+    # علاقة الإشعارات (المستلمة)
+    notifications = db.relationship('Notification', backref='recipient', lazy='dynamic', foreign_keys='Notification.user_id')
+    
     # علاقة نتائج الاختبارات
     quiz_results = db.relationship('QuizResult', backref='user', lazy=True)
 
@@ -96,22 +98,18 @@ class Job(db.Model):
     latitude = db.Column(db.Float)
     longitude = db.Column(db.Float)
     salary = db.Column(db.String(50))
-    job_type = db.Column(db.String(50)) # Remote, Full-time, etc.
+    job_type = db.Column(db.String(50))
     category = db.Column(db.String(50), default='عام')
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    # ربط الوظيفة بصاحب العمل
+    
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     employer_user = db.relationship('User', back_populates='jobs')
-
+    
     applications = db.relationship('Application', backref='job_ref', lazy=True, cascade="all, delete-orphan")
-
-    # علاقة الأسئلة الاختبارية
     questions = db.relationship('JobQuestion', backref='job', lazy=True, cascade="all, delete-orphan")
 
 class JobQuestion(db.Model):
-    """جدول أسئلة الاختبار الخاصة بكل وظيفة"""
     id = db.Column(db.Integer, primary_key=True)
     job_id = db.Column(db.Integer, db.ForeignKey('job.id'), nullable=False)
     question_text = db.Column(db.Text, nullable=False)
@@ -119,11 +117,10 @@ class JobQuestion(db.Model):
     option_b = db.Column(db.String(200), nullable=False)
     option_c = db.Column(db.String(200), nullable=True)
     option_d = db.Column(db.String(200), nullable=True)
-    correct_answer = db.Column(db.String(10), nullable=False) # 'A', 'B', 'C', or 'D'
+    correct_answer = db.Column(db.String(10), nullable=False)
     points = db.Column(db.Integer, default=10)
 
 class QuizResult(db.Model):
-    """نتائج اختبارات الباحثين عن عمل"""
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     job_id = db.Column(db.Integer, db.ForeignKey('job.id'), nullable=False)
@@ -137,13 +134,10 @@ class CV(db.Model):
     extracted_text = db.Column(db.Text)
     profession = db.Column(db.String(100))
     score = db.Column(db.Integer, default=0)
-    skills = db.Column(db.JSON) # تخزين المهارات المستخرجة من الـ AI
-
-    # حقول إضافية لدعم رادار المهارات
-    radar_labels = db.Column(db.JSON) # مثل: ["تقني", "تواصل", "قيادة"]
-    radar_scores = db.Column(db.JSON) # مثل: [80, 70, 90]
-    course_recommendations = db.Column(db.Text) # تخزين توصيات الكورسات المقترحة
-
+    skills = db.Column(db.JSON)
+    radar_labels = db.Column(db.JSON)
+    radar_scores = db.Column(db.JSON)
+    course_recommendations = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
@@ -151,12 +145,10 @@ class Application(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     job_id = db.Column(db.Integer, db.ForeignKey('job.id'))
-    status = db.Column(db.String(20), default='pending') # pending, accepted, rejected, suggested, interview
+    status = db.Column(db.String(20), default='pending')
     match_score = db.Column(db.Integer)
     match_explanation = db.Column(db.Text)
     applied_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    # ربط درجة الاختبار بطلب التقديم
     quiz_score = db.Column(db.Integer, nullable=True)
 
 class InterviewSession(db.Model):
@@ -179,6 +171,9 @@ class Post(db.Model):
     body = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    image_file = db.Column(db.String(100), nullable=True)
+    video_file = db.Column(db.String(100), nullable=True)
+    
     likes = db.relationship('PostLike', backref='post', lazy='dynamic', cascade="all, delete-orphan")
     comments = db.relationship('Comment', backref='post', lazy='dynamic', cascade="all, delete-orphan")
 
@@ -194,8 +189,7 @@ class Comment(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     post_id = db.Column(db.Integer, db.ForeignKey('post.id'))
     parent_id = db.Column(db.Integer, db.ForeignKey('comment.id'))
-
-    # علاقة الردود على التعليقات
+    
     replies = db.relationship(
         'Comment', backref=db.backref('parent', remote_side=[id]),
         lazy='dynamic', cascade="all, delete-orphan"
@@ -204,10 +198,14 @@ class Comment(db.Model):
 
 class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False) # المستلم
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # من أحدث الفعل
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=True) # المنشور المرتبط
     title = db.Column(db.String(100))
     message = db.Column(db.Text)
     link = db.Column(db.String(200))
-    category = db.Column(db.String(20), default='info') # info, success, warning, danger
+    category = db.Column(db.String(20), default='info') # like, comment, follow, info
     is_read = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    sender = db.relationship('User', foreign_keys=[sender_id], backref='notifications_sent')

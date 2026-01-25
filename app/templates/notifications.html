@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}الإشعارات - جوبيني{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --unread-bg: #e8f4ff;
+        --border-color: #ebebeb;
+    }
+    body { background-color: #f3f2ef !important; }
+    
+    .notifications-card {
+        border-radius: 10px;
+        border: 1px solid var(--border-color);
+        background: #fff;
+        overflow: hidden;
+    }
+    
+    .notification-item {
+        padding: 16px;
+        border-bottom: 1px solid var(--border-color);
+        transition: background 0.2s;
+        text-decoration: none;
+        display: block;
+        color: inherit;
+    }
+    
+    .notification-item:hover { background-color: #f9f9f9; }
+    
+    .notification-item.unread {
+        background-color: var(--unread-bg);
+        border-right: 4px solid #0a66c2;
+    }
+    
+    .notif-avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
+    
+    .notif-icon-badge {
+        position: absolute;
+        bottom: -2px;
+        right: -2px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        color: white;
+        border: 2px solid white;
+    }
+    
+    .bg-like { background-color: #0a66c2; }
+    .bg-comment { background-color: #057642; }
+    .bg-follow { background-color: #7838d5; }
+    
+    .notif-time { font-size: 0.75rem; color: #666; }
+</style>
+
+<div class="container mt-4" dir="rtl">
+    <div class="row justify-content-center">
+        <div class="col-md-3 d-none d-md-block">
+            <div class="card border-0 shadow-sm p-3 mb-3 text-end">
+                <h6 class="fw-bold mb-3">إعدادات الإشعارات</h6>
+                <div class="list-group list-group-flush p-0">
+                    <a href="#" class="list-group-item list-group-item-action border-0 px-0 small fw-bold">إدارة الإشعارات</a>
+                    <a href="#" class="list-group-item list-group-item-action border-0 px-0 small">تفضيلات الرسائل</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-7">
+            <div class="notifications-card shadow-sm">
+                <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
+                    <h5 class="mb-0 fw-bold">الإشعارات</h5>
+                    {% if notifications.filter_by(is_read=False).count() > 0 %}
+                    <form action="{{ url_for('auth.mark_notifications_read') }}" method="POST">
+                        <button type="submit" class="btn btn-link btn-sm text-decoration-none fw-bold">تحديد الكل كمقروء</button>
+                    </form>
+                    {% endif %}
+                </div>
+
+                <div class="notifications-list">
+                    {% for notif in notifications %}
+                    <a href="{{ notif.link or '#' }}" class="notification-item {% if not notif.is_read %}unread{% endif %}">
+                        <div class="d-flex align-items-start flex-row-reverse">
+                            <div class="position-relative ms-3">
+                                {% if notif.sender %}
+                                    <img src="{{ notif.sender.get_avatar() }}" class="notif-avatar">
+                                {% else %}
+                                    <img src="{{ url_for('static', filename='img/default_avatar.png') }}" class="notif-avatar">
+                                {% endif %}
+                                
+                                <div class="notif-icon-badge 
+                                    {% if notif.category == 'like' %}bg-like
+                                    {% elif notif.category == 'comment' %}bg-comment
+                                    {% else %}bg-follow{% endif %}">
+                                    <i class="fas 
+                                        {% if notif.category == 'like' %}fa-thumbs-up
+                                        {% elif notif.category == 'comment' %}fa-comment
+                                        {% else %}fa-user-plus{% endif %}"></i>
+                                </div>
+                            </div>
+                            
+                            <div class="flex-grow-1 text-end">
+                                <div class="d-flex justify-content-between">
+                                    <p class="mb-1 small text-dark">
+                                        <span class="fw-bold">{{ notif.sender.username if notif.sender else 'نظام جوبيني' }}</span> 
+                                        {{ notif.message }}
+                                    </p>
+                                    <span class="notif-time">{{ notif.timestamp.strftime('%Y-%m-%d') }}</span>
+                                </div>
+                                {% if notif.post %}
+                                <div class="mt-2 p-2 bg-light rounded small text-muted text-truncate" style="max-width: 300px;">
+                                    "{{ notif.post.body[:50] }}..."
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </a>
+                    {% else %}
+                    <div class="p-5 text-center text-muted">
+                        <i class="far fa-bell fa-4x mb-3 opacity-25"></i>
+                        <p>لا توجد إشعارات جديدة حالياً.</p>
+                        <a href="{{ url_for('community.index') }}" class="btn btn-primary btn-sm rounded-pill">استكشف المجتمع</a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
