@@ -24,8 +24,10 @@
             <div class="card border-0 shadow-sm rounded-4 p-3 border-start border-success border-4 h-100 transition-hover">
                 <h6 class="text-muted small fw-bold">نسبة النجاح</h6>
                 <h3 class="fw-bold mb-0 text-success">
-                    {% if data.quiz_counts[0] + data.quiz_counts[1] > 0 %}
-                        {{ ((data.quiz_counts[0] / (data.quiz_counts[0] + data.quiz_counts[1])) * 100) | round(1) }}%
+                    {% set passed = data.quiz_counts[0] if data.quiz_counts else 0 %}
+                    {% set failed = data.quiz_counts[1] if data.quiz_counts else 0 %}
+                    {% if (passed + failed) > 0 %}
+                        {{ ((passed / (passed + failed)) * 100) | round(1) }}%
                     {% else %}
                         0%
                     {% endif %}
@@ -62,11 +64,11 @@
                 <div class="mt-4">
                     <div class="d-flex justify-content-between align-items-center mb-2 bg-light p-2 rounded-3">
                         <span><i class="fas fa-check-circle text-success ms-1"></i> ناجحين (أعلى من 50%):</span>
-                        <span class="fw-bold text-success">{{ data.quiz_counts[0] }}</span>
+                        <span class="fw-bold text-success">{{ data.quiz_counts[0] if data.quiz_counts else 0 }}</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center bg-light p-2 rounded-3">
                         <span><i class="fas fa-times-circle text-danger ms-1"></i> راسبين:</span>
-                        <span class="fw-bold text-danger">{{ data.quiz_counts[1] }}</span>
+                        <span class="fw-bold text-danger">{{ data.quiz_counts[1] if data.quiz_counts else 0 }}</span>
                     </div>
                 </div>
             </div>
@@ -84,18 +86,12 @@
 </div>
 
 <style>
-    .transition-hover:hover {
-        transform: translateY(-5px);
-        transition: all 0.3s ease;
-    }
-    canvas {
-        max-width: 100% !important;
-    }
+    .transition-hover:hover { transform: translateY(-5px); transition: all 0.3s ease; }
+    canvas { max-width: 100% !important; }
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // تهيئة الخطوط لتناسب التصميم
     Chart.defaults.font.family = 'Cairo, sans-serif';
     Chart.defaults.color = '#555';
 
@@ -106,25 +102,12 @@
         data: {
             labels: ['ناجح', 'راسب'],
             datasets: [{
-                data: {{ data.quiz_counts|tojson }},
+                data: {{ data.quiz_counts|tojson if data.quiz_counts else [0, 0] }},
                 backgroundColor: ['#28a745', '#dc3545'],
-                hoverBackgroundColor: ['#218838', '#c82333'],
-                borderWidth: 0,
-                hoverOffset: 15
+                borderWidth: 0
             }]
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { padding: 20, usePointStyle: true }
-                },
-                tooltip: { cornerRadius: 10, padding: 12 }
-            },
-            cutout: '70%'
-        }
+        options: { responsive: true, maintainAspectRatio: false, cutout: '70%' }
     });
 
     // 2. Horizontal Bar Chart for Status Pipeline
@@ -132,34 +115,19 @@
     new Chart(statusCtx, {
         type: 'bar',
         data: {
-            labels: {{ data.status_labels|tojson }},
+            labels: {{ data.status_labels|tojson if data.status_labels else [] }},
             datasets: [{
                 label: 'عدد المتقدمين',
-                data: {{ data.status_values|tojson }},
+                data: {{ data.status_values|tojson if data.status_values else [] }},
                 backgroundColor: ['#198754', '#dc3545', '#0dcaf0', '#6c757d'],
-                borderRadius: 10,
-                barThickness: 35
+                borderRadius: 10
             }]
         },
         options: {
             indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: { cornerRadius: 10 }
-            },
-            scales: {
-                x: {
-                    beginAtZero: true,
-                    grid: { display: false },
-                    ticks: { stepSize: 1, font: { weight: 'bold' } }
-                },
-                y: {
-                    grid: { display: false },
-                    ticks: { font: { weight: 'bold' } }
-                }
-            }
+            scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } }
         }
     });
 </script>

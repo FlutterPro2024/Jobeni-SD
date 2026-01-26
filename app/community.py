@@ -3,7 +3,7 @@ import os
 import secrets
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort, current_app
 from flask_login import login_required, current_user
-from app.models import Post, db, Comment, PostLike, User, Notification, Message, Job  # أضفنا Job هنا
+from app.models import Post, db, Comment, PostLike, User, Notification, Message, Job 
 from datetime import datetime, timedelta
 from sqlalchemy import text, or_
 from werkzeug.utils import secure_filename
@@ -11,11 +11,11 @@ from werkzeug.utils import secure_filename
 community_bp = Blueprint('community', __name__)
 
 def save_media(form_file):
-    """دالة مساعدة لمعالجة وحفظ ملفات الميديا (صور/فيديو)"""
+    """دالة مساعدة لمعالجة وحفظ ملفات الميديا (صور/فيديو) بأسماء مشفرة"""
     random_hex = secrets.token_hex(8)
     _, f_ext = os.path.splitext(form_file.filename)
     filename = random_hex + f_ext.lower()
-    # المسار: static/uploads/post_media
+    # تحديد مسار الرفع: static/uploads/post_media
     upload_path = os.path.join(current_app.root_path, 'static/uploads/post_media')
 
     if not os.path.exists(upload_path):
@@ -28,8 +28,8 @@ def save_media(form_file):
 @community_bp.route('/')
 @login_required
 def index():
-    """الرئيسية: عرض المنشورات، الأصدقاء المتصلين، واقتراحات المتابعة"""
-    # تحديث وقت ظهور المستخدم (Last Seen)
+    """الرئيسية: عرض المنشورات، الأصدقاء المتصلين، واقتراحات المتابعة المهنية"""
+    # تحديث وقت ظهور المستخدم (Last Seen) لتعزيز التفاعل الحي
     current_user.last_seen = datetime.utcnow()
     try:
         db.session.commit()
@@ -38,20 +38,21 @@ def index():
 
     # جلب المنشورات مرتبة من الأحدث للأقدم
     posts = Post.query.order_by(Post.timestamp.desc()).all()
-    # تحديد المستخدمين المتصلين (آخر 5 دقائق)
+    
+    # تحديد المستخدمين المتصلين حالياً (نشط خلال آخر 5 دقائق)
     five_mins_ago = datetime.utcnow() - timedelta(minutes=5)
     online_friends = User.query.filter(
         User.last_seen >= five_mins_ago,
         User.id != current_user.id
     ).limit(10).all()
 
-    # خوارزمية اقتراح متابعة
+    # خوارزمية اقتراح متابعة: أشخاص لا تتابعهم حالياً
     suggested_users = User.query.filter(
         User.id != current_user.id,
         ~User.followers.any(id=current_user.id)
     ).order_by(text("random()")).limit(5).all()
 
-    # ذكاء اصطناعي لتحفيز التفاعل
+    # محرك تحفيز المحتوى (AI Motivation)
     ai_suggestions_list = [
         "شاركنا مهارة جديدة تعلمتها اليوم لتلهم زملاءك في السودان! 🇸🇩",
         "هل تبحث عن نصيحة في مجال تقني؟ اسأل المجتمع الآن!",
@@ -71,13 +72,13 @@ def index():
 @community_bp.route('/post/new', methods=['POST'])
 @login_required
 def new_post():
-    """إنشاء منشور جديد مع دعم الصور والفيديوهات"""
+    """إنشاء منشور جديد مع دعم ذكي للصور والفيديوهات"""
     content = request.form.get('body') or request.form.get('content')
     media_file = request.files.get('media')
     img_name = None
     vid_name = None
 
-    # معالجة الملف المرفوع إن وجد
+    # التحقق من نوع الملف المرفوع ومعالجته
     if media_file and media_file.filename != '':
         ext = os.path.splitext(media_file.filename)[1].lower()
         if ext in ['.jpg', '.jpeg', '.png', '.gif']:
@@ -106,7 +107,7 @@ def new_post():
 @community_bp.route('/post/<int:post_id>/edit', methods=['POST'])
 @login_required
 def edit_post(post_id):
-    """تعديل المنشور الخاص بالمخدم"""
+    """تعديل نص المنشور (لصاحب المنشور فقط)"""
     post = Post.query.get_or_404(post_id)
     if post.user_id != current_user.id:
         flash('لا تملك صلاحية تعديل هذا المنشور.', 'danger')
@@ -122,7 +123,7 @@ def edit_post(post_id):
 @community_bp.route('/like/<int:post_id>', methods=['POST'])
 @login_required
 def like_post(post_id):
-    """نظام الإعجاب التفاعلي (AJAX) مع الإشعارات"""
+    """نظام الإعجاب (AJAX) - يرسل إشعارات فورية لصاحب المنشور"""
     post = Post.query.get_or_404(post_id)
     like = PostLike.query.filter_by(user_id=current_user.id, post_id=post_id).first()
 
@@ -133,7 +134,7 @@ def like_post(post_id):
         new_like = PostLike(user_id=current_user.id, post_id=post_id)
         db.session.add(new_like)
         action = 'liked'
-        # إضافة إشعار لصاحب المنشور
+        # إشعار صاحب المنشور
         if post.user_id != current_user.id:
             notification = Notification(
                 user_id=post.user_id,
@@ -151,7 +152,7 @@ def like_post(post_id):
 @community_bp.route('/post/<int:post_id>/comment', methods=['POST'])
 @login_required
 def add_comment(post_id):
-    """إضافة تعليق أو رد مع الإشعارات"""
+    """إضافة تعليق مع دعم نظام الردود (Nested Comments)"""
     content = request.form.get('comment_body') or request.form.get('body')
     parent_id = request.form.get('parent_id', type=int)
 
@@ -164,7 +165,7 @@ def add_comment(post_id):
             parent_id=parent_id if parent_id else None
         )
         db.session.add(comment)
-        # إشعار لصاحب المنشور
+        # إرسال إشعار
         if post.user_id != current_user.id:
             notification = Notification(
                 user_id=post.user_id,
@@ -179,47 +180,10 @@ def add_comment(post_id):
         flash('تم إضافة تعليقك.', 'success')
     return redirect(url_for('community.index'))
 
-@community_bp.route('/comment/delete/<int:comment_id>', methods=['POST'])
-@login_required
-def delete_comment(comment_id):
-    """حذف التعليق الخاص بالمستخدم"""
-    comment = Comment.query.get_or_404(comment_id)
-    if comment.user_id != current_user.id and current_user.role != 'admin':
-        flash('ليس لديك صلاحية لحذف هذا التعليق.', 'danger')
-        return redirect(url_for('community.index'))
-    try:
-        # حذف الردود أولاً لتجنب مشاكل الـ Foreign Key
-        Comment.query.filter_by(parent_id=comment_id).delete()
-        db.session.delete(comment)
-        db.session.commit()
-        flash('تم حذف التعليق بنجاح.', 'info')
-    except:
-        db.session.rollback()
-        flash('حدث خطأ أثناء الحذف.', 'danger')
-    return redirect(url_for('community.index'))
-
-@community_bp.route('/comment/edit/<int:comment_id>', methods=['POST'])
-@login_required
-def edit_comment(comment_id):
-    """تعديل نص التعليق"""
-    comment = Comment.query.get_or_404(comment_id)
-    if comment.user_id != current_user.id:
-        flash('غير مسموح لك بتعديل هذا التعليق.', 'danger')
-        return redirect(url_for('community.index'))
-
-    new_body = request.form.get('body') or request.form.get('comment_body')
-    if new_body and len(new_body.strip()) > 0:
-        comment.body = new_body
-        db.session.commit()
-        flash('تم تحديث التعليق بنجاح! ✨', 'success')
-    else:
-        flash('التعليق لا يمكن أن يكون فارغاً.', 'warning')
-    return redirect(url_for('community.index'))
-
 @community_bp.route('/follow/<username>')
 @login_required
 def follow(username):
-    """نظام المتابعة والمتابعة العكسية مع الإشعارات"""
+    """نظام المتابعة والمتابعة العكسية لبناء الشبكة المهنية"""
     user = User.query.filter_by(username=username).first_or_404()
     if user == current_user:
         flash('لا يمكنك متابعة نفسك!', 'warning')
@@ -230,7 +194,7 @@ def follow(username):
         flash(f'ألغيت متابعة {user.full_name or username}', 'info')
     else:
         current_user.followed.append(user)
-        # إشعار للمستخدم الجديد
+        # إشعار للمستهدف
         notification = Notification(
             user_id=user.id,
             sender_id=current_user.id,
@@ -247,10 +211,10 @@ def follow(username):
 @community_bp.route('/delete_post/<int:post_id>', methods=['POST'])
 @login_required
 def delete_post(post_id):
-    """حذف المنشور مع كافة متعلقاته بما في ذلك ملفات الميديا"""
+    """حذف المنشور مع تنظيف ملفات الميديا من السيرفر لضمان المساحة"""
     post = Post.query.get_or_404(post_id)
     if post.user_id == current_user.id or current_user.role == 'admin':
-        # مسح الملفات الفيزيائية
+        # مسح الملفات فيزيائياً
         for media_file in [post.image_file, post.video_file]:
             if media_file:
                 file_path = os.path.join(current_app.root_path, 'static/uploads/post_media', media_file)
@@ -266,44 +230,36 @@ def delete_post(post_id):
 @community_bp.route('/search')
 @login_required
 def search():
-    """البحث العالمي المطور (أشخاص، وظائف، منشورات)"""
+    """البحث الشامل: يربط بين الأعضاء، الوظائف المفتوحة، والمقالات"""
     query = request.args.get('q', '').strip()
     if not query:
         return redirect(url_for('community.index'))
 
-    # 1. البحث عن مستخدمين (بواسطة اسم المستخدم أو الاسم الكامل)
     users = User.query.filter(
         or_(User.username.ilike(f'%{query}%'), User.full_name.ilike(f'%{query}%'))
     ).limit(5).all()
 
-    # 2. البحث عن وظائف (في العنوان، الشركة، أو الوصف)
     jobs = Job.query.filter(
         or_(
             Job.title.ilike(f'%{query}%'),
-            Job.company.ilike(f'%{query}%'),
+            Job.company_name.ilike(f'%{query}%'),
             Job.description.ilike(f'%{query}%')
         )
     ).limit(5).all()
 
-    # 3. البحث عن منشورات (بواسطة محتوى المنشور)
     posts = Post.query.filter(Post.body.ilike(f'%{query}%')).order_by(Post.timestamp.desc()).limit(15).all()
 
-    return render_template('search_results.html',
-                           query=query,
-                           users=users,
-                           jobs=jobs,
-                           posts=posts)
+    return render_template('search_results.html', query=query, users=users, jobs=jobs, posts=posts)
 
 @community_bp.route('/force-db-update-2026')
 def force_db_update():
-    """تحديث قاعدة البيانات لعام 2026 ودعم الميديا والردود"""
+    """تحديث قاعدة البيانات برمجياً لدعم ميزات الميديا والردود الجديدة"""
     try:
-        # إضافة أعمدة الميديا والردود إذا لم تكن موجودة
         db.session.execute(text('ALTER TABLE post ADD COLUMN IF NOT EXISTS image_file VARCHAR(100)'))
         db.session.execute(text('ALTER TABLE post ADD COLUMN IF NOT EXISTS video_file VARCHAR(100)'))
         db.session.execute(text('ALTER TABLE comment ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES comment(id)'))
         db.session.commit()
-        return "✅ تم تحديث هيكل قاعدة البيانات بنجاح لعام 2026 لدعم الميديا والتعليقات.", 200
+        return "✅ تم تحديث هيكل قاعدة البيانات بنجاح لعام 2026.", 200
     except Exception as e:
         db.session.rollback()
         return f"❌ خطأ في التحديث: {str(e)}", 500

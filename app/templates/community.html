@@ -23,7 +23,7 @@
 
     .user-avatar { width: 52px; height: 52px; object-fit: cover; border-radius: 50%; }
     .user-avatar-sm { width: 36px; height: 36px; border-radius: 50%; }
-    
+
     .post-header-info h6 { font-size: 0.95rem; color: #000; margin-bottom: 0; }
     .post-header-info small { font-size: 0.8rem; color: var(--linkedin-gray); }
 
@@ -155,7 +155,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="card sidebar-card mt-3 shadow-sm p-3 text-end bg-white border-primary" style="border-right-width: 5px;">
                     <h6 class="fw-bold text-primary"><i class="fas fa-robot me-1"></i> نصيحة AI</h6>
                     <p class="small mb-0 text-dark fw-bold">{{ ai_suggestion }}</p>
@@ -209,7 +209,7 @@
                         </div>
 
                         <div class="post-body text-end px-3 mb-2">{{ post.body }}</div>
-
+                        
                         {% if post.image_file or post.video_file %}
                         <div class="post-media-container" ondblclick="animateLike({{ post.id }}, this)">
                             <i class="fas fa-heart heart-icon"></i>
@@ -331,7 +331,7 @@
                         {% endif %}
                     </div>
                 </div>
-
+                
                 <div class="card sidebar-card p-3 shadow-sm text-end bg-white mt-3">
                     <h6 class="fw-bold mb-3 border-bottom pb-2">اقتراحات المتابعة</h6>
                     {% for sugg in suggested_users %}
@@ -366,7 +366,7 @@
                 </div>
                 <form action="{{ url_for('community.new_post') }}" method="POST" enctype="multipart/form-data" id="postForm">
                     <textarea name="body" class="form-control border-0 fs-5 text-end mb-3" rows="4" placeholder="عن ماذا تود التحدث يا {{ current_user.username }}؟" style="resize: none;"></textarea>
-
+                    
                     <div id="mediaPreview" class="preview-container mb-3">
                         <div class="remove-preview" onclick="resetPostForm()"><i class="fas fa-times"></i></div>
                         <img id="imgPreview" class="w-100 h-100" style="object-fit: cover; display:none;">
@@ -374,13 +374,13 @@
                     </div>
 
                     <input type="file" name="media" id="mediaInput" class="d-none" accept="image/*,video/*" onchange="previewMedia(this)">
-
+                    
                     <div class="d-flex gap-2 mb-3 border-top pt-2 flex-row-reverse">
                         <button type="button" class="btn btn-light rounded-pill btn-sm fw-bold px-3" onclick="document.getElementById('mediaInput').click()">
                             <i class="fas fa-image text-primary me-1"></i> صورة / فيديو
                         </button>
                     </div>
-
+                    
                     <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">نشر المنشور</button>
                 </form>
             </div>
@@ -389,14 +389,14 @@
 </div>
 
 <script>
-// Like handling with AJAX
+// التحكم في الإعجابات عبر AJAX
 function handleLike(postId, btn) {
     fetch(`/community/like/${postId}`, { method: 'POST' })
     .then(res => res.json())
     .then(data => {
         const countSpan = document.getElementById(`like-count-${postId}`);
         if(countSpan) countSpan.innerText = data.likes_count;
-        
+
         const icon = btn.querySelector('i');
         if (data.action === 'liked') {
             btn.classList.add('liked');
@@ -409,13 +409,12 @@ function handleLike(postId, btn) {
     .catch(err => console.error("Like error:", err));
 }
 
-// Double Click to Like Animation
+// أنيميشن القلب عند النقر المزدوج
 function animateLike(postId, container) {
     const heart = container.querySelector('.heart-icon');
     if(!heart) return;
 
     heart.classList.add('animate-heart');
-    
     setTimeout(() => {
         heart.classList.remove('animate-heart');
     }, 800);
@@ -426,7 +425,7 @@ function animateLike(postId, container) {
     }
 }
 
-// Nested comments toggle
+// تبديل ظهور نموذج الرد
 function toggleReplyForm(commentId) {
     const form = document.getElementById(`reply-form-${commentId}`);
     if(form) {
@@ -437,7 +436,7 @@ function toggleReplyForm(commentId) {
     }
 }
 
-// Media Preview Logic
+// معاينة الميديا قبل الرفع
 function previewMedia(input) {
     const file = input.files[0];
     if (file) {
@@ -462,12 +461,12 @@ function previewMedia(input) {
     }
 }
 
+// إعادة تعيين النموذج
 function resetPostForm() {
     const mediaInput = document.getElementById('mediaInput');
     const previewBox = document.getElementById('mediaPreview');
     if(mediaInput) mediaInput.value = '';
     if(previewBox) previewBox.style.display = 'none';
-    
     document.getElementById('imgPreview').src = '';
     document.getElementById('vidPreview').src = '';
     const form = document.getElementById('postForm');
