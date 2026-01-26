@@ -3,7 +3,7 @@ import os
 import secrets
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort, current_app
 from flask_login import login_required, current_user
-from app.models import Post, db, Comment, PostLike, User, Notification, Message, Job 
+from app.models import Post, db, Comment, PostLike, User, Notification, Message, Job
 from datetime import datetime, timedelta
 from sqlalchemy import text, or_
 from werkzeug.utils import secure_filename
@@ -38,7 +38,7 @@ def index():
 
     # جلب المنشورات مرتبة من الأحدث للأقدم
     posts = Post.query.order_by(Post.timestamp.desc()).all()
-    
+
     # تحديد المستخدمين المتصلين حالياً (نشط خلال آخر 5 دقائق)
     five_mins_ago = datetime.utcnow() - timedelta(minutes=5)
     online_friends = User.query.filter(
@@ -178,6 +178,19 @@ def add_comment(post_id):
             db.session.add(notification)
         db.session.commit()
         flash('تم إضافة تعليقك.', 'success')
+    return redirect(url_for('community.index'))
+
+@community_bp.route('/comment/delete/<int:comment_id>', methods=['POST'])
+@login_required
+def delete_comment(comment_id):
+    """حذف التعليق (لصاحب التعليق أو صاحب المنشور)"""
+    comment = Comment.query.get_or_404(comment_id)
+    if comment.user_id == current_user.id or comment.post.user_id == current_user.id:
+        db.session.delete(comment)
+        db.session.commit()
+        flash('تم حذف التعليق بنجاح.', 'info')
+    else:
+        flash('ليس لديك صلاحية لحذف هذا التعليق.', 'danger')
     return redirect(url_for('community.index'))
 
 @community_bp.route('/follow/<username>')
