@@ -89,14 +89,14 @@
                                     <i class="fas fa-eye"></i>
                                 </button>
 
-                                <a href="{{ url_for('chat.conversation', username=app.applicant.username) }}"
+                                <a href="{{ url_for('chat.open_chat', job_id=job.id, recipient_id=app.applicant.id) }}"
                                    class="btn btn-sm btn-outline-primary rounded-pill shadow-sm" title="فتح دردشة">
                                     <i class="fas fa-comments"></i>
                                 </a>
 
                                 <div class="dropdown">
                                     <button class="btn btn-sm btn-dark dropdown-toggle rounded-pill shadow-sm px-3" data-bs-toggle="dropdown">اتخاذ قرار</button>
-                                    <ul class="dropdown-menu shadow border-0 text-end">
+                                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 text-end">
                                         {% if app.status == 'interview' %}
                                         <li>
                                             <button class="dropdown-item text-primary fw-bold" data-bs-toggle="modal" data-bs-target="#evalModal{{ app.id }}">
