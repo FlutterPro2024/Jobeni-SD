@@ -18,7 +18,7 @@
 
     <style>
         :root { --gradient-blue: linear-gradient(135deg, #0d6efd 0%, #0dcaf0 100%); }
-        
+
         body { padding-top: 85px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; }
 
         .navbar { background-color: rgba(33, 37, 41, 0.97) !important; backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.1); }
@@ -167,8 +167,8 @@
     <footer class="py-5 text-center mt-5">
         <div class="container">
             <div class="mb-3">
-                <h6 class="fw-bold mb-1">مطور المنصة: م. محمد عبدالقادر السراج (UST)</h6>
-                <p class="small text-muted mb-0">mohammedu3615@gmail.com</p>
+                <h6 class="fw-bold mb-1">مطور المنصة: Jobeni Sudan Company</h6>
+                <p class="small text-muted mb-0">jobenisd7@gmail.com</p>
             </div>
             <p class="text-muted small mb-1">© 2026 Jobeni SD. جميع الحقوق محفوظة</p>
             <p class="small fw-bold" style="color: #0d6efd;">صنع بكل فخر في السودان 🇸🇩</p>
@@ -214,7 +214,7 @@
                                 <span>${n.title}</span><br>
                                 <span class="text-muted" style="font-size: 11px;">${n.message}</span>
                             </a>
-                        </li>`).join('') + '<li><a class="dropdown-item text-center small text-primary fw-bold" href="{{ url_for("auth.notifications") }}">عرض الكل</a></li>';
+                        </li>`).join('') + '<li><a class="dropdown-item text-center small text-primary fw-bold" href="{{ url_for("notifications.index") }}">عرض الكل</a></li>';
                 } else {
                     list.innerHTML = '<li class="text-center py-2 small text-muted">لا توجد تنبيهات</li>';
                 }

@@ -6,16 +6,17 @@
     :root {
         --unread-bg: #e8f4ff;
         --border-color: #ebebeb;
+        --linkedin-blue: #0a66c2;
     }
     body { background-color: #f3f2ef !important; }
-    
+
     .notifications-card {
         border-radius: 10px;
         border: 1px solid var(--border-color);
         background: #fff;
         overflow: hidden;
     }
-    
+
     .notification-item {
         padding: 16px;
         border-bottom: 1px solid var(--border-color);
@@ -24,16 +25,16 @@
         display: block;
         color: inherit;
     }
-    
+
     .notification-item:hover { background-color: #f9f9f9; }
-    
+
     .notification-item.unread {
         background-color: var(--unread-bg);
-        border-right: 4px solid #0a66c2;
+        border-right: 4px solid var(--linkedin-blue);
     }
-    
-    .notif-avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
-    
+
+    .notif-avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 1px solid #eee; }
+
     .notif-icon-badge {
         position: absolute;
         bottom: -2px;
@@ -48,70 +49,79 @@
         color: white;
         border: 2px solid white;
     }
-    
-    .bg-like { background-color: #0a66c2; }
+
+    .bg-like { background-color: var(--linkedin-blue); }
     .bg-comment { background-color: #057642; }
     .bg-follow { background-color: #7838d5; }
-    
-    .notif-time { font-size: 0.75rem; color: #666; }
+    .bg-info { background-color: #ff9800; }
+
+    .notif-time { font-size: 0.75rem; color: #666; white-space: nowrap; }
 </style>
 
 <div class="container mt-4" dir="rtl">
     <div class="row justify-content-center">
         <div class="col-md-3 d-none d-md-block">
-            <div class="card border-0 shadow-sm p-3 mb-3 text-end">
+            <div class="card border-0 shadow-sm p-3 mb-3 text-end rounded-3">
                 <h6 class="fw-bold mb-3">إعدادات الإشعارات</h6>
                 <div class="list-group list-group-flush p-0">
-                    <a href="#" class="list-group-item list-group-item-action border-0 px-0 small fw-bold">إدارة الإشعارات</a>
-                    <a href="#" class="list-group-item list-group-item-action border-0 px-0 small">تفضيلات الرسائل</a>
+                    <a href="#" class="list-group-item list-group-item-action border-0 px-0 small fw-bold text-primary">إدارة الإشعارات</a>
+                    <a href="{{ url_for('auth.profile') }}" class="list-group-item list-group-item-action border-0 px-0 small">تفضيلات الرسائل</a>
                 </div>
             </div>
         </div>
 
         <div class="col-md-7">
             <div class="notifications-card shadow-sm">
-                <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
+                <div class="d-flex justify-content-between align-items-center p-3 border-bottom bg-white">
                     <h5 class="mb-0 fw-bold">الإشعارات</h5>
-                    {% if notifications.filter_by(is_read=False).count() > 0 %}
-                    <form action="{{ url_for('auth.mark_notifications_read') }}" method="POST">
-                        <button type="submit" class="btn btn-link btn-sm text-decoration-none fw-bold">تحديد الكل كمقروء</button>
+                    
+                    {# تعديل المسار ليتناسب مع notifications_bp #}
+                    <form action="{{ url_for('notifications.mark_read') }}" method="POST" style="margin: 0;">
+                        <button type="submit" class="btn btn-link btn-sm text-decoration-none fw-bold p-0">تحديد الكل كمقروء</button>
                     </form>
-                    {% endif %}
                 </div>
 
                 <div class="notifications-list">
                     {% for notif in notifications %}
                     <a href="{{ notif.link or '#' }}" class="notification-item {% if not notif.is_read %}unread{% endif %}">
-                        <div class="d-flex align-items-start flex-row-reverse">
-                            <div class="position-relative ms-3">
+                        <div class="d-flex align-items-start">
+                            <div class="position-relative me-3">
                                 {% if notif.sender %}
-                                    <img src="{{ notif.sender.get_avatar() }}" class="notif-avatar">
+                                    <img src="{{ notif.sender.get_avatar() }}" class="notif-avatar" alt="{{ notif.sender.username }}">
                                 {% else %}
-                                    <img src="{{ url_for('static', filename='img/default_avatar.png') }}" class="notif-avatar">
+                                    <img src="https://cdn-icons-png.flaticon.com/512/1063/1063376.png" class="notif-avatar" alt="System">
                                 {% endif %}
-                                
-                                <div class="notif-icon-badge 
+
+                                <div class="notif-icon-badge
                                     {% if notif.category == 'like' %}bg-like
                                     {% elif notif.category == 'comment' %}bg-comment
-                                    {% else %}bg-follow{% endif %}">
-                                    <i class="fas 
+                                    {% elif notif.category == 'follow' %}bg-follow
+                                    {% else %}bg-info{% endif %}">
+                                    <i class="fas
                                         {% if notif.category == 'like' %}fa-thumbs-up
                                         {% elif notif.category == 'comment' %}fa-comment
-                                        {% else %}fa-user-plus{% endif %}"></i>
+                                        {% elif notif.category == 'follow' %}fa-user-plus
+                                        {% else %}fa-bell{% endif %}"></i>
                                 </div>
                             </div>
-                            
-                            <div class="flex-grow-1 text-end">
-                                <div class="d-flex justify-content-between">
+
+                            <div class="flex-grow-1 text-end px-2">
+                                <div class="d-flex justify-content-between align-items-center">
                                     <p class="mb-1 small text-dark">
-                                        <span class="fw-bold">{{ notif.sender.username if notif.sender else 'نظام جوبيني' }}</span> 
+                                        {% if notif.sender %}
+                                            <span class="fw-bold">{{ notif.sender.full_name or notif.sender.username }}</span>
+                                        {% else %}
+                                            <span class="fw-bold">نظام جوبيني</span>
+                                        {% endif %}
                                         {{ notif.message }}
                                     </p>
-                                    <span class="notif-time">{{ notif.timestamp.strftime('%Y-%m-%d') }}</span>
+                                    <span class="notif-time ms-2">{{ notif.created_at.strftime('%Y-%m-%d') }}</span>
                                 </div>
-                                {% if notif.post %}
-                                <div class="mt-2 p-2 bg-light rounded small text-muted text-truncate" style="max-width: 300px;">
-                                    "{{ notif.post.body[:50] }}..."
+                                
+                                {% if notif.post_id %}
+                                <div class="mt-2 p-2 bg-light rounded small text-muted text-truncate shadow-sm border" style="max-width: 100%;">
+                                    <i class="fas fa-quote-right me-1 opacity-50"></i>
+                                    معاينة المحتوى المرتبط...
                                 </div>
                                 {% endif %}
                             </div>
@@ -119,12 +129,19 @@
                     </a>
                     {% else %}
                     <div class="p-5 text-center text-muted">
-                        <i class="far fa-bell fa-4x mb-3 opacity-25"></i>
-                        <p>لا توجد إشعارات جديدة حالياً.</p>
-                        <a href="{{ url_for('community.index') }}" class="btn btn-primary btn-sm rounded-pill">استكشف المجتمع</a>
+                        <div class="mb-3">
+                            <i class="far fa-bell fa-4x opacity-25"></i>
+                        </div>
+                        <h6 class="fw-bold">هدوء تام هنا..</h6>
+                        <p class="small">لا توجد إشعارات جديدة حالياً. تفاعل مع المجتمع لتظهر تنبيهاتك هنا!</p>
+                        <a href="{{ url_for('community.index') }}" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold mt-2">استكشف المجتمع</a>
                     </div>
                     {% endfor %}
                 </div>
+            </div>
+            
+            <div class="text-center mt-3 pb-4">
+                <small class="text-muted">صنع بكل فخر في السودان 🇸🇩 2026</small>
             </div>
         </div>
     </div>
