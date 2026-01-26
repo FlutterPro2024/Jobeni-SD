@@ -6,9 +6,9 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_mail import Mail
-from flask_apscheduler import APScheduler  # إضافة المجدول
+from flask_apscheduler import APScheduler  # إضافة المجدول لعام 2026
 
-# إضافة المسار الأساسي لضمان استيراد الإعدادات بشكل صحيح
+# إضافة المسار الأساسي لضمان استيراد الإعدادات بشكل صحيح من خارج المجلد
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import config
 
@@ -16,12 +16,12 @@ db = SQLAlchemy()
 login_manager = LoginManager()
 migrate = Migrate()
 mail = Mail()
-scheduler = APScheduler() # تعريف المجدول
+scheduler = APScheduler() # تعريف المجدول لإدارة مهام الأيجنت
 
 def create_app(config_name='default'):
     app = Flask(__name__)
 
-    # تحديد بيئة التشغيل (Vercel أو محلي)
+    # تحديد بيئة التشغيل (Vercel أو محلي أو إنتاج)
     env_config = 'production' if os.environ.get('VERCEL') else config_name
     app.config.from_object(config[env_config])
 
@@ -31,18 +31,18 @@ def create_app(config_name='default'):
     migrate.init_app(app, db)
     mail.init_app(app)
 
-    # تهيئة وتشغيل المجدول (Scheduler) لمهام الأيجنت
+    # تهيئة وتشغيل المجدول (Scheduler) لمهام الأيجنت الذكي
     if not scheduler.running:
         scheduler.init_app(app)
         scheduler.start()
 
-    # إعدادات الحماية والوصول
+    # إعدادات الحماية والوصول للـ Login Manager
     login_manager.login_view = 'auth.login'
     login_manager.login_message = "يرجى تسجيل الدخول للوصول إلى هذه الصفحة."
     login_manager.login_message_category = "info"
 
     with app.app_context():
-        # استيراد النماذج الأساسية
+        # استيراد النماذج الأساسية لضمان تسجيلها في SQLAlchemy
         from app.models import User, Notification, Job, CV, Message, Post
 
         # --- أولاً: استيراد Blueprints الأساسية ---
@@ -85,14 +85,13 @@ def create_app(config_name='default'):
 
             from app.interview import interview_bp
             app.register_blueprint(interview_bp, url_prefix='/interview')
-
         except Exception as e:
             app.logger.error(f"⚠️ فشل في تسجيل بعض الأجزاء المتقدمة: {e}")
 
-        # --- رابعاً: إعداد مهام الأيجنت الدورية ---
+        # --- رابعاً: إعداد مهام الأيجنت الدورية (الرادار الذكي) ---
         from app.tasks import run_ai_agent_discovery, send_weekly_agent_summary
-
-        # 1. إضافة مهمة الرادار اليومي (كل 24 ساعة)
+        
+        # 1. إضافة مهمة الرادار اليومي (كل 24 ساعة) للبحث عن فرص جديدة
         if not scheduler.get_job('ai_agent_job'):
             scheduler.add_job(id='ai_agent_job', func=run_ai_agent_discovery, trigger='interval', hours=24)
             app.logger.info("✅ تم تفعيل مهمة الرادار الذكي اليومي")
@@ -109,7 +108,7 @@ def create_app(config_name='default'):
 
     @app.context_processor
     def inject_vars():
-        """حقن متغيرات عالمية في قوالب الـ HTML لسهولة الوصول"""
+        """حقن متغيرات عالمية في قوالب الـ HTML لسهولة الوصول في كل الصفحات"""
         from app.models import Notification
         from datetime import datetime, timedelta
         return dict(
