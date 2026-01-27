@@ -12,7 +12,7 @@ MAINTENANCE_FILE = "maintenance.flag"
 @admin_bp.route('/super-admin/stats')
 @login_required
 def global_dashboard():
-    """لوحة التحكم الشاملة لمدير النظام"""
+    """لوحة التحكم الشاملة لمدير النظام - عرض الإحصائيات وجرد المستخدمين"""
     if current_user.role != 'admin':
         abort(403)
 
@@ -21,18 +21,18 @@ def global_dashboard():
         'total_jobs': Job.query.count(),
         'total_cvs': CV.query.count(),
         'total_apps': Application.query.count(),
-        'total_posts': Post.query.count(),  # أضفنا إحصائية المنشورات
+        'total_posts': Post.query.count(), 
         'tg_users': User.query.filter(User.telegram_id != None).count()
     }
 
     is_maintenance = os.path.exists(MAINTENANCE_FILE)
     all_jobs = Job.query.order_by(Job.created_at.desc()).all()
     recent_analyses = CV.query.order_by(CV.created_at.desc()).limit(10).all()
-    
+
     # جلب قائمة بكل المستخدمين للجرد (الإيميلات والأسماء)
     all_users = User.query.order_by(User.id.desc()).all()
 
-    # إحصائيات إضافية للرسم البياني للمهن
+    # إحصائيات المهن للرسم البياني
     professions_data = db.session.query(CV.profession, func.count(CV.id)).group_by(CV.profession).limit(5).all()
 
     return render_template('admin/global_dashboard.html',
@@ -41,7 +41,7 @@ def global_dashboard():
                            is_maintenance=is_maintenance,
                            recent_analyses=recent_analyses,
                            professions=professions_data,
-                           all_users=all_users) # نرسل قائمة المستخدمين للقالب
+                           all_users=all_users)
 
 @admin_bp.route('/super-admin/toggle-maintenance', methods=['POST'])
 @login_required
@@ -63,7 +63,7 @@ def toggle_maintenance():
 @admin_bp.route('/agent-stats')
 @login_required
 def agent_stats():
-    """لوحة مراقبة الأيجنت الذكي - تتبع مطابقات الواتساب والذكاء الاصطناعي"""
+    """لوحة مراقبة الأيجنت الذكي"""
     if current_user.role != 'admin':
         return "غير مسموح", 403
 
@@ -90,14 +90,17 @@ def agent_stats():
                            top_jobs=top_jobs,
                            recent_logs=recent_logs)
 
-# --- [ قسم تفعيل الأدمن السري لشركة جوبيني ] ---
+# --- [ قسم تفعيل الأدمن السري لشركة جوبيني 2026 ] ---
 @admin_bp.route('/activate-jobeni-boss-2026')
 @login_required
 def activate_admin_boss():
-    """رابط سري لتفعيل صلاحيات الأدمن لأول مرة"""
-    user = User.query.filter_by(full_name='Jobeni SD Company').first()
+    """رابط سري لتفعيل صلاحيات الأدمن باستخدام الإيميل المعتمد"""
+    # البحث بالإيميل الخاص بك لضمان الدقة
+    user = User.query.filter_by(email='jobeni-sd7@gmail.com').first()
+    
     if user:
         user.role = 'admin'
         db.session.commit()
-        return f"✅ تم ترقية {user.full_name} إلى مدير نظام بنجاح! امسح هذا الروابط الآن."
-    return "❌ لم يتم العثور على حساب بهذا الاسم الكامل (Jobeni SD Company)."
+        return f"✅ أبشر يا مدير! الحساب {user.email} تم ترقيته إلى مدير نظام (Admin). يمكنك الآن دخول لوحة التحكم."
+    
+    return "❌ خطأ: لم يتم العثور على حساب مسجل بالإيميل jobeni-sd7@gmail.com"
