@@ -14,23 +14,23 @@ def upload_to_gyazo(form_file):
     """رفع الوسائط إلى Gyazo وتجنب مشاكل التخزين المحلي في Vercel"""
     token = os.environ.get('GYAZO_TOKEN')
     if not token:
-        # إذا لم يجد التوكن سيحاول النظام العمل ولكن سيفشل الرفع
         print("GYAZO_TOKEN is missing in environment variables")
         return None
-        
+
     url = "https://upload.gyazo.com/api/upload"
     headers = {
         "Authorization": f"Bearer {token}"
     }
-    
+
     # تحضير الملف للرفع
     files = {
         'imagedata': (form_file.filename, form_file.read(), form_file.content_type)
     }
-    
+
     try:
         response = requests.post(url, headers=headers, files=files)
         if response.status_code == 200:
+            # نأخذ 'url' لضمان الحصول على الرابط المباشر للملف (MP4/PNG)
             return response.json().get('url')
     except Exception as e:
         print(f"Upload Error: {e}")
@@ -87,12 +87,10 @@ def new_post():
     media_url = None
 
     if media_file and media_file.filename != '':
-        # الرفع مباشرة للسحاب لتجنب OSError في Vercel
         media_url = upload_to_gyazo(media_file)
 
     if (content and len(content.strip()) > 0) or media_url:
         try:
-            # نضع الرابط في image_file سواء كان صورة أو فيديو قصير من Gyazo
             post = Post(
                 body=content,
                 user_id=current_user.id,
@@ -221,7 +219,6 @@ def follow(username):
 def delete_post(post_id):
     post = Post.query.get_or_404(post_id)
     if post.user_id == current_user.id or current_user.role == 'admin':
-        # في Vercel مع Gyazo لا نحتاج لمسح ملفات من السيرفر لأنها روابط خارجية
         db.session.delete(post)
         db.session.commit()
         flash('تم حذف المنشور.', 'info')

@@ -218,10 +218,11 @@
                         <div class="post-media-container" ondblclick="animateLike({{ post.id }}, this)">
                             <i class="fas fa-heart heart-icon"></i>
                             
-                            {# التحقق إذا كان الرابط فيديو أو صورة من الـ Extension #}
-                            {% if post.image_file.lower().endswith(('.mp4', '.mov', '.avi', '.webm')) %}
-                                <video controls class="w-100">
+                            {# فحص الرابط إذا كان فيديو أو صورة بناءً على الامتداد أو محتوى الرابط #}
+                            {% if 'video' in post.image_file.lower() or post.image_file.lower().endswith(('.mp4', '.mov', '.avi', '.webm')) %}
+                                <video controls class="w-100" style="max-height: 500px; background: #000;">
                                     <source src="{{ post.image_file }}" type="video/mp4">
+                                    متصفحك لا يدعم تشغيل الفيديو.
                                 </video>
                             {% else %}
                                 <img src="{{ post.image_file }}" class="img-fluid" onerror="this.parentElement.style.display='none'">
