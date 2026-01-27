@@ -16,15 +16,19 @@ __pycache__/
 *.pyo
 *.pyd
 
-# ملفات الرفع (ما نرفع السي في بتاع الناس للجيت هب)
+# --- [ تعديل الصور والملفات المرفوعة ] ---
+# منع رفع ملفات المستخدمين الخاصة (الصور والـ CVs) لضمان الخصوصية
 app/static/uploads/cvs/*
+app/static/uploads/posts/*
+
+# استثناء ملفات النظام الأساسية عشان تظهر في Vercel وما تدي 404
+!app/static/uploads/default_avatar.png
+!app/static/uploads/default_job_icon.png
 !app/static/uploads/cvs/.gitkeep
+!app/static/uploads/.gitkeep
 
 # ملفات النظام واللوغز
 *.log
 .DS_Store
 .vscode/
 .idea/
-.env
-.env
-.env
