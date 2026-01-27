@@ -13,35 +13,69 @@
         </div>
     </div>
 
+    <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white border-top border-primary border-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold text-dark mb-0"><i class="fas fa-broadcast-tower me-2 text-primary"></i> نظام التعميم العالمي</h5>
+            {% if global_announcement %}
+            <form action="{{ url_for('admin.clear_broadcast') }}" method="POST">
+                <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1 fw-bold">
+                    <i class="fas fa-trash-alt me-1"></i> سحب التعميم الحالي
+                </button>
+            </form>
+            {% endif %}
+        </div>
+        
+        <form action="{{ url_for('admin.broadcast') }}" method="POST">
+            <div class="mb-3">
+                <textarea name="message" class="form-control rounded-4 shadow-sm" rows="2" placeholder="اكتب نص التعميم هنا ليظهر لكل المستخدمين..." required>{{ global_announcement or '' }}</textarea>
+            </div>
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex gap-2">
+                    <input type="radio" class="btn-check" name="color_type" id="colorRed" value="danger" checked>
+                    <label class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold" for="colorRed">عاجل (أحمر)</label>
+
+                    <input type="radio" class="btn-check" name="color_type" id="colorGreen" value="success">
+                    <label class="btn btn-outline-success btn-sm rounded-pill px-3 fw-bold" for="colorGreen">تحديث (أخضر)</label>
+
+                    <input type="radio" class="btn-check" name="color_type" id="colorBlue" value="primary">
+                    <label class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold" for="colorBlue">تنبيه (أزرق)</label>
+                </div>
+                <button type="submit" class="btn btn-primary rounded-pill px-5 fw-bold shadow">
+                    <i class="fas fa-paper-plane me-1"></i> نشر الآن
+                </button>
+            </div>
+        </form>
+    </div>
+
     <div class="row g-3 mb-5">
-        <div class="col-md-2">
-            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-primary border-4">
-                <small class="text-muted small fw-bold">المستخدمين</small>
-                <h2 class="fw-bold text-primary">{{ stats.total_users }}</h2>
+        <div class="col-md-2 col-6">
+            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-primary border-4 text-center text-md-end">
+                <small class="text-muted small fw-bold d-block mb-1">المستخدمين</small>
+                <h2 class="fw-bold text-primary mb-0">{{ stats.total_users }}</h2>
             </div>
         </div>
-        <div class="col-md-2">
-            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-info border-4">
-                <small class="text-muted small fw-bold">ربط تليجرام</small>
-                <h2 class="fw-bold text-info">{{ stats.tg_users }}</h2>
+        <div class="col-md-2 col-6">
+            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-info border-4 text-center text-md-end">
+                <small class="text-muted small fw-bold d-block mb-1">ربط تليجرام</small>
+                <h2 class="fw-bold text-info mb-0">{{ stats.tg_users }}</h2>
             </div>
         </div>
-        <div class="col-md-2">
-            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-success border-4">
-                <small class="text-muted small fw-bold">تحليلات الـ AI</small>
-                <h2 class="fw-bold text-success">{{ stats.total_cvs }}</h2>
+        <div class="col-md-2 col-6">
+            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-success border-4 text-center text-md-end">
+                <small class="text-muted small fw-bold d-block mb-1">تحليلات الـ AI</small>
+                <h2 class="fw-bold text-success mb-0">{{ stats.total_cvs }}</h2>
             </div>
         </div>
-        <div class="col-md-2">
-            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-warning border-4">
-                <small class="text-muted small fw-bold">الوظائف</small>
-                <h2 class="fw-bold text-warning">{{ stats.total_jobs }}</h2>
+        <div class="col-md-2 col-6">
+            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-warning border-4 text-center text-md-end">
+                <small class="text-muted small fw-bold d-block mb-1">الوظائف</small>
+                <h2 class="fw-bold text-warning mb-0">{{ stats.total_jobs }}</h2>
             </div>
         </div>
-        <div class="col-md-2">
-            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-danger border-4">
-                <small class="text-muted small fw-bold">المنشورات</small>
-                <h2 class="fw-bold text-danger">{{ stats.total_posts }}</h2>
+        <div class="col-md-2 col-12">
+            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-danger border-4 text-center text-md-end">
+                <small class="text-muted small fw-bold d-block mb-1">المنشورات</small>
+                <h2 class="fw-bold text-danger mb-0">{{ stats.total_posts }}</h2>
             </div>
         </div>
     </div>
@@ -52,7 +86,7 @@
         </div>
         <div class="col-md-6 d-flex gap-2 justify-content-md-end mt-3 mt-md-0">
             <form action="{{ url_for('admin.global_dashboard') }}" method="GET" class="d-flex gap-2">
-                <input type="text" name="search" class="form-control form-control-sm rounded-pill px-3 shadow-sm" 
+                <input type="text" name="search" class="form-control form-control-sm rounded-pill px-3 shadow-sm"
                        placeholder="ابحث بالاسم أو الإيميل..." value="{{ search_query or '' }}">
                 <button type="submit" class="btn btn-sm btn-primary rounded-pill shadow-sm"><i class="fas fa-search"></i></button>
             </form>
@@ -64,7 +98,7 @@
 
     <div class="row g-4">
         <div class="col-lg-12">
-            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
                 <div class="table-responsive">
                     <table class="table align-middle table-hover text-end">
                         <thead class="bg-light small text-muted">
@@ -87,7 +121,7 @@
                                 <td><span class="text-primary small">{{ user.email }}</span></td>
                                 <td>
                                     <div class="dropdown">
-                                        <button class="badge border-0 dropdown-toggle py-2 px-3 {% if user.role == 'admin' %}bg-danger{% else %}bg-secondary{% endif %}" 
+                                        <button class="badge border-0 dropdown-toggle py-2 px-3 {% if user.role == 'admin' %}bg-danger{% else %}bg-secondary{% endif %}"
                                                 type="button" data-bs-toggle="dropdown">
                                             {{ user.role }}
                                         </button>
@@ -117,7 +151,7 @@
         </div>
 
         <div class="col-lg-8">
-            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
                 <h5 class="fw-bold mb-4 text-warning"><i class="fas fa-briefcase me-2"></i> الرقابة على الوظائف</h5>
                 <div class="table-responsive">
                     <table class="table align-middle table-hover text-end">
@@ -154,7 +188,7 @@
         </div>
 
         <div class="col-lg-4">
-            <div class="card border-0 shadow-sm rounded-4 p-4 border-end border-primary border-4">
+            <div class="card border-0 shadow-sm rounded-4 p-4 border-end border-primary border-4 bg-white">
                 <h5 class="fw-bold mb-4 text-primary"><i class="fas fa-robot me-2"></i> نشاطات AI الأخيرة</h5>
                 <div class="list-group list-group-flush text-end">
                     {% for cv in recent_analyses %}
@@ -178,11 +212,15 @@
 </div>
 
 <style>
-    .card { transition: transform 0.2s; }
+    body { background-color: #f4f7f6; }
+    .card { transition: transform 0.2s; border: none !important; }
     .card:hover { transform: translateY(-5px); }
     .table thead th { border:0; }
-    body { background-color: #f4f7f6; }
     .dropdown-item:hover { background-color: #f8f9fa; color: #dc3545; }
     .form-control:focus { box-shadow: none; border-color: #0d6efd; }
+    textarea.form-control { resize: none; border: 1px solid #eee; }
+    .btn-check:checked + .btn-outline-danger { background-color: #dc3545; color: white; }
+    .btn-check:checked + .btn-outline-success { background-color: #198754; color: white; }
+    .btn-check:checked + .btn-outline-primary { background-color: #0d6efd; color: white; }
 </style>
 {% endblock %}

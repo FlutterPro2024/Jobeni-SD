@@ -19,7 +19,22 @@
     <style>
         :root { --gradient-blue: linear-gradient(135deg, #0d6efd 0%, #0dcaf0 100%); }
 
-        body { padding-top: 85px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; }
+        body { padding-top: 85px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; transition: padding 0.3s; }
+        
+        /* تنسيق التعميم السيادي الملون */
+        .global-announcement-bar {
+            padding: 10px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            text-align: center;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 2000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            color: white;
+        }
+        body.has-announcement { padding-top: 130px; }
+        .nav-with-announcement { top: 45px !important; }
 
         .navbar { background-color: rgba(33, 37, 41, 0.97) !important; backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.1); }
         .logo-icon { background: var(--gradient-blue); color: white; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-left: 10px; }
@@ -31,7 +46,6 @@
         .alert { border-radius: 12px; border: none; }
         .nav-avatar { width: 30px; height: 30px; object-fit: cover; border: 1.5px solid #0dcaf0; }
 
-        /* تنسيق عداد التنبيهات */
         .notification-badge {
             position: absolute; top: 5px; right: 5px;
             padding: 2px 6px; border-radius: 50%;
@@ -40,7 +54,6 @@
             border: 2px solid #212529;
         }
 
-        /* تنسيق رسالة التثبيت الذكية */
         #pwa-install-banner {
             position: fixed; bottom: 20px; left: 20px; right: 20px;
             background: #ffffff; color: #212529; padding: 18px;
@@ -54,7 +67,18 @@
         footer { border-top: 1px solid #dee2e6; background: #fff; }
     </style>
 </head>
-<body>
+<body class="{% if global_announcement %}has-announcement{% endif %}">
+    
+    {% if global_announcement %}
+    <div id="announcement-bar" class="global-announcement-bar animate__animated animate__fadeInDown" 
+         style="background: {% if announcement_color == 'success' %}linear-gradient(90deg, #11998e, #38ef7d){% elif announcement_color == 'primary' %}linear-gradient(90deg, #00c6ff, #0072ff){% else %}linear-gradient(90deg, #ff416c, #ff4b2b){% endif %};">
+        <div class="container d-flex justify-content-between align-items-center">
+            <div class="flex-grow-1"><i class="fas fa-bullhorn me-2"></i> {{ global_announcement }}</div>
+            <button type="button" class="btn-close btn-close-white" style="font-size: 0.7rem;" onclick="closeAnnouncement()"></button>
+        </div>
+    </div>
+    {% endif %}
+
     <audio id="notification-sound" preload="auto">
         <source src="https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3" type="audio/mpeg">
     </audio>
@@ -75,7 +99,7 @@
         </div>
     </div>
 
-    <nav class="navbar navbar-expand-lg navbar-dark fixed-top shadow-sm">
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top shadow-sm {% if global_announcement %}nav-with-announcement{% endif %}">
         <div class="container">
             <a class="d-flex align-items-center text-decoration-none me-3" href="{{ url_for('auth.index') }}">
                 <div class="logo-icon">J</div>
@@ -133,6 +157,9 @@
                                 </li>
                                 <li><a class="dropdown-item small py-2" href="{{ url_for('auth.user_profile', username=current_user.username) }}"><i class="fas fa-user-circle ms-2 text-primary"></i> ملفي الشخصي</a></li>
                                 <li><a class="dropdown-item small py-2" href="{{ url_for('auth.profile') }}"><i class="fas fa-cog ms-2 text-secondary"></i> الإعدادات</a></li>
+                                {% if current_user.role == 'admin' %}
+                                <li><a class="dropdown-item small py-2 text-danger fw-bold" href="{{ url_for('admin.global_dashboard') }}"><i class="fas fa-shield-alt ms-2"></i> لوحة السيادة</a></li>
+                                {% endif %}
                                 <li><a class="dropdown-item small py-2 text-success" href="{{ url_for('auth.dashboard') }}"><i class="fas fa-tachometer-alt ms-2"></i> لوحة التحكم</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item small py-2 text-danger" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt ms-2"></i> خروج</a></li>
@@ -178,6 +205,19 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
+        // إغلاق شريط التعميم وتعديل الهوامش برمجياً
+        function closeAnnouncement() {
+            const bar = document.getElementById('announcement-bar');
+            if (bar) {
+                bar.classList.add('animate__fadeOutUp');
+                setTimeout(() => {
+                    bar.remove();
+                    document.body.classList.remove('has-announcement');
+                    document.querySelector('.navbar').style.top = '0';
+                }, 500);
+            }
+        }
+
         // --- Badge & Notifications Logic ---
         function updateAppBadge(count) {
             if ('setAppBadge' in navigator) {

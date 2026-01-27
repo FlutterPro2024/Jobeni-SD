@@ -6,7 +6,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_mail import Mail
-from flask_apscheduler import APScheduler  # إضافة المجدول لعام 2026
+from flask_apscheduler import APScheduler
 
 # إضافة المسار الأساسي لضمان استيراد الإعدادات بشكل صحيح من خارج المجلد
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -90,7 +90,7 @@ def create_app(config_name='default'):
 
         # --- رابعاً: إعداد مهام الأيجنت الدورية (الرادار الذكي) ---
         from app.tasks import run_ai_agent_discovery, send_weekly_agent_summary
-        
+
         # 1. إضافة مهمة الرادار اليومي (كل 24 ساعة) للبحث عن فرص جديدة
         if not scheduler.get_job('ai_agent_job'):
             scheduler.add_job(id='ai_agent_job', func=run_ai_agent_discovery, trigger='interval', hours=24)
@@ -108,13 +108,33 @@ def create_app(config_name='default'):
 
     @app.context_processor
     def inject_vars():
-        """حقن متغيرات عالمية في قوالب الـ HTML لسهولة الوصول في كل الصفحات"""
+        """حقن متغيرات عالمية تشمل نظام التعميم السيادي الملون"""
         from app.models import Notification
         from datetime import datetime, timedelta
+        
+        # منطق استخراج التعميم واللون
+        announcement_path = os.path.join(app.root_path, '..', 'announcement.txt')
+        announcement = None
+        announcement_color = 'danger' # القيمة الافتراضية
+        
+        if os.path.exists(announcement_path):
+            try:
+                with open(announcement_path, "r", encoding="utf-8") as f:
+                    content = f.read().strip()
+                    if "|" in content:
+                        # فصل اللون عن الرسالة (مثال: success|تم التحديث)
+                        announcement_color, announcement = content.split("|", 1)
+                    else:
+                        announcement = content
+            except Exception:
+                announcement = None
+
         return dict(
             Notification=Notification,
             utcnow=datetime.utcnow(),
-            timedelta=timedelta
+            timedelta=timedelta,
+            global_announcement=announcement,
+            announcement_color=announcement_color
         )
 
     return app
