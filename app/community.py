@@ -1,278 +1,482 @@
-# ~/jobeni-sD/app/community.py
-import os
-import secrets
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort, current_app
-from flask_login import login_required, current_user
-from app.models import Post, db, Comment, PostLike, User, Notification, Message, Job
-from datetime import datetime, timedelta
-from sqlalchemy import text, or_
-from werkzeug.utils import secure_filename
+{% extends "base.html" %}
+{% block title %}مجتمع جوبيني المهني{% endblock %}
 
-community_bp = Blueprint('community', __name__)
+{% block content %}
+<style>
+    :root {
+        --linkedin-blue: #0a66c2;
+        --linkedin-gray: #666666;
+        --bg-gray: #f3f2ef;
+    }
 
-def save_media(form_file):
-    """دالة مساعدة لمعالجة وحفظ ملفات الميديا (صور/فيديو) بأسماء مشفرة"""
-    random_hex = secrets.token_hex(8)
-    _, f_ext = os.path.splitext(form_file.filename)
-    filename = random_hex + f_ext.lower()
-    # تحديد مسار الرفع: static/uploads/post_media
-    upload_path = os.path.join(current_app.root_path, 'static/uploads/post_media')
+    body { background-color: var(--bg-gray) !important; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 
-    if not os.path.exists(upload_path):
-        os.makedirs(upload_path)
+    /* Post Card Styling */
+    .post-card {
+        border-radius: 10px;
+        border: 1px solid #e0e0e0;
+        background: #fff;
+        margin-bottom: 16px;
+        transition: box-shadow 0.3s ease;
+    }
+    .post-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
 
-    file_path = os.path.join(upload_path, filename)
-    form_file.save(file_path)
-    return filename
+    .user-avatar { width: 52px; height: 52px; object-fit: cover; border-radius: 50%; }
+    .user-avatar-sm { width: 36px; height: 36px; border-radius: 50%; }
 
-@community_bp.route('/')
-@login_required
-def index():
-    """الرئيسية: عرض المنشورات، الأصدقاء المتصلين، واقتراحات المتابعة المهنية"""
-    # تحديث وقت ظهور المستخدم (Last Seen) لتعزيز التفاعل الحي
-    current_user.last_seen = datetime.utcnow()
-    try:
-        db.session.commit()
-    except:
-        db.session.rollback()
+    .post-header-info h6 { font-size: 0.95rem; color: #000; margin-bottom: 0; }
+    .post-header-info small { font-size: 0.8rem; color: var(--linkedin-gray); }
 
-    # جلب المنشورات مرتبة من الأحدث للأقدم
-    posts = Post.query.order_by(Post.timestamp.desc()).all()
+    /* Interaction Bar */
+    .interaction-bar { border-top: 1px solid #ebebeb; padding: 4px 12px; }
+    .interact-btn {
+        color: var(--linkedin-gray);
+        font-weight: 600;
+        font-size: 0.9rem;
+        border: none;
+        background: none;
+        flex: 1;
+        padding: 10px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: 0.2s;
+    }
+    .interact-btn:hover { background-color: #f3f3f3; color: var(--linkedin-blue); }
+    .interact-btn.liked { color: var(--linkedin-blue); }
 
-    # تحديد المستخدمين المتصلين حالياً (نشط خلال آخر 5 دقائق)
-    five_mins_ago = datetime.utcnow() - timedelta(minutes=5)
-    online_friends = User.query.filter(
-        User.last_seen >= five_mins_ago,
-        User.id != current_user.id
-    ).limit(10).all()
+    /* Comment Section */
+    .comment-bubble-container { display: flex; gap: 8px; margin-bottom: 12px; }
+    .comment-content {
+        background-color: #f2f2f2;
+        border-radius: 0 12px 12px 12px;
+        padding: 8px 12px;
+        position: relative;
+    }
+    .comment-user-name { font-weight: 600; font-size: 0.85rem; color: #000; text-decoration: none; }
+    .comment-text { font-size: 0.88rem; color: #191919; margin-bottom: 0; }
 
-    # خوارزمية اقتراح متابعة: أشخاص لا تتابعهم حالياً
-    suggested_users = User.query.filter(
-        User.id != current_user.id,
-        ~User.followers.any(id=current_user.id)
-    ).order_by(text("random()")).limit(5).all()
+    .comment-meta-actions {
+        display: flex;
+        gap: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--linkedin-gray);
+        margin-top: 4px;
+        margin-right: 45px;
+    }
+    .meta-item { cursor: pointer; transition: 0.2s; }
+    .meta-item:hover { color: var(--linkedin-blue); text-decoration: underline; }
+    .meta-item.delete:hover { color: #dc3545; }
 
-    # محرك تحفيز المحتوى (AI Motivation)
-    ai_suggestions_list = [
-        "شاركنا مهارة جديدة تعلمتها اليوم لتلهم زملاءك في السودان! 🇸🇩",
-        "هل تبحث عن نصيحة في مجال تقني؟ اسأل المجتمع الآن!",
-        "تحديث سيرتك الذاتية هو أول خطوة للنجاح، هل جربت محلل الـ AI الخاص بنا؟",
-        "الشبكات المهنية القوية تفتح أبواباً لا تفتحها الشهادات وحدها."
-    ]
-    import random
-    ai_suggestion = random.choice(ai_suggestions_list)
+    .post-body { white-space: pre-wrap; font-size: 0.95rem; color: #191919; padding: 0 16px 12px 16px; }
 
-    return render_template('community.html',
-                           posts=posts,
-                           ai_suggestion=ai_suggestion,
-                           suggested_users=suggested_users,
-                           online_friends=online_friends,
-                           Comment=Comment)
+    .sticky-sidebar { position: sticky; top: 80px; }
 
-@community_bp.route('/post/new', methods=['POST'])
-@login_required
-def new_post():
-    """إنشاء منشور جديد مع دعم ذكي للصور والفيديوهات"""
-    content = request.form.get('body') or request.form.get('content')
-    media_file = request.files.get('media')
-    img_name = None
-    vid_name = None
+    .sidebar-card { border-radius: 10px; overflow: hidden; border: 1px solid #e0e0e0; }
+    .sidebar-header-bg { height: 60px; background: var(--linkedin-blue); }
 
-    # التحقق من نوع الملف المرفوع ومعالجته
-    if media_file and media_file.filename != '':
-        ext = os.path.splitext(media_file.filename)[1].lower()
-        if ext in ['.jpg', '.jpeg', '.png', '.gif']:
-            img_name = save_media(media_file)
-        elif ext in ['.mp4', '.mov', '.avi', '.wmv']:
-            vid_name = save_media(media_file)
+    /* Media Styling Updated for Gyazo Links */
+    .post-media-container {
+        position: relative;
+        cursor: pointer;
+        user-select: none;
+        background-color: #f8f9fa;
+        border-top: 1px solid #eee;
+        border-bottom: 1px solid #eee;
+        overflow: hidden;
+        min-height: 200px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .post-media-container img, .post-media-container video {
+        max-width: 100%;
+        max-height: 500px;
+        display: block;
+        margin: 0 auto;
+    }
 
-    if (content and len(content.strip()) > 0) or img_name or vid_name:
-        try:
-            post = Post(
-                body=content,
-                user_id=current_user.id,
-                image_file=img_name,
-                video_file=vid_name
-            )
-            db.session.add(post)
-            db.session.commit()
-            flash('تم نشر منشورك بنجاح! 🚀', 'success')
-        except Exception as e:
-            db.session.rollback()
-            flash(f'حدث خطأ أثناء النشر: {str(e)}', 'danger')
-    else:
-        flash('لا يمكن نشر منشور فارغ بدون محتوى أو ميديا.', 'warning')
-    return redirect(url_for('community.index'))
+    /* Double Click Heart Animation */
+    .heart-icon {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0);
+        color: #fff;
+        font-size: 80px;
+        opacity: 0;
+        pointer-events: none;
+        z-index: 10;
+        text-shadow: 0 0 20px rgba(0,0,0,0.3);
+    }
+    @keyframes heart-beat {
+        0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+        50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.9; }
+        100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+    }
+    .animate-heart { animation: heart-beat 0.8s ease-out; }
 
-@community_bp.route('/post/<int:post_id>/edit', methods=['POST'])
-@login_required
-def edit_post(post_id):
-    """تعديل نص المنشور (لصاحب المنشور فقط)"""
-    post = Post.query.get_or_404(post_id)
-    if post.user_id != current_user.id:
-        flash('لا تملك صلاحية تعديل هذا المنشور.', 'danger')
-        return redirect(url_for('community.index'))
+    .preview-container {
+        position: relative;
+        max-height: 250px;
+        overflow: hidden;
+        border-radius: 8px;
+        display: none;
+    }
+    .remove-preview {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(0,0,0,0.6);
+        color: white;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 10;
+    }
+</style>
 
-    new_body = request.form.get('body') or request.form.get('content')
-    if new_body:
-        post.body = new_body
-        db.session.commit()
-        flash('تم تحديث المنشور بنجاح! ✨', 'success')
-    return redirect(url_for('community.index'))
+<div class="container mt-4" dir="rtl">
+    <div class="row">
+        <div class="col-lg-3 d-none d-lg-block">
+            <div class="sticky-sidebar">
+                <div class="card sidebar-card shadow-sm text-center">
+                    <div class="sidebar-header-bg"></div>
+                    <div class="card-body pt-0" style="margin-top: -30px;">
+                        <img src="{{ current_user.get_avatar() }}" class="rounded-circle border border-3 border-white mb-2" width="70" height="70">
+                        <h6 class="fw-bold">{{ current_user.full_name or current_user.username }}</h6>
+                        <small class="text-muted d-block mb-3 border-bottom pb-3">{{ current_user.headline or 'عضو مجتمع جوبيني' }}</small>
+                        <div class="row text-end small fw-bold">
+                            <div class="col-12 py-1"><span class="text-muted">المتابعين:</span> <span class="text-primary">{{ current_user.followers.count() }}</span></div>
+                            <div class="col-12 py-1"><span class="text-muted">المنشورات:</span> <span class="text-primary">{{ current_user.posts.count() }}</span></div>
+                        </div>
+                    </div>
+                </div>
 
-@community_bp.route('/like/<int:post_id>', methods=['POST'])
-@login_required
-def like_post(post_id):
-    """نظام الإعجاب (AJAX) - يرسل إشعارات فورية لصاحب المنشور"""
-    post = Post.query.get_or_404(post_id)
-    like = PostLike.query.filter_by(user_id=current_user.id, post_id=post_id).first()
+                <div class="card sidebar-card mt-3 shadow-sm p-3 text-end bg-white border-primary" style="border-right-width: 5px;">
+                    <h6 class="fw-bold text-primary"><i class="fas fa-robot me-1"></i> نصيحة AI</h6>
+                    <p class="small mb-0 text-dark fw-bold">{{ ai_suggestion }}</p>
+                </div>
+            </div>
+        </div>
 
-    if like:
-        db.session.delete(like)
-        action = 'unliked'
-    else:
-        new_like = PostLike(user_id=current_user.id, post_id=post_id)
-        db.session.add(new_like)
-        action = 'liked'
-        # إشعار صاحب المنشور
-        if post.user_id != current_user.id:
-            notification = Notification(
-                user_id=post.user_id,
-                sender_id=current_user.id,
-                post_id=post.id,
-                title="إعجاب جديد",
-                message=f"قام {current_user.full_name or current_user.username} بالإعجاب بمنشورك.",
-                category='like'
-            )
-            db.session.add(notification)
-    db.session.commit()
-    likes_count = post.likes.count()
-    return jsonify({'action': action, 'likes_count': likes_count})
+        <div class="col-lg-6">
+            <div class="card post-card p-3 shadow-sm mb-3">
+                <div class="d-flex gap-3 align-items-center flex-row-reverse">
+                    <img src="{{ current_user.get_avatar() }}" class="user-avatar-sm">
+                    <button class="form-control rounded-pill bg-light text-end text-muted border-1 px-4 py-2 fw-bold" style="cursor: pointer; border-color: #ddd;" data-bs-toggle="modal" data-bs-target="#newPostModal">
+                        عن ماذا تود التحدث يا {{ current_user.username }}؟
+                    </button>
+                </div>
+            </div>
 
-@community_bp.route('/post/<int:post_id>/comment', methods=['POST'])
-@login_required
-def add_comment(post_id):
-    """إضافة تعليق مع دعم نظام الردود (Nested Comments)"""
-    content = request.form.get('comment_body') or request.form.get('body')
-    parent_id = request.form.get('parent_id', type=int)
+            <div id="feed">
+                {% for post in posts %}
+                <div class="card post-card">
+                    <div class="card-body p-0">
+                        <div class="d-flex align-items-center justify-content-between p-3 pb-2">
+                            <div class="d-flex align-items-center">
+                                <a href="{{ url_for('auth.user_profile', username=post.author.username) }}">
+                                    <img src="{{ post.author.get_avatar() }}" class="user-avatar ms-2">
+                                </a>
+                                <div class="post-header-info text-end">
+                                    <a href="{{ url_for('auth.user_profile', username=post.author.username) }}" class="text-decoration-none">
+                                        <h6 class="fw-bold">{{ post.author.full_name or post.author.username }}</h6>
+                                    </a>
+                                    <small class="d-block">{{ post.author.headline or 'مستخدم جوبيني' }}</small>
+                                    <small class="text-muted">{{ post.timestamp.strftime('%Y-%m-%d') }} <i class="fas fa-globe-americas ms-1"></i></small>
+                                </div>
+                            </div>
 
-    if content:
-        post = Post.query.get_or_404(post_id)
-        comment = Comment(
-            body=content,
-            user_id=current_user.id,
-            post_id=post_id,
-            parent_id=parent_id if parent_id else None
-        )
-        db.session.add(comment)
-        # إرسال إشعار
-        if post.user_id != current_user.id:
-            notification = Notification(
-                user_id=post.user_id,
-                sender_id=current_user.id,
-                post_id=post.id,
-                title="تعليق جديد",
-                message=f"علق {current_user.username} على منشورك: '{content[:30]}...'",
-                category='comment'
-            )
-            db.session.add(notification)
-        db.session.commit()
-        flash('تم إضافة تعليقك.', 'success')
-    return redirect(url_for('community.index'))
+                            <div class="dropdown">
+                                <button class="btn btn-link text-muted p-2 rounded-circle" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-h"></i></button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                                    {% if post.author == current_user %}
+                                    <li><button class="dropdown-item text-end py-2" data-bs-toggle="modal" data-bs-target="#editModal{{post.id}}"><i class="fas fa-edit me-2 text-primary"></i> تعديل المنشور</button></li>
+                                    <li>
+                                        <form action="{{ url_for('community.delete_post', post_id=post.id) }}" method="POST">
+                                            <button type="submit" class="dropdown-item text-end py-2 text-danger" onclick="return confirm('هل أنت متأكد من الحذف؟')"><i class="fas fa-trash me-2"></i> حذف نهائي</button>
+                                        </form>
+                                    </li>
+                                    {% else %}
+                                    <li><button class="dropdown-item text-end py-2"><i class="fas fa-flag me-2"></i> إبلاغ عن منشور</button></li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </div>
 
-@community_bp.route('/comment/delete/<int:comment_id>', methods=['POST'])
-@login_required
-def delete_comment(comment_id):
-    """حذف التعليق (لصاحب التعليق أو صاحب المنشور)"""
-    comment = Comment.query.get_or_404(comment_id)
-    if comment.user_id == current_user.id or comment.post.user_id == current_user.id:
-        db.session.delete(comment)
-        db.session.commit()
-        flash('تم حذف التعليق بنجاح.', 'info')
-    else:
-        flash('ليس لديك صلاحية لحذف هذا التعليق.', 'danger')
-    return redirect(url_for('community.index'))
+                        <div class="post-body text-end px-3 mb-2">{{ post.body }}</div>
 
-@community_bp.route('/follow/<username>')
-@login_required
-def follow(username):
-    """نظام المتابعة والمتابعة العكسية لبناء الشبكة المهنية"""
-    user = User.query.filter_by(username=username).first_or_404()
-    if user == current_user:
-        flash('لا يمكنك متابعة نفسك!', 'warning')
-        return redirect(url_for('community.index'))
+                        {% if post.image_file %}
+                        <div class="post-media-container" ondblclick="animateLike({{ post.id }}, this)">
+                            <i class="fas fa-heart heart-icon"></i>
+                            
+                            {# التحقق إذا كان الرابط فيديو أو صورة من الـ Extension #}
+                            {% if post.image_file.lower().endswith(('.mp4', '.mov', '.avi', '.webm')) %}
+                                <video controls class="w-100">
+                                    <source src="{{ post.image_file }}" type="video/mp4">
+                                </video>
+                            {% else %}
+                                <img src="{{ post.image_file }}" class="img-fluid" onerror="this.parentElement.style.display='none'">
+                            {% endif %}
+                        </div>
+                        {% endif %}
 
-    if user in current_user.followed:
-        current_user.followed.remove(user)
-        flash(f'ألغيت متابعة {user.full_name or username}', 'info')
-    else:
-        current_user.followed.append(user)
-        # إشعار للمستهدف
-        notification = Notification(
-            user_id=user.id,
-            sender_id=current_user.id,
-            title="متابع جديد",
-            message=f"بدأ {current_user.username} بمتابعتك الآن! تابع مهاراته أيضاً.",
-            category='follow'
-        )
-        db.session.add(notification)
-        flash(f'أنت الآن تتابع {user.full_name or username}', 'success')
+                        <div class="px-3 d-flex justify-content-between small text-muted py-2 border-bottom mx-2">
+                            <span><i class="fas fa-thumbs-up text-primary"></i> <span id="like-count-{{ post.id }}">{{ post.likes.count() }}</span></span>
+                            <span>{{ post.comments.count() }} تعليق</span>
+                        </div>
 
-    db.session.commit()
-    return redirect(request.referrer or url_for('community.index'))
+                        <div class="interaction-bar d-flex">
+                            {% set liked = post.likes.filter_by(user_id=current_user.id).first() %}
+                            <button class="interact-btn {% if liked %}liked{% endif %}" onclick="handleLike({{ post.id }}, this)">
+                                <i class="{% if liked %}fas{% else %}far{% endif %} fa-thumbs-up"></i> إعجاب
+                            </button>
+                            <button class="interact-btn" onclick="document.getElementById('comment-input-{{ post.id }}').focus()">
+                                <i class="far fa-comment-dots"></i> تعليق
+                            </button>
+                        </div>
 
-@community_bp.route('/delete_post/<int:post_id>', methods=['POST'])
-@login_required
-def delete_post(post_id):
-    """حذف المنشور مع تنظيف ملفات الميديا من السيرفر لضمان المساحة"""
-    post = Post.query.get_or_404(post_id)
-    if post.user_id == current_user.id or current_user.role == 'admin':
-        # مسح الملفات فيزيائياً
-        for media_file in [post.image_file, post.video_file]:
-            if media_file:
-                file_path = os.path.join(current_app.root_path, 'static/uploads/post_media', media_file)
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-        db.session.delete(post)
-        db.session.commit()
-        flash('تم حذف المنشور نهائياً.', 'info')
-    else:
-        flash('ليس لديك صلاحية لحذف هذا المنشور.', 'danger')
-    return redirect(url_for('community.index'))
+                        <div class="bg-light p-3 rounded-bottom">
+                            <div id="comments-list-{{ post.id }}">
+                                {% for comment in post.comments.filter_by(parent_id=None).all() %}
+                                <div class="mb-3">
+                                    <div class="comment-bubble-container">
+                                        <img src="{{ comment.user.get_avatar() }}" class="user-avatar-sm ms-2">
+                                        <div class="comment-content flex-grow-1 text-end">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <a href="{{ url_for('auth.user_profile', username=comment.user.username) }}" class="comment-user-name">{{ comment.user.full_name or comment.user.username }}</a>
+                                                <small class="text-muted" style="font-size: 0.7rem;">{{ comment.timestamp.strftime('%H:%M') }}</small>
+                                            </div>
+                                            <p class="comment-text">{{ comment.body }}</p>
+                                        </div>
+                                    </div>
+                                    <div class="comment-meta-actions text-end mb-2">
+                                        <span class="meta-item" onclick="toggleReplyForm('{{ comment.id }}')">رد</span>
+                                        {% if comment.user == current_user %}
+                                        <span class="meta-item delete text-danger" onclick="if(confirm('حذف التعليق؟')) this.nextElementSibling.submit();">حذف</span>
+                                        <form action="{{ url_for('community.delete_comment', comment_id=comment.id) }}" method="POST" style="display:none;"></form>
+                                        {% endif %}
+                                    </div>
 
-@community_bp.route('/search')
-@login_required
-def search():
-    """البحث الشامل: يربط بين الأعضاء، الوظائف المفتوحة، والمقالات"""
-    query = request.args.get('q', '').strip()
-    if not query:
-        return redirect(url_for('community.index'))
+                                    <div class="reply-thread border-end me-4 pr-3 mt-1" style="border-right: 2px solid #ddd; padding-right: 15px;">
+                                        {% for reply in post.comments.filter_by(parent_id=comment.id).all() %}
+                                        <div class="d-flex gap-2 mb-2 align-items-start flex-row-reverse">
+                                            <img src="{{ reply.user.get_avatar() }}" class="user-avatar-sm ms-2" style="width: 28px; height: 28px;">
+                                            <div class="comment-content bg-white border py-1 px-3 text-end" style="border-radius: 12px;">
+                                                <small class="fw-bold d-block">{{ reply.user.username }}</small>
+                                                <p class="mb-0 small">{{ reply.body }}</p>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
 
-    users = User.query.filter(
-        or_(User.username.ilike(f'%{query}%'), User.full_name.ilike(f'%{query}%'))
-    ).limit(5).all()
+                                        <div id="reply-form-{{ comment.id }}" class="mt-2 d-none">
+                                            <form action="{{ url_for('community.add_comment', post_id=post.id) }}" method="POST">
+                                                <input type="hidden" name="parent_id" value="{{ comment.id }}">
+                                                <div class="input-group input-group-sm">
+                                                    <input type="text" name="comment_body" class="form-control rounded-pill px-3 text-end" placeholder="اكتب رداً..." required>
+                                                    <button class="btn btn-primary btn-sm rounded-pill ms-2" type="submit"><i class="fas fa-paper-plane"></i></button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
 
-    jobs = Job.query.filter(
-        or_(
-            Job.title.ilike(f'%{query}%'),
-            Job.company_name.ilike(f'%{query}%'),
-            Job.description.ilike(f'%{query}%')
-        )
-    ).limit(5).all()
+                            <form action="{{ url_for('community.add_comment', post_id=post.id) }}" method="POST" class="mt-3 d-flex gap-2 align-items-center flex-row-reverse">
+                                <img src="{{ current_user.get_avatar() }}" class="user-avatar-sm">
+                                <div class="input-group">
+                                    <input type="text" name="comment_body" id="comment-input-{{ post.id }}" class="form-control rounded-pill bg-white border-1 text-end" style="font-size: 0.9rem;" placeholder="إضافة تعليق..." required>
+                                    <button class="btn btn-outline-primary border-0 ms-1 rounded-circle" type="submit"><i class="fas fa-paper-plane"></i></button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
 
-    posts = Post.query.filter(Post.body.ilike(f'%{query}%')).order_by(Post.timestamp.desc()).limit(15).all()
+                <div class="modal fade" id="editModal{{post.id}}" tabindex="-1">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content border-0 rounded-4">
+                            <div class="modal-header flex-row-reverse border-0"><h5 class="fw-bold">تعديل المنشور</h5><button type="button" class="btn-close ms-0" data-bs-dismiss="modal"></button></div>
+                            <form action="{{ url_for('community.edit_post', post_id=post.id) }}" method="POST">
+                                <div class="modal-body text-end">
+                                    <textarea name="body" class="form-control border-light bg-light text-end p-3" rows="5" style="border-radius: 12px;">{{ post.body }}</textarea>
+                                </div>
+                                <div class="modal-footer border-0">
+                                    <button type="submit" class="btn btn-primary rounded-pill px-5 w-100 fw-bold">حفظ التغييرات</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
 
-    return render_template('search_results.html', query=query, users=users, jobs=jobs, posts=posts)
+        <div class="col-lg-3 d-none d-lg-block">
+            <div class="sticky-sidebar">
+                <div class="card sidebar-card p-3 shadow-sm text-end bg-white">
+                    <h6 class="fw-bold mb-3 border-bottom pb-2">الأعضاء المتصلون <i class="fas fa-circle text-success small ms-1"></i></h6>
+                    <div class="d-flex flex-wrap gap-2 justify-content-start flex-row-reverse">
+                        {% for friend in online_friends %}
+                        <a href="{{ url_for('auth.user_profile', username=friend.username) }}" class="position-relative" title="{{ friend.username }}">
+                            <img src="{{ friend.get_avatar() }}" class="rounded-circle border" width="40" height="40">
+                            <span style="position: absolute; bottom: 0; right: 0; width: 10px; height: 10px; background: #28a745; border: 2px solid #fff; border-radius: 50%;"></span>
+                        </a>
+                        {% endfor %}
+                        {% if not online_friends %}
+                        <small class="text-muted w-100">لا يوجد أحد متصل حالياً</small>
+                        {% endif %}
+                    </div>
+                </div>
 
-@community_bp.route('/force-db-update-2026')
-def force_db_update():
-    """تحديث قاعدة البيانات برمجياً لدعم ميزات الميديا والردود الجديدة"""
-    try:
-        db.session.execute(text('ALTER TABLE post ADD COLUMN IF NOT EXISTS image_file VARCHAR(100)'))
-        db.session.execute(text('ALTER TABLE post ADD COLUMN IF NOT EXISTS video_file VARCHAR(100)'))
-        db.session.execute(text('ALTER TABLE comment ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES comment(id)'))
-        db.session.commit()
-        return "✅ تم تحديث هيكل قاعدة البيانات بنجاح لعام 2026.", 200
-    except Exception as e:
-        db.session.rollback()
-        return f"❌ خطأ في التحديث: {str(e)}", 500
+                <div class="card sidebar-card p-3 shadow-sm text-end bg-white mt-3">
+                    <h6 class="fw-bold mb-3 border-bottom pb-2">اقتراحات المتابعة</h6>
+                    {% for sugg in suggested_users %}
+                    <div class="d-flex align-items-center mb-3 flex-row-reverse">
+                        <img src="{{ sugg.get_avatar() }}" class="rounded-circle ms-2" width="35" height="35">
+                        <div class="flex-grow-1 text-end overflow-hidden">
+                            <h6 class="mb-0 small fw-bold text-truncate">{{ sugg.full_name or sugg.username }}</h6>
+                            <a href="{{ url_for('community.follow', username=sugg.username) }}" class="btn btn-outline-primary btn-sm rounded-pill py-0 px-2 mt-1" style="font-size: 11px;">+ متابعة</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="newPostModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow-lg">
+            <div class="modal-header flex-row-reverse border-0 pb-0">
+                <h5 class="fw-bold">إنشاء منشور</h5>
+                <button type="button" class="btn-close ms-0" data-bs-dismiss="modal" onclick="resetPostForm()"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex align-items-center mb-3 text-end flex-row-reverse">
+                    <img src="{{ current_user.get_avatar() }}" class="user-avatar-sm ms-2">
+                    <div>
+                        <h6 class="mb-0 fw-bold">{{ current_user.full_name or current_user.username }}</h6>
+                        <span class="badge bg-light text-muted border"><i class="fas fa-globe-americas me-1"></i> العام</span>
+                    </div>
+                </div>
+                <form action="{{ url_for('community.new_post') }}" method="POST" enctype="multipart/form-data" id="postForm">
+                    <textarea name="body" class="form-control border-0 fs-5 text-end mb-3" rows="4" placeholder="عن ماذا تود التحدث يا {{ current_user.username }}؟" style="resize: none;"></textarea>
+
+                    <div id="mediaPreview" class="preview-container mb-3">
+                        <div class="remove-preview" onclick="resetPostForm()"><i class="fas fa-times"></i></div>
+                        <img id="imgPreview" class="w-100 h-100" style="object-fit: cover; display:none;">
+                        <video id="vidPreview" class="w-100" style="display:none;" controls></video>
+                    </div>
+
+                    <input type="file" name="media" id="mediaInput" class="d-none" accept="image/*,video/*" onchange="previewMedia(this)">
+
+                    <div class="d-flex gap-2 mb-3 border-top pt-2 flex-row-reverse">
+                        <button type="button" class="btn btn-light rounded-pill btn-sm fw-bold px-3" onclick="document.getElementById('mediaInput').click()">
+                            <i class="fas fa-image text-primary me-1"></i> صورة / فيديو
+                        </button>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">نشر المنشور</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// التحكم في الإعجابات عبر AJAX
+function handleLike(postId, btn) {
+    fetch(`/community/like/${postId}`, { method: 'POST' })
+    .then(res => res.json())
+    .then(data => {
+        const countSpan = document.getElementById(`like-count-${postId}`);
+        if(countSpan) countSpan.innerText = data.likes_count;
+
+        const icon = btn.querySelector('i');
+        if (data.action === 'liked') {
+            btn.classList.add('liked');
+            icon.className = 'fas fa-thumbs-up';
+        } else {
+            btn.classList.remove('liked');
+            icon.className = 'far fa-thumbs-up';
+        }
+    })
+    .catch(err => console.error("Like error:", err));
+}
+
+// أنيميشن القلب عند النقر المزدوج
+function animateLike(postId, container) {
+    const heart = container.querySelector('.heart-icon');
+    if(!heart) return;
+
+    heart.classList.add('animate-heart');
+    setTimeout(() => {
+        heart.classList.remove('animate-heart');
+    }, 800);
+
+    const likeBtn = container.closest('.post-card').querySelector('.interact-btn');
+    if (likeBtn && !likeBtn.classList.contains('liked')) {
+        handleLike(postId, likeBtn);
+    }
+}
+
+// تبديل ظهور نموذج الرد
+function toggleReplyForm(commentId) {
+    const form = document.getElementById(`reply-form-${commentId}`);
+    if(form) {
+        form.classList.toggle('d-none');
+        if (!form.classList.contains('d-none')) {
+            form.querySelector('input').focus();
+        }
+    }
+}
+
+// معاينة الميديا قبل الرفع
+function previewMedia(input) {
+    const file = input.files[0];
+    if (file) {
+        const reader = new FileReader();
+        const previewBox = document.getElementById('mediaPreview');
+        const img = document.getElementById('imgPreview');
+        const vid = document.getElementById('vidPreview');
+
+        reader.onload = function(e) {
+            previewBox.style.display = 'block';
+            if (file.type.startsWith('image/')) {
+                img.src = e.target.result;
+                img.style.display = 'block';
+                vid.style.display = 'none';
+            } else if (file.type.startsWith('video/')) {
+                vid.src = e.target.result;
+                vid.style.display = 'block';
+                img.style.display = 'none';
+            }
+        }
+        reader.readAsDataURL(file);
+    }
+}
+
+// إعادة تعيين النموذج
+function resetPostForm() {
+    const mediaInput = document.getElementById('mediaInput');
+    const previewBox = document.getElementById('mediaPreview');
+    if(mediaInput) mediaInput.value = '';
+    if(previewBox) previewBox.style.display = 'none';
+    document.getElementById('imgPreview').src = '';
+    document.getElementById('vidPreview').src = '';
+    const form = document.getElementById('postForm');
+    if(form) form.reset();
+}
+</script>
+{% endblock %}
