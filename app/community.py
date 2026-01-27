@@ -30,7 +30,7 @@ def upload_to_gyazo(form_file):
     try:
         response = requests.post(url, headers=headers, files=files)
         if response.status_code == 200:
-            # نأخذ 'url' لضمان الحصول على الرابط المباشر للملف (MP4/PNG)
+            # نأخذ 'url' لضمان الحصول على الرابط المباشر للملف
             return response.json().get('url')
     except Exception as e:
         print(f"Upload Error: {e}")
@@ -81,18 +81,21 @@ def index():
 @community_bp.route('/post/new', methods=['POST'])
 @login_required
 def new_post():
-    """إنشاء منشور جديد مع رفع الميديا لـ Gyazo"""
-    content = request.form.get('body') or request.form.get('content')
+    """إنشاء منشور جديد مع ضمان عدم إرسال NULL لعمود body"""
+    # جلب النص وضمان أنه ليس None لتجنب NotNullViolation
+    content = request.form.get('body') or request.form.get('content') or ""
+    
     media_file = request.files.get('media')
     media_url = None
 
     if media_file and media_file.filename != '':
         media_url = upload_to_gyazo(media_file)
 
-    if (content and len(content.strip()) > 0) or media_url:
+    # السماح بالنشر إذا كان هناك نص أو رابط ميديا
+    if content.strip() or media_url:
         try:
             post = Post(
-                body=content,
+                body=content, # سيرسل "" بدلاً من None إذا رفع صورة فقط
                 user_id=current_user.id,
                 image_file=media_url
             )
@@ -101,7 +104,8 @@ def new_post():
             flash('تم نشر منشورك بنجاح! 🚀', 'success')
         except Exception as e:
             db.session.rollback()
-            flash(f'حدث خطأ أثناء النشر: {str(e)}', 'danger')
+            print(f"Database Error: {e}")
+            flash(f'حدث خطأ أثناء حفظ المنشور في قاعدة البيانات.', 'danger')
     else:
         flash('لا يمكن نشر منشور فارغ.', 'warning')
     return redirect(url_for('community.index'))
@@ -115,7 +119,7 @@ def edit_post(post_id):
         return redirect(url_for('community.index'))
 
     new_body = request.form.get('body')
-    if new_body:
+    if new_body is not None:
         post.body = new_body
         db.session.commit()
         flash('تم تحديث المنشور بنجاح! ✨', 'success')
@@ -241,7 +245,7 @@ def search():
 
 @community_bp.route('/force-db-update-2026')
 def force_db_update():
-    """تحديث قاعدة البيانات برمجياً لضمان وجود الأعمدة الجديدة"""
+    """تحديث قاعدة البيانات برمجياً لضمان وجود الأعمدة الجديدة لعام 2026"""
     try:
         db.session.execute(text('ALTER TABLE post ADD COLUMN IF NOT EXISTS image_file VARCHAR(200)'))
         db.session.execute(text('ALTER TABLE post ADD COLUMN IF NOT EXISTS video_file VARCHAR(200)'))
