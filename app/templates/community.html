@@ -89,6 +89,7 @@
         overflow: hidden;
         min-height: 200px;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
     }
@@ -215,10 +216,13 @@
                         <div class="post-body text-end px-3 mb-2">{{ post.body }}</div>
 
                         {% if post.image_file %}
-                        <div class="post-media-container" ondblclick="animateLike({{ post.id }}, this)">
+                        <div class="post-media-container" ondblclick="animateLike({{ post.id }}, this)" style="border-top: 2px dashed #0a66c2;">
+                            <div style="background: #fff3cd; color: #856404; font-size: 9px; width: 100%; text-align: center; padding: 2px;">
+                                [Debug] الرابط المرفوع: {{ post.image_file }}
+                            </div>
                             <i class="fas fa-heart heart-icon"></i>
-                            
-                            {# فحص الرابط إذا كان فيديو أو صورة بناءً على الامتداد أو محتوى الرابط #}
+
+                            {# فحص الرابط إذا كان فيديو أو صورة #}
                             {% if 'video' in post.image_file.lower() or post.image_file.lower().endswith(('.mp4', '.mov', '.avi', '.webm')) %}
                                 <video controls class="w-100" style="max-height: 500px; background: #000;">
                                     <source src="{{ post.image_file }}" type="video/mp4">
