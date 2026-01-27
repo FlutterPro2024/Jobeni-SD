@@ -89,16 +89,3 @@ def agent_stats():
                            today_matches=today_matches,
                            top_jobs=top_jobs,
                            recent_logs=recent_logs)
-
-# --- [ قسم تفعيل الأدمن السري لشركة جوبيني 2026 ] ---
-@admin_bp.route('/activate-jobeni-boss-2026')
-@login_required
-def activate_admin_boss():
-    """رابط سري لترقية المستخدم الحالي لأدمن فوراً"""
-    try:
-        current_user.role = 'admin'
-        db.session.commit()
-        return f"✅ أبشر يا مدير! حسابك ({current_user.username}) بقى أدمن رسمي الآن. ادخل اللوحة: /admin/super-admin/stats"
-    except Exception as e:
-        db.session.rollback()
-        return f"❌ فشل التفعيل: {str(e)}"

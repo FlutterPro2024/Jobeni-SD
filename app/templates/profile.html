@@ -7,7 +7,7 @@
         <div class="row g-4">
             <div class="col-lg-4 text-end">
                 <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden text-center">
-                    <div class="card-header p-0 position-relative" 
+                    <div class="card-header p-0 position-relative"
                          style="height: 140px; background: url('{{ current_user.cover_photo or 'https://via.placeholder.com/800x250/0d6efd/ffffff?text=Jobeni+SD' }}') center/cover no-repeat;">
                         <label for="cover_input" class="btn btn-light btn-sm rounded-circle position-absolute top-0 end-0 m-2 shadow-sm" style="cursor: pointer;" title="تغيير صورة الغلاف">
                             <i class="fas fa-camera text-primary"></i>
@@ -20,7 +20,7 @@
                             <img src="{{ current_user.get_avatar() }}"
                                  class="rounded-circle border border-white border-4 shadow-sm mb-3 bg-white"
                                  style="width: 120px; height: 120px; object-fit: cover; margin-top: -60px;">
-                            <label for="avatar_input" class="position-absolute bottom-0 end-0 bg-primary text-white rounded-circle p-1 border border-white" 
+                            <label for="avatar_input" class="position-absolute bottom-0 end-0 bg-primary text-white rounded-circle p-1 border border-white"
                                    style="cursor: pointer; width: 32px; height: 32px;" title="تغيير الصورة الشخصية">
                                 <i class="fas fa-pencil-alt fa-xs"></i>
                             </label>
@@ -29,7 +29,7 @@
 
                         <h4 class="fw-bold mb-1">{{ current_user.full_name or current_user.username }}</h4>
                         <p class="text-primary small fw-bold mb-3">{{ current_user.headline or 'عضو مجتمع جوبيني' }}</p>
-                        
+
                         <div class="row g-2 mt-2">
                             <div class="col-4">
                                 <div class="p-2 border rounded-3 bg-light">
@@ -50,6 +50,14 @@
                                 </div>
                             </div>
                         </div>
+
+                        {% if current_user.role == 'admin' %}
+                        <div class="mt-4 p-2">
+                            <a href="{{ url_for('admin.global_dashboard') }}" class="btn btn-danger w-100 rounded-pill fw-bold shadow-sm py-2">
+                                <i class="fas fa-shield-alt ms-1"></i> لوحة التحكم السيادية
+                            </a>
+                        </div>
+                        {% endif %}
 
                         <div class="mt-4 p-3 bg-white rounded-4 border border-dashed shadow-sm">
                             <h6 class="small fw-bold text-muted mb-3"><i class="fas fa-qrcode ms-1"></i> بطاقة الهوية الذكية</h6>
@@ -143,7 +151,6 @@
 </div>
 
 <script>
-    // وظيفة لتحسين تجربة المستخدم: الرفع التلقائي عند اختيار صورة مع إظهار لودر
     function previewAndSubmit() {
         Swal.fire({
             title: 'جاري رفع الصور...',
