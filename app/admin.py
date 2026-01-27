@@ -21,7 +21,7 @@ def global_dashboard():
         'total_jobs': Job.query.count(),
         'total_cvs': CV.query.count(),
         'total_apps': Application.query.count(),
-        'total_posts': Post.query.count(), 
+        'total_posts': Post.query.count(),
         'tg_users': User.query.filter(User.telegram_id != None).count()
     }
 
@@ -94,13 +94,11 @@ def agent_stats():
 @admin_bp.route('/activate-jobeni-boss-2026')
 @login_required
 def activate_admin_boss():
-    """رابط سري لتفعيل صلاحيات الأدمن باستخدام الإيميل المعتمد"""
-    # البحث بالإيميل الخاص بك لضمان الدقة
-    user = User.query.filter_by(email='jobeni-sd7@gmail.com').first()
-    
-    if user:
-        user.role = 'admin'
+    """رابط سري لترقية المستخدم الحالي لأدمن فوراً"""
+    try:
+        current_user.role = 'admin'
         db.session.commit()
-        return f"✅ أبشر يا مدير! الحساب {user.email} تم ترقيته إلى مدير نظام (Admin). يمكنك الآن دخول لوحة التحكم."
-    
-    return "❌ خطأ: لم يتم العثور على حساب مسجل بالإيميل jobeni-sd7@gmail.com"
+        return f"✅ أبشر يا مدير! حسابك ({current_user.username}) بقى أدمن رسمي الآن. ادخل اللوحة: /admin/super-admin/stats"
+    except Exception as e:
+        db.session.rollback()
+        return f"❌ فشل التفعيل: {str(e)}"
