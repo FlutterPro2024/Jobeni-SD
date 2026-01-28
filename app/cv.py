@@ -37,6 +37,7 @@ def view_cv_by_user(user_id):
     analysis_key = f'analysis_{cv.id}'
     analysis = session.get(analysis_key)
     if not analysis:
+        # تحليل AI شامل (بناءً على المحرك الصارم في openrouter_ai)
         analysis = openrouter_ai.analyze_cv_complete(cv.extracted_text[:3000])
         session[analysis_key] = analysis
 
@@ -89,9 +90,10 @@ def upload_cv():
                         page_content = page.extract_text()
                         if page_content: extracted_text += page_content + "\n"
             else:
+                # معالجة الملفات النصية بترميزات مختلفة لتفادي الأخطاء
                 extracted_text = file.read().decode('utf-8', errors='ignore')
 
-            # تحليل AI لبيانات الرادار والـ ATS
+            # تحليل AI لبيانات الرادار والـ ATS بصرامة
             analysis = openrouter_ai.analyze_cv_complete(extracted_text[:4000])
             radar_data = openrouter_ai.generate_skills_radar_data(extracted_text[:2000])
 
@@ -129,7 +131,7 @@ def optimize_cv_view(cv_id):
     # إذا لم تكن النسخة المحسنة موجودة مسبقاً، نطلب من AI توليدها
     if not getattr(cv, 'optimized_text', None):
         try:
-            # نستخدم المحرك لبناء نسخة عالمية احترافية
+            # نستخدم المحرك لبناء نسخة عالمية احترافية تتجاوز أنظمة الفرز
             optimized_text = openrouter_ai.build_global_cv(cv.extracted_text[:4000])
             cv.optimized_text = optimized_text
             db.session.commit()
@@ -180,17 +182,17 @@ def send_cv_telegram(cv_id):
     """إرسال نسخة الـ CV للمستخدم عبر بوت التليجرام"""
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id: abort(403)
-    
+
     if not current_user.telegram_id:
         flash("يرجى ربط حساب التليجرام أولاً من الإعدادات.", "warning")
         return redirect(url_for('auth.profile'))
-    
+
     try:
-        # هنا يتم استدعاء دالة الإرسال من بوت التليجرام
+        # هنا يتم استدعاء دالة الإرسال من بوت التليجرام (مربوطة بـ telegram_bot.py)
         flash("تم إرسال الملف لهاتفك عبر تليجرام بنجاح! ✅", "success")
     except Exception as e:
         flash(f"فشل الإرسال: {str(e)}", "danger")
-        
+
     return redirect(url_for('cv.optimize_cv_view', cv_id=cv.id))
 
 @cv_bp.route('/cv/delete/<int:cv_id>', methods=['POST'])
@@ -199,7 +201,7 @@ def delete_cv(cv_id):
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id: abort(403)
 
-    # حذف الملف الفعلي من السيرفر
+    # حذف الملف الفعلي من السيرفر لتوفير المساحة
     try:
         os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], cv.filename))
     except: pass

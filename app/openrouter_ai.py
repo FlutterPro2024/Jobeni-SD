@@ -82,13 +82,13 @@ class OpenRouterAI:
     def analyze_cv_complete(self, cv_text):
         """تحليل سيرة ذاتية صارم بمعايير التوظيف العالمية"""
         prompt = f"""
-        أنت مدقق موارد بشرية عالمي (Senior Technical Recruiter). قم بتحليل النص التالي بصرامة متناهية.
+        أنت مدقق موارد بشرية عالمي (Senior Technical Recruiter). قم بتحليل النص التالي بصرامة متناهية وبدون أي مجاملة.
         حول البيانات إلى كائن JSON فقط بالهيكل التالي:
         {{
             "skills": ["قائمة المهارات التقنية المستخرجة"],
             "profession": "المسمى الوظيفي الأمثل حسب المعايير الدولية",
-            "overall_score": 85, (تقييم من 100 يعكس قوة الملف عالمياً)
-            "feedback": "رسالة مهنية بلهجة عربية عالمية راقية تشجع المرشح وتبرز نقاط تميزه.",
+            "overall_score": 85, (تقييم صارم من 100 يعكس قوة الملف عالمياً)
+            "feedback": "رسالة مهنية بلهجة عربية عالمية راقية تبرز نقاط القوة والضعف بوضوح.",
             "missing_skills": [
                 {{"skill": "اسم المهارة المفقودة", "reason": "لماذا تطلبها الشركات الكبرى", "learning_link": "رابط مقترح للتعلم"}}
             ]
@@ -116,6 +116,7 @@ class OpenRouterAI:
         4. Academic & Certifications (التعليم والشهادات الاحترافية)
         5. Projects & Real-world Impact (المشاريع والأثر الفعلي)
         Return ONLY a JSON object: {{"labels": ["Technical", "Soft Skills", "Experience", "Education", "Projects"], "scores": [0,0,0,0,0]}}
+        Be very strict; do not give high scores unless the evidence is crystal clear.
         CV Data: {cv_text[:2500]}
         """
         res = self._call_ai(prompt, temperature=0.1)
@@ -128,12 +129,12 @@ class OpenRouterAI:
     def suggest_courses_for_gaps(self, radar_data):
         """توصيات أكاديمية رفيعة المستوى لسد الفجوات المهنية"""
         gaps = [label for label, score in zip(radar_data['labels'], radar_data['scores']) if score < 80]
-        if not gaps: 
+        if not gaps:
             return "🚀 <b>تهانينا!</b> ملفك المهني يطابق معايير النخبة عالمياً. استمر في تعزيز تواجدك الرقمي."
 
         prompt = f"""
-        المرشح لديه فجوات في المهارات التالية: {gaps}.
-        اقترح مساراً تعليمياً واحداً (Coursera أو LinkedIn Learning) لكل فجوة.
+        المرشح لديه فجوات حقيقية في المهارات التالية: {gaps}.
+        اقترح مساراً تعليمياً واحداً (Coursera أو LinkedIn Learning) لكل فجوة لسد هذا النقص المهني.
         اللغة: عربية مهنية عالمية (Professional Global Arabic).
         التنسيق: HTML <ul><li>.
         """
@@ -142,7 +143,7 @@ class OpenRouterAI:
     def build_global_cv(self, cv_text):
         """تطوير السيرة الذاتية لتصبح نسخة عالمية (ATS-Optimized)"""
         prompt = f"""
-        أعد صياغة السيرة الذاتية التالية لتصبح ملفاً عالمياً فائق الجودة:
+        أعد صياغة السيرة الذاتية التالية لتصبح ملفاً عالمياً فائق الجودة يتجاوز أنظمة الـ ATS الصارمة:
         1. استخدم أفعال الإنجاز القوية (Strong Action Verbs).
         2. ركز على النتائج القابلة للقياس (Quantifiable Achievements).
         3. اللغة: English (Professional Level).
@@ -155,7 +156,7 @@ class OpenRouterAI:
         """توليد أسئلة مقابلة ذكية بناءً على التناقضات في الملف"""
         prompt = f"""
         بناءً على وظيفة ({job_title}) وسيرة المرشح ({cv_text[:1000]}).
-        ضع 3 أسئلة مقابلة تقنية "صعبة" تكشف مدى صدق الخبرة المذكورة.
+        ضع 3 أسئلة مقابلة تقنية "صعبة ومستفزة" تكشف مدى صدق الخبرة المذكورة وتفضح أي مبالغة.
         اللغة: عربية مهنية عالمية.
         """
         return self._call_ai(prompt, temperature=0.7)
@@ -169,5 +170,5 @@ def get_ai_response(prompt, temperature=0.5):
 def get_expert_omni_response(user_query, user_context=None, job_context=None):
     """المجيب الخبير لجميع استفسارات المستخدمين بلهجة عالمية"""
     context_str = f"User Context: {user_context} | Job Context: {job_context}"
-    prompt = f"Context: {context_str}\nقم بالإجابة كخبير مهني عالمي بلهجة عربية احترافية: {user_query}"
+    prompt = f"Context: {context_str}\nقم بالإجابة كخبير مهني عالمي بلهجة عربية احترافية وصارمة: {user_query}"
     return openrouter_ai.get_ai_response(prompt, temperature=0.6)
