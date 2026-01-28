@@ -31,6 +31,6 @@ arabic-reshaper==3.0.0
 python-bidi==0.4.2
 Pillow==10.1.0
 qrcode==7.4.2
-
+tenacity==8.2.3
 # أدوات الأمان
 cryptography==41.0.5
