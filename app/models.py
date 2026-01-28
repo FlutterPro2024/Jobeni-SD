@@ -1,3 +1,4 @@
+# ~/jobeni-sD/app/models.py
 from app import db
 from flask_login import UserMixin
 from datetime import datetime
@@ -124,10 +125,9 @@ class Job(db.Model):
     category = db.Column(db.String(50), default='عام')
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     employer_user = db.relationship('User', back_populates='jobs')
-
+    
     applications = db.relationship('Application', backref='job_ref', lazy=True, cascade="all, delete-orphan")
     questions = db.relationship('JobQuestion', backref='job', lazy=True, cascade="all, delete-orphan")
 
@@ -195,7 +195,6 @@ class Post(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     image_file = db.Column(db.String(100), nullable=True)
     video_file = db.Column(db.String(100), nullable=True)
-
     likes = db.relationship('PostLike', backref='post', lazy='dynamic', cascade="all, delete-orphan")
     comments = db.relationship('Comment', backref='post', lazy='dynamic', cascade="all, delete-orphan")
 
@@ -211,7 +210,6 @@ class Comment(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     post_id = db.Column(db.Integer, db.ForeignKey('post.id'))
     parent_id = db.Column(db.Integer, db.ForeignKey('comment.id'))
-
     replies = db.relationship(
         'Comment', backref=db.backref('parent', remote_side=[id]),
         lazy='dynamic', cascade="all, delete-orphan"
@@ -229,5 +227,4 @@ class Notification(db.Model):
     category = db.Column(db.String(20), default='info') # like, comment, follow, info
     is_read = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
     sender = db.relationship('User', foreign_keys=[sender_id], backref='notifications_sent')

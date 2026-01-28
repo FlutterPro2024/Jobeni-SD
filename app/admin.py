@@ -2,13 +2,29 @@
 import os
 from flask import Blueprint, render_template, abort, request, redirect, url_for, flash, Response
 from flask_login import login_required, current_user
-from app.models import User, Job, Application, CV, db, Post
+from app.models import User, Job, Application, CV, db, Post, SystemConfig # أضفنا SystemConfig هنا
 from sqlalchemy import func, or_
 from datetime import datetime, timedelta
 
 admin_bp = Blueprint('admin', __name__)
-MAINTENANCE_FILE = "maintenance.flag"
-ANNOUNCEMENT_FILE = "announcement.txt"
+
+# --- دوال مساعدة للتعامل مع الإعدادات في قاعدة البيانات بدل الملفات ---
+
+def get_config(key, default=None):
+    config = SystemConfig.query.filter_by(key=key).first()
+    return config.value if config else default
+
+def set_config(key, value, extra=None):
+    config = SystemConfig.query.filter_by(key=key).first()
+    if not config:
+        config = SystemConfig(key=key)
+        db.session.add(config)
+    config.value = value
+    if extra:
+        config.extra_value = extra
+    db.session.commit()
+
+# ------------------------------------------------------------------
 
 @admin_bp.route('/super-admin/stats')
 @login_required
@@ -40,16 +56,15 @@ def global_dashboard():
         'tg_users': User.query.filter(User.telegram_id != None).count()
     }
 
-    is_maintenance = os.path.exists(MAINTENANCE_FILE)
+    # قراءة الإعدادات من قاعدة البيانات (آمن لـ Vercel)
+    is_maintenance = get_config('maintenance') == 'on'
+    current_announcement = get_config('announcement')
+    # اللون يتم جره من extra_value في موديل SystemConfig
+    announcement_color = SystemConfig.query.filter_by(key='announcement').first()
+    color_type = announcement_color.extra_value if announcement_color else 'danger'
+
     all_jobs = Job.query.order_by(Job.created_at.desc()).limit(20).all()
     recent_analyses = CV.query.order_by(CV.created_at.desc()).limit(10).all()
-
-    # قراءة التعميم الحالي لعرضه في لوحة التحكم
-    current_announcement = None
-    if os.path.exists(ANNOUNCEMENT_FILE):
-        with open(ANNOUNCEMENT_FILE, "r", encoding="utf-8") as f:
-            content = f.read().strip()
-            current_announcement = content.split("|", 1)[1] if "|" in content else content
 
     return render_template('admin/global_dashboard.html',
                            stats=stats,
@@ -58,29 +73,31 @@ def global_dashboard():
                            recent_analyses=recent_analyses,
                            all_users=all_users,
                            search_query=search_query,
-                           global_announcement=current_announcement)
+                           global_announcement=current_announcement,
+                           announcement_color=color_type) # تمرير اللون للتمبلت
 
 @admin_bp.route('/super-admin/broadcast', methods=['POST'])
 @login_required
 def broadcast():
-    """إرسال تعميم سيادي مع اختيار اللون (danger, success, primary)"""
+    """إرسال تعميم سيادي وحفظه في قاعدة البيانات"""
     if current_user.role != 'admin': abort(403)
     message = request.form.get('message', '').strip()
     color_type = request.form.get('color_type', 'danger')
-    
+
     if message:
-        with open(ANNOUNCEMENT_FILE, "w", encoding="utf-8") as f:
-            f.write(f"{color_type}|{message}")
+        set_config('announcement', message, extra=color_type)
         flash(f"🚀 تم نشر التعميم بنجاح (النوع: {color_type}).", "success")
     return redirect(url_for('admin.global_dashboard'))
 
 @admin_bp.route('/super-admin/clear-broadcast', methods=['POST'])
 @login_required
 def clear_broadcast():
-    """حذف التعميم الحالي من الموقع"""
+    """حذف التعميم الحالي من قاعدة البيانات"""
     if current_user.role != 'admin': abort(403)
-    if os.path.exists(ANNOUNCEMENT_FILE):
-        os.remove(ANNOUNCEMENT_FILE)
+    config = SystemConfig.query.filter_by(key='announcement').first()
+    if config:
+        db.session.delete(config)
+        db.session.commit()
         flash("🗑️ تم سحب التعميم بنجاح.", "info")
     return redirect(url_for('admin.global_dashboard'))
 
@@ -121,19 +138,21 @@ def export_users():
     csv_data = "ID,Username,Full Name,Email,Role\n"
     for u in users:
         csv_data += f"{u.id},{u.username},{u.full_name or 'N/A'},{u.email},{u.role}\n"
-    return Response(csv_data, mimetype="text/csv", 
+    return Response(csv_data, mimetype="text/csv",
                     headers={"Content-disposition": "attachment; filename=users_report.csv"})
 
 @admin_bp.route('/super-admin/toggle-maintenance', methods=['POST'])
 @login_required
 def toggle_maintenance():
-    """تفعيل أو إيقاف وضع الصيانة"""
+    """تفعيل أو إيقاف وضع الصيانة عبر قاعدة البيانات"""
     if current_user.role != 'admin': abort(403)
-    if os.path.exists(MAINTENANCE_FILE):
-        os.remove(MAINTENANCE_FILE)
+    
+    current_status = get_config('maintenance')
+    if current_status == 'on':
+        set_config('maintenance', 'off')
         flash("✅ تم إلغاء وضع الصيانة.", "success")
     else:
-        with open(MAINTENANCE_FILE, "w") as f: f.write("on")
+        set_config('maintenance', 'on')
         flash("⚠️ تم تفعيل وضع الصيانة.", "warning")
     return redirect(url_for('admin.global_dashboard'))
 

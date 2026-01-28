@@ -31,7 +31,7 @@ def create_app(config_name='default'):
     login_manager.init_app(app)
     migrate.init_app(app, db)
     mail.init_app(app)
-    
+
     # تهيئة وتشغيل المجدول (Scheduler) لإدارة مهام الأيجنت الذكي
     if not scheduler.running:
         scheduler.init_app(app)
@@ -44,7 +44,7 @@ def create_app(config_name='default'):
 
     with app.app_context():
         # 1. استيراد النماذج لضمان تسجيلها في SQLAlchemy
-        from app.models import User, Notification, Job, CV, Message, Post
+        from app.models import User, Notification, Job, CV, Message, Post, SystemConfig
 
         # 2. تسجيل Blueprints الأساسية
         from app.auth import auth_bp
@@ -74,7 +74,7 @@ def create_app(config_name='default'):
         try:
             from app.cv import cv_bp
             app.register_blueprint(cv_bp, url_prefix='/cv')
-            
+
             from app.search import search_bp
             app.register_blueprint(search_bp, url_prefix='/search')
 
@@ -92,7 +92,7 @@ def create_app(config_name='default'):
         # 4. إعداد مهام الأيجنت الدورية (الرادار الذكي)
         try:
             from app.tasks import run_ai_agent_discovery, send_weekly_agent_summary
-            
+
             # مهمة الرادار اليومي (كل 24 ساعة)
             if not scheduler.get_job('ai_agent_job'):
                 scheduler.add_job(id='ai_agent_job', func=run_ai_agent_discovery, trigger='interval', hours=24)
@@ -111,26 +111,21 @@ def create_app(config_name='default'):
 
     @app.context_processor
     def inject_vars():
-        """حقن متغيرات عالمية (التعميم السيادي، نظام الإشعارات، الوقت)"""
-        from app.models import Notification
+        """حقن متغيرات عالمية (التعميم من الداتابيز، الإشعارات، الوقت)"""
+        from app.models import Notification, SystemConfig
         from datetime import datetime, timedelta
 
-        # منطق التعميم السيادي (قراءة من announcement.txt)
-        announcement_path = os.path.join(app.root_path, '..', 'announcement.txt')
+        # قراءة التعميم من قاعدة البيانات بدل الملفات (لضمان عمله على Vercel)
         announcement = None
-        announcement_color = 'danger' # القيمة الافتراضية للتحذيرات
-
-        if os.path.exists(announcement_path):
-            try:
-                with open(announcement_path, "r", encoding="utf-8") as f:
-                    content = f.read().strip()
-                    if "|" in content:
-                        # تنسيق: color|message (مثال: success|مرحباً بكم)
-                        announcement_color, announcement = content.split("|", 1)
-                    else:
-                        announcement = content
-            except Exception:
-                announcement = None
+        announcement_color = 'danger'
+        
+        try:
+            config_entry = SystemConfig.query.filter_by(key='announcement').first()
+            if config_entry:
+                announcement = config_entry.value
+                announcement_color = config_entry.extra_value or 'danger'
+        except Exception:
+            announcement = None
 
         return dict(
             Notification=Notification,
