@@ -109,7 +109,7 @@
                         </div>
                     </form>
                     <div class="mt-3">
-                        <button onclick="testWhatsApp()" class="btn btn-outline-success btn-sm rounded-pill px-3">
+                        <button onclick="testWhatsApp(event)" class="btn btn-outline-success btn-sm rounded-pill px-3">
                             <i class="fab fa-whatsapp ms-1"></i> اختبار التوصيل الآن
                         </button>
                     </div>
@@ -224,16 +224,6 @@
                     </a>
                 </div>
             </div>
-
-            {% if not current_user.telegram_id %}
-            <div class="card border-0 shadow-sm rounded-5 bg-info text-white mb-4 animate__animated animate__headShake">
-                <div class="card-body p-4">
-                    <h6 class="fw-bold"><i class="fab fa-telegram ms-2"></i> ربط تليجرام</h6>
-                    <p class="x-small mb-3">اربط حسابك لتلقي إشعارات المقابلات الفورية.</p>
-                    <a href="https://t.me/JOBENISDbot?start={{ current_user.id }}" target="_blank" class="btn btn-white text-info w-100 rounded-pill fw-bold shadow-sm">ابدأ الآن</a>
-                </div>
-            </div>
-            {% endif %}
         </div>
     </div>
 </div>
@@ -310,7 +300,7 @@
         const modalElement = document.getElementById('interviewModal');
         const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
         const content = document.getElementById('interviewQuestionsContent');
-        
+
         modal.show();
         content.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div><p class="mt-2">المحرك العالمي يحلل ملفك الآن...</p></div>';
 
@@ -318,7 +308,6 @@
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    // تحويل السطور الجديدة لـ HTML لضمان التنسيق
                     content.innerHTML = `<div class="animate__animated animate__fadeIn">${data.questions.replace(/\n/g, '<br>')}</div>`;
                 } else {
                     content.innerHTML = `<div class="alert alert-danger rounded-4">${data.message}</div>`;
@@ -329,11 +318,11 @@
             });
     }
 
-    function testWhatsApp() {
-        const btn = event.target;
+    function testWhatsApp(event) {
+        const btn = event.target.closest('button');
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm ms-1"></span> جاري الإرسال...';
-        
+
         fetch("{{ url_for('auth.test_whatsapp_agent') }}", { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             .then(r => r.json())
             .then(data => {

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Jobeni SD - منصة التوظيف الذكية{% endblock %}</title>
-    
+
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <meta name="theme-color" content="#0d6efd">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -20,9 +20,14 @@
     <style>
         :root { --gradient-blue: linear-gradient(135deg, #0d6efd 0%, #0dcaf0 100%); }
 
-        body { padding-top: 85px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; transition: padding 0.3s; }
+        body { 
+            padding-top: 85px; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #f8f9fa; 
+            transition: padding 0.3s; 
+        }
 
-        /* تنسيق التعميم السيادي الملون */
+        /* تنسيق التعميم السيادي الملون المترابط مع قاعدة البيانات */
         .global-announcement-bar {
             padding: 10px;
             font-size: 0.95rem;
@@ -37,9 +42,32 @@
         body.has-announcement { padding-top: 130px; }
         .nav-with-announcement { top: 45px !important; }
 
-        .navbar { background-color: rgba(33, 37, 41, 0.97) !important; backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.1); transition: top 0.3s; }
-        .logo-icon { background: var(--gradient-blue); color: white; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-left: 10px; }
-        .logo-text { font-size: 22px; font-weight: 800; background: var(--gradient-blue); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        /* تنسيقات الـ Navbar الحديثة */
+        .navbar { 
+            background-color: rgba(33, 37, 41, 0.97) !important; 
+            backdrop-filter: blur(10px); 
+            border-bottom: 1px solid rgba(255,255,255,0.1); 
+            transition: top 0.3s; 
+        }
+        .logo-icon { 
+            background: var(--gradient-blue); 
+            color: white; 
+            width: 40px; 
+            height: 40px; 
+            border-radius: 10px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-weight: bold; 
+            margin-left: 10px; 
+        }
+        .logo-text { 
+            font-size: 22px; 
+            font-weight: 800; 
+            background: var(--gradient-blue); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+        }
         .nav-link { color: rgba(255,255,255,0.85) !important; transition: 0.3s; font-weight: 500; }
         .nav-link:hover { color: #0dcaf0 !important; }
 
@@ -47,6 +75,7 @@
         .alert { border-radius: 12px; border: none; }
         .nav-avatar { width: 30px; height: 30px; object-fit: cover; border: 1.5px solid #0dcaf0; }
 
+        /* شارة التنبيهات */
         .notification-badge {
             position: absolute; top: 5px; right: 5px;
             padding: 2px 6px; border-radius: 50%;
@@ -55,6 +84,7 @@
             border: 2px solid #212529;
         }
 
+        /* بنر تثبيت التطبيق PWA */
         #pwa-install-banner {
             position: fixed; bottom: 20px; left: 20px; right: 20px;
             background: #ffffff; color: #212529; padding: 18px;
@@ -219,7 +249,7 @@
             }
         }
 
-        // --- نظام الإشعارات اللحظي ---
+        // --- نظام الإشعارات اللحظي (Real-time Notifications) ---
         function updateAppBadge(count) {
             if ('setAppBadge' in navigator) {
                 count > 0 ? navigator.setAppBadge(count) : navigator.clearAppBadge();
@@ -281,6 +311,7 @@
             if (sound) sound.play().catch(e => console.log("Sound muted by browser policy"));
         }
     </script>
+
     <script>
         // --- إعدادات تثبيت التطبيق (PWA) ---
         let deferredPrompt;
