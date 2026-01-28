@@ -72,7 +72,7 @@ class User(db.Model, UserMixin):
                     return self.avatar
                 return url_for('static', filename='uploads/' + self.avatar)
         except Exception:
-            pass 
+            pass
         return f"https://ui-avatars.com/api/?name={self.username}&background=random&color=fff"
 
     def get_cover(self):
@@ -101,6 +101,7 @@ class Scholarship(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
+    # علاقة الذاكرة (Memory Relationship)
     memories = db.relationship('AgentMemory', backref='scholarship_ref', lazy=True)
 
 class AgentMemory(db.Model):
@@ -111,8 +112,9 @@ class AgentMemory(db.Model):
     scholarship_id = db.Column(db.Integer, db.ForeignKey('scholarship.id'), nullable=True) # ربط المنحة
     job_title = db.Column(db.String(200))
     action = db.Column(db.String(50)) # 'sent', 'ignored', 'scholarship_found', 'clicked'
-    score_at_time = db.Column(db.Integer)
+    score = db.Column(db.Integer) # تعديل ليكون متناسق مع الكود في agent_worker
     feedback_notes = db.Column(db.Text)
+    action_url = db.Column(db.String(500)) # لتخزين الرابط المباشر
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class SystemConfig(db.Model):
@@ -120,7 +122,7 @@ class SystemConfig(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     key = db.Column(db.String(50), unique=True)
     value = db.Column(db.Text)
-    extra_value = db.Column(db.String(50)) 
+    extra_value = db.Column(db.String(50))
 
 class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -147,8 +149,8 @@ class Job(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    
     employer_user = db.relationship('User', back_populates='jobs')
-
     applications = db.relationship('Application', backref='job_ref', lazy=True, cascade="all, delete-orphan")
     questions = db.relationship('JobQuestion', backref='job', lazy=True, cascade="all, delete-orphan")
 

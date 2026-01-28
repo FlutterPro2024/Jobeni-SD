@@ -6,7 +6,7 @@
 <div class="container py-5" dir="rtl">
     <div class="row justify-content-center align-items-center" style="min-height: 70vh;">
         <div class="col-md-5">
-            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden animate__animated animate__fadeInUp">
                 <div class="card-body p-5">
                     <div class="text-center mb-4">
                         <div class="icon-box bg-soft-primary mx-auto mb-3">
@@ -42,7 +42,7 @@
                         </div>
 
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-primary btn-lg rounded-pill fw-bold shadow-sm py-3" style="background: var(--gradient-blue); border:none;">
+                            <button type="submit" class="btn btn-primary btn-lg rounded-pill fw-bold shadow-sm py-3" style="background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); border:none;">
                                 دخول <i class="fas fa-sign-in-alt ms-2"></i>
                             </button>
                         </div>
@@ -61,5 +61,7 @@
     .bg-soft-primary { background-color: #eef4ff; }
     .icon-box { width: 60px; height: 60px; border-radius: 20px; display: flex; align-items: center; justify-content: center; }
     .form-control:focus { background-color: #fff !important; box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.1); border: 1px solid #0d6efd !important; }
+    /* إضافة تعريف التدرج إذا لم يكن معرفاً في base.html */
+    :root { --gradient-blue: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); }
 </style>
 {% endblock %}
