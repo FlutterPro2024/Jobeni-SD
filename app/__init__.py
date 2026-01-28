@@ -12,11 +12,12 @@ from flask_apscheduler import APScheduler
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import config
 
+# تعريف الإضافات عالمياً
 db = SQLAlchemy()
 login_manager = LoginManager()
 migrate = Migrate()
 mail = Mail()
-scheduler = APScheduler() # تعريف المجدول لإدارة مهام الأيجنت
+scheduler = APScheduler()
 
 def create_app(config_name='default'):
     app = Flask(__name__)
@@ -30,8 +31,8 @@ def create_app(config_name='default'):
     login_manager.init_app(app)
     migrate.init_app(app, db)
     mail.init_app(app)
-
-    # تهيئة وتشغيل المجدول (Scheduler) لمهام الأيجنت الذكي
+    
+    # تهيئة وتشغيل المجدول (Scheduler) لإدارة مهام الأيجنت الذكي
     if not scheduler.running:
         scheduler.init_app(app)
         scheduler.start()
@@ -42,10 +43,10 @@ def create_app(config_name='default'):
     login_manager.login_message_category = "info"
 
     with app.app_context():
-        # استيراد النماذج الأساسية لضمان تسجيلها في SQLAlchemy
+        # 1. استيراد النماذج لضمان تسجيلها في SQLAlchemy
         from app.models import User, Notification, Job, CV, Message, Post
 
-        # --- أولاً: استيراد Blueprints الأساسية ---
+        # 2. تسجيل Blueprints الأساسية
         from app.auth import auth_bp
         from app.jobs import jobs_bp
         from app.chat import chat_bp
@@ -54,7 +55,7 @@ def create_app(config_name='default'):
         from app.notifications import notifications_bp
         from app.agent_worker import agent_bp
 
-        # --- ثانياً: تسجيل Blueprints بترتيب يمنع تضارب الروابط ---
+        # تسجيل الـ Blueprints في التطبيق
         app.register_blueprint(auth_bp) # المسارات الجذرية /
         app.register_blueprint(agent_bp, url_prefix='/agent')
         app.register_blueprint(jobs_bp, url_prefix='/jobs')
@@ -63,17 +64,17 @@ def create_app(config_name='default'):
         app.register_blueprint(telegram_bp, url_prefix='/telegram')
         app.register_blueprint(notifications_bp, url_prefix='/notifications')
 
-        # --- ثالثاً: تسجيل الإضافات المتقدمة (الـ AI والبحث والإدارة) ---
+        # 3. تسجيل الإضافات المتقدمة (الـ AI والبحث والإدارة) مع معالجة الأخطاء
         try:
             from app.api import api_bp
             app.register_blueprint(api_bp)
         except ImportError:
-            app.logger.error("⚠️ لم يتم العثور على ملف api.py")
+            app.logger.error("⚠️ ملف api.py غير موجود")
 
         try:
             from app.cv import cv_bp
             app.register_blueprint(cv_bp, url_prefix='/cv')
-
+            
             from app.search import search_bp
             app.register_blueprint(search_bp, url_prefix='/search')
 
@@ -86,43 +87,45 @@ def create_app(config_name='default'):
             from app.interview import interview_bp
             app.register_blueprint(interview_bp, url_prefix='/interview')
         except Exception as e:
-            app.logger.error(f"⚠️ فشل في تسجيل بعض الأجزاء المتقدمة: {e}")
+            app.logger.error(f"⚠️ فشل في تحميل بعض الوحدات المتقدمة: {e}")
 
-        # --- رابعاً: إعداد مهام الأيجنت الدورية (الرادار الذكي) ---
-        from app.tasks import run_ai_agent_discovery, send_weekly_agent_summary
+        # 4. إعداد مهام الأيجنت الدورية (الرادار الذكي)
+        try:
+            from app.tasks import run_ai_agent_discovery, send_weekly_agent_summary
+            
+            # مهمة الرادار اليومي (كل 24 ساعة)
+            if not scheduler.get_job('ai_agent_job'):
+                scheduler.add_job(id='ai_agent_job', func=run_ai_agent_discovery, trigger='interval', hours=24)
+                app.logger.info("✅ رادار الأيجنت اليومي نشط")
 
-        # 1. إضافة مهمة الرادار اليومي (كل 24 ساعة) للبحث عن فرص جديدة
-        if not scheduler.get_job('ai_agent_job'):
-            scheduler.add_job(id='ai_agent_job', func=run_ai_agent_discovery, trigger='interval', hours=24)
-            app.logger.info("✅ تم تفعيل مهمة الرادار الذكي اليومي")
-
-        # 2. إضافة مهمة التقرير الأسبوعي (كل أسبوع)
-        if not scheduler.get_job('weekly_summary_job'):
-            scheduler.add_job(id='weekly_summary_job', func=send_weekly_agent_summary, trigger='interval', weeks=1)
-            app.logger.info("✅ تم تفعيل مهمة التقرير الأسبوعي الشامل")
+            # مهمة التقرير الأسبوعي
+            if not scheduler.get_job('weekly_summary_job'):
+                scheduler.add_job(id='weekly_summary_job', func=send_weekly_agent_summary, trigger='interval', weeks=1)
+                app.logger.info("✅ التقرير الأسبوعي مبرمج بنجاح")
+        except ImportError:
+            app.logger.warning("⚠️ لم يتم تفعيل المهام الدورية (tasks.py غير موجود)")
 
     @login_manager.user_loader
     def load_user(user_id):
-        from app.models import User
         return db.session.get(User, int(user_id))
 
     @app.context_processor
     def inject_vars():
-        """حقن متغيرات عالمية تشمل نظام التعميم السيادي الملون"""
+        """حقن متغيرات عالمية (التعميم السيادي، نظام الإشعارات، الوقت)"""
         from app.models import Notification
         from datetime import datetime, timedelta
-        
-        # منطق استخراج التعميم واللون
+
+        # منطق التعميم السيادي (قراءة من announcement.txt)
         announcement_path = os.path.join(app.root_path, '..', 'announcement.txt')
         announcement = None
-        announcement_color = 'danger' # القيمة الافتراضية
-        
+        announcement_color = 'danger' # القيمة الافتراضية للتحذيرات
+
         if os.path.exists(announcement_path):
             try:
                 with open(announcement_path, "r", encoding="utf-8") as f:
                     content = f.read().strip()
                     if "|" in content:
-                        # فصل اللون عن الرسالة (مثال: success|تم التحديث)
+                        # تنسيق: color|message (مثال: success|مرحباً بكم)
                         announcement_color, announcement = content.split("|", 1)
                     else:
                         announcement = content

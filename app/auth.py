@@ -109,7 +109,7 @@ def dashboard():
         return render_template('dashboard_employer.html', jobs=jobs)
 
     last_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
-    radar_labels = ["تقني", "شخصي", "خبرة", "تعليم", "مشاريع"]
+    radar_labels = ["تقني", "تواصل", "خبرة", "قيادة", "إبداع"]
     radar_scores = [50, 50, 50, 50, 50]
     course_suggestions = "ارفع سيرتك الذاتية للحصول على توصيات مخصصة من مستشار AI عالمي."
 
@@ -129,22 +129,10 @@ def dashboard():
         except Exception as e:
             print(f"Radar Generation Error: {e}")
 
-    # إحصائيات الأيجنت من الذاكرة
     agent_memories = AgentMemory.query.filter_by(user_id=current_user.id).order_by(AgentMemory.created_at.desc()).limit(10).all()
-    
-    # معالجة بيانات المخطط الزمني للأداء
-    radar_history = Application.query.filter_by(user_id=current_user.id, status='suggested')\
-                                   .order_by(Application.applied_at.desc()).limit(7).all()
-    radar_history.reverse()
-    chart_labels = [a.applied_at.strftime('%m/%d') for a in radar_history]
-    chart_scores = [a.match_score for a in radar_history]
-    
-    if not chart_scores:
-        chart_labels = ["البداية", "جاري الفحص"]
-        chart_scores = [0, 10]
 
     # توليد QR الهوية الشخصية المعتمدة
-    user_link = url_for('auth.user_profile', username=current_user.username, _external=True)
+    user_link = url_for('auth.verify_certificate', username=current_user.username, _external=True)
     qr = qrcode.QRCode(version=1, box_size=10, border=2)
     qr.add_data(user_link)
     qr.make(fit=True)
@@ -154,9 +142,6 @@ def dashboard():
     user_qr_base64 = base64.b64encode(buffered.getvalue()).decode()
 
     return render_template('dashboard.html',
-                           cvs=current_user.cvs,
-                           chart_labels=chart_labels,
-                           chart_scores=chart_scores,
                            radar_labels=radar_labels,
                            radar_scores=radar_scores,
                            course_suggestions=course_suggestions,
@@ -172,14 +157,12 @@ def update_agent_settings():
         current_user.agent_query = request.form.get('agent_query')
         current_user.agent_work_type = request.form.get('agent_work_type', 'both')
         current_user.agent_target_score = int(request.form.get('agent_target_score', 75))
-        current_user.agent_city_focus = request.form.get('agent_city_focus', '')
-
+        
         whatsapp = request.form.get('whatsapp_number')
         if whatsapp:
             clean_wa = whatsapp.strip().replace('+', '').replace(' ', '').replace('-', '')
             if clean_wa != current_user.whatsapp_number:
                 current_user.whatsapp_number = clean_wa
-                # إرسال ترحيب عند تفعيل الرقم الجديد
                 try:
                     from app.agent_worker import send_whatsapp_via_whapi
                     welcome_msg = (
@@ -189,13 +172,11 @@ def update_agent_settings():
                     )
                     send_whatsapp_via_whapi(clean_wa, welcome_msg)
                 except Exception: pass
-
-        # تسجيل التحديث في ذاكرة الأيجنت
-        memory = AgentMemory(user_id=current_user.id, action='settings_updated', 
+        
+        memory = AgentMemory(user_id=current_user.id, action='settings_updated',
                              feedback_notes=f"الوضع: {current_user.agent_work_type} | الهدف: {current_user.agent_target_score}%")
         db.session.add(memory)
         db.session.commit()
-
         flash('تم تحديث إعدادات الرادار الآلي بنجاح ✅', 'success')
     except Exception as e:
         db.session.rollback()
@@ -222,67 +203,79 @@ def test_whatsapp_agent():
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         if is_success:
             return jsonify({'status': 'success', 'message': 'وصلت رسالة الاختبار! ✅'})
-        return jsonify({'status': 'error', 'message': f'فشل الاتصال: {res}'}), 500
+        return jsonify({'status': 'error', 'message': 'فشل الاتصال بـ API الواتساب'}), 500
 
     if is_success: flash('وصلت رسالة الاختبار! ✅', 'success')
-    else: flash(f'فشل الإرسال. تأكد من الرقم والتوكن.', 'danger')
+    else: flash('فشل الإرسال. تأكد من إعدادات API.', 'danger')
     return redirect(url_for('auth.dashboard'))
 
 @auth_bp.route('/generate_interview_prep')
 @login_required
 def generate_interview_prep():
-    """توليد أسئلة مقابلة ذكية بناءً على ملف المستخدم (الخاصية الجديدة)"""
+    """توليد أسئلة مقابلة ذكية بناءً على ملف المستخدم"""
     last_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
     if not last_cv or not last_cv.extracted_text:
-        return jsonify({'status': 'error', 'message': 'يرجى رفع سيرتك الذاتية أولاً ليقوم الذكاء الاصطناعي بتحليلها.'}), 400
-    
+        return jsonify({'status': 'error', 'message': 'يرجى رفع سيرتك الذاتية أولاً.'}), 400
+
     try:
-        # استدعاء المحرك المطور من openrouter_ai
         questions = openrouter_ai.generate_interview_simulation(last_cv.profession or "متخصص", last_cv.extracted_text)
-        
-        # تسجيل النشاط في الذاكرة
-        memory = AgentMemory(user_id=current_user.id, action='interview_prep', feedback_notes="تم توليد جلسة محاكاة للمقابلة")
+        memory = AgentMemory(user_id=current_user.id, action='interview_prep', feedback_notes="توليد جلسة محاكاة")
         db.session.add(memory)
         db.session.commit()
-        
-        return jsonify({
-            'status': 'success',
-            'questions': questions
-        })
+        return jsonify({'status': 'success', 'questions': questions})
     except Exception as e:
-        return jsonify({'status': 'error', 'message': f'فشل في توليد الأسئلة: {str(e)}'}), 500
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @auth_bp.route('/force_upgrade')
 def force_upgrade():
-    """تحديث قاعدة البيانات لإضافة الأعمدة السيادية 2026"""
+    """تحديث قاعدة البيانات لإضافة الأعمدة السيادية 2026 المطابقة لنسخة السيرفر العالمي"""
     try:
         from sqlalchemy import text
-        cols = [
-            ('whatsapp_number', 'VARCHAR(20)'), ('agent_enabled', 'BOOLEAN DEFAULT FALSE'),
-            ('agent_active', 'BOOLEAN DEFAULT TRUE'), ('agent_query', 'VARCHAR(200)'),
-            ('agent_work_type', "VARCHAR(20) DEFAULT 'both'"), ('agent_target_score', 'INTEGER DEFAULT 75'),
-            ('agent_city_focus', 'VARCHAR(100)'), ('cover_photo', 'VARCHAR(200)'),
-            ('last_evaluation', 'TEXT'), ('qr_code_key', 'VARCHAR(50)')
+        # قائمة الأعمدة الجديدة المطلوبة لمواكبة نسخة Vercel
+        user_cols = [
+            ('whatsapp_number', 'VARCHAR(20)'),
+            ('agent_enabled', 'BOOLEAN DEFAULT FALSE'),
+            ('agent_active', 'BOOLEAN DEFAULT TRUE'),
+            ('agent_query', 'VARCHAR(200)'),
+            ('agent_work_type', "VARCHAR(20) DEFAULT 'both'"),
+            ('agent_target_score', 'INTEGER DEFAULT 75'),
+            ('agent_city_focus', 'VARCHAR(100)'),
+            ('cover_photo', 'VARCHAR(200)'),
+            ('last_evaluation', 'TEXT'),
+            ('qr_code_key', 'VARCHAR(50)'),
+            ('bio', 'TEXT'),
+            ('headline', 'VARCHAR(150)')
         ]
-        for col, col_type in cols:
+        
+        for col, col_type in user_cols:
             try:
                 db.session.execute(text(f'ALTER TABLE "user" ADD COLUMN {col} {col_type}'))
-            except: db.session.rollback()
+                db.session.commit()
+            except Exception: db.session.rollback()
 
-        # تحديث جداول التطبيقات والـ CV
-        db.session.execute(text('ALTER TABLE "application" ADD COLUMN IF NOT EXISTS quiz_score INTEGER'))
-        db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS radar_labels JSON'))
-        db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS radar_scores JSON'))
-        db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS course_recommendations TEXT'))
+        # تحديث جداول التطبيقات والـ CV والمجتمع
+        updates = [
+            'ALTER TABLE "application" ADD COLUMN IF NOT EXISTS quiz_score INTEGER',
+            'ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS radar_labels JSON',
+            'ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS radar_scores JSON',
+            'ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS course_recommendations TEXT',
+            'ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS profession VARCHAR(100)',
+            'ALTER TABLE "post" ADD COLUMN IF NOT EXISTS image_file VARCHAR(100)',
+            'ALTER TABLE "post" ADD COLUMN IF NOT EXISTS video_file VARCHAR(100)',
+            'ALTER TABLE "notification" ADD COLUMN IF NOT EXISTS sender_id INTEGER',
+            'ALTER TABLE "notification" ADD COLUMN IF NOT EXISTS post_id INTEGER'
+        ]
+        
+        for sql in updates:
+            try:
+                db.session.execute(text(sql))
+                db.session.commit()
+            except Exception: db.session.rollback()
 
-        # تحديث المجتمع والاشعارات
-        db.session.execute(text('ALTER TABLE "post" ADD COLUMN IF NOT EXISTS image_file VARCHAR(100)'))
-        db.session.execute(text('ALTER TABLE "post" ADD COLUMN IF NOT EXISTS video_file VARCHAR(100)'))
-        db.session.execute(text('ALTER TABLE "notification" ADD COLUMN IF NOT EXISTS sender_id INTEGER'))
-        db.session.execute(text('ALTER TABLE "notification" ADD COLUMN IF NOT EXISTS post_id INTEGER'))
-
-        db.session.commit()
-        return "<h1>✅ تم تحديث ترسانة البيانات بنجاح!</h1><p>النظام الآن متوافق تماماً مع محركات 2026.</p>"
+        return """<div style='direction:rtl;text-align:center;padding:50px;font-family:sans-serif;'>
+                  <h1 style='color:green;'>✅ تم التحديث بنجاح!</h1>
+                  <p>قاعدة البيانات الآن متوافقة تماماً مع نسخة Vercel 2026.</p>
+                  <a href='/dashboard'>الذهاب للوحة التحكم</a></div>"""
     except Exception as e:
         db.session.rollback()
         return f"<h1>❌ فشل التحديث</h1><p>{str(e)}</p>"
@@ -296,7 +289,7 @@ def profile():
         current_user.headline = request.form.get('headline')
         current_user.phone = request.form.get('phone')
         current_user.location_name = request.form.get('location_name')
-
+        
         if 'avatar' in request.files:
             file = request.files['avatar']
             if file and file.filename != '':
@@ -310,14 +303,12 @@ def profile():
                 if cover_url: current_user.cover_photo = cover_url
 
         db.session.commit()
-        flash('تم تحديث بروفايلك العالمي بنجاح ✅', 'success')
+        flash('تم تحديث بروفايلك بنجاح ✅', 'success')
         return redirect(url_for('auth.profile'))
 
     cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
-    applications = Application.query.filter_by(user_id=current_user.id).order_by(Application.applied_at.desc()).all()
     radar_data = cv.radar_scores if cv and cv.radar_scores else [0, 0, 0, 0, 0]
     
-    # توليد QR للبروفايل داخل صفحة الإعدادات
     user_link = url_for('auth.user_profile', username=current_user.username, _external=True)
     qr = qrcode.QRCode(version=1, box_size=5, border=1)
     qr.add_data(user_link)
@@ -326,8 +317,8 @@ def profile():
     buffered = io.BytesIO()
     img.save(buffered, format="PNG")
     user_qr_base64 = base64.b64encode(buffered.getvalue()).decode()
-
-    return render_template('profile.html', user_qr=user_qr_base64, cv=cv, applications=applications, radar_data=radar_data)
+                                                                
+    return render_template('profile.html', user_qr=user_qr_base64, cv=cv, radar_data=radar_data)
 
 @auth_bp.route('/logout')
 @login_required
@@ -341,10 +332,9 @@ def user_profile(username):
     user = User.query.filter_by(username=username).first_or_404()
     posts = Post.query.filter_by(user_id=user.id).order_by(Post.timestamp.desc()).all()
     is_online = (datetime.utcnow() - user.last_seen).total_seconds() < 300 if user.last_seen else False
-
     last_cv = CV.query.filter_by(user_id=user.id).order_by(CV.created_at.desc()).first()
     radar_data = last_cv.radar_scores if last_cv and last_cv.radar_scores else [50, 50, 50, 50, 50]
-
+    
     profile_url = url_for('auth.user_profile', username=user.username, _external=True)
     qr = qrcode.QRCode(version=1, box_size=10, border=2)
     qr.add_data(profile_url)
@@ -353,13 +343,8 @@ def user_profile(username):
     buffered = io.BytesIO()
     img.save(buffered, format="PNG")
     user_qr_base64 = base64.b64encode(buffered.getvalue()).decode()
-
+    
     return render_template('user_profile.html', user=user, posts=posts, is_online=is_online, user_qr=user_qr_base64, radar_data=radar_data)
-
-@auth_bp.route('/scanner')
-@login_required
-def scanner():
-    return render_template('scanner.html')
 
 @auth_bp.route('/verify/<username>')
 def verify_certificate(username):
