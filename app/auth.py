@@ -109,7 +109,7 @@ def register():
         email = request.form.get('email', '').lower().strip()
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
-        role = request.form.get('role', 'job_seeker')
+        role = request.form.get('role', 'jobseeker')
 
         if password != confirm_password:
             flash('كلمات المرور غير متطابقة.', 'danger')
@@ -145,7 +145,13 @@ def dashboard():
         return render_template('dashboard_employer.html', jobs=jobs)
 
     one_week_ago = datetime.utcnow() - timedelta(days=7)
-    recent_apps = Application.query.filter(Application.user_id == current_user.id, Application.created_at >= one_week_ago).all()
+    
+    # 🔥 الإصلاح هنا: تغيير created_at إلى applied_at لتتوافق مع الموديل
+    recent_apps = Application.query.filter(
+        Application.user_id == current_user.id, 
+        Application.applied_at >= one_week_ago
+    ).all()
+
     training_sessions = AgentMemory.query.filter(
         AgentMemory.user_id == current_user.id,
         AgentMemory.action == 'interview_prep',
@@ -297,9 +303,14 @@ def verify_certificate(username):
 def force_upgrade():
     try:
         from sqlalchemy import text
+        # تحديث الجداول الأساسية والجديدة
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)'))
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_enabled BOOLEAN DEFAULT FALSE'))
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_evaluation TEXT'))
+        # إضافة دعم المنح الدراسية في الميموري إذا لم يكن موجوداً
+        db.session.execute(text('ALTER TABLE "agent_memory" ADD COLUMN IF NOT EXISTS scholarship_id INTEGER REFERENCES scholarship(id)'))
         db.session.commit()
-        return "✅ تم التحديث بنجاح"
-    except Exception as e: return f"❌ فشل: {e}"
+        return "✅ تم تحديث قاعدة البيانات بنجاح لتدعم المنح والوكيل الذكي"
+    except Exception as e: 
+        db.session.rollback()
+        return f"❌ فشل التحديث: {e}"
