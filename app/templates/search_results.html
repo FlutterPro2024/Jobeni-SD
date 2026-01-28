@@ -80,7 +80,7 @@
                     <div class="col-12">
                         <div class="card border-0 shadow-sm rounded-4 p-4 job-card job-item h-100"
                              data-lat="{{ job.latitude }}" data-lng="{{ job.longitude }}"
-                             data-title="{{ job.title }}" data-company="{{ job.company }}">
+                             data-title="{{ job.title }}" data-company="{{ job.company_name }}">
                             <div class="row align-items-center">
                                 <div class="col-md-2 text-center d-none d-md-block">
                                     <div class="company-logo bg-primary bg-opacity-10 rounded-4 p-3 mx-auto">
@@ -90,13 +90,13 @@
                                 <div class="col-md-7">
                                     <h5 class="fw-bold mb-1 text-dark">{{ job.title }}</h5>
                                     <div class="d-flex flex-wrap gap-3 text-muted small">
-                                        <span><i class="far fa-building ms-1"></i> {{ job.company }}</span>
+                                        <span><i class="far fa-building ms-1"></i> {{ job.company_name }}</span>
                                         <span><i class="fas fa-map-pin ms-1 text-danger"></i> {{ job.location or 'السودان' }}</span>
                                         <span><i class="far fa-clock ms-1"></i> {{ job.created_at.strftime('%Y-%m-%d') if job.created_at else 'اليوم' }}</span>
                                     </div>
                                 </div>
                                 <div class="col-md-3 text-start mt-3 mt-md-0">
-                                    <a href="{{ url_for('jobs.job_details', job_id=job.id) }}" class="btn btn-outline-primary rounded-pill px-4 w-100 fw-bold">عرض التفاصيل</a>
+                                    <a href="{{ url_for('jobs.job_detail', job_id=job.id) }}" class="btn btn-outline-primary rounded-pill px-4 w-100 fw-bold">عرض التفاصيل</a>
                                 </div>
                             </div>
                         </div>
