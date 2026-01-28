@@ -145,10 +145,10 @@ def dashboard():
         return render_template('dashboard_employer.html', jobs=jobs)
 
     one_week_ago = datetime.utcnow() - timedelta(days=7)
-    
-    # 🔥 الإصلاح هنا: تغيير created_at إلى applied_at لتتوافق مع الموديل
+
+    # تصحيح: استخدام applied_at بدلاً من created_at لجدول Application
     recent_apps = Application.query.filter(
-        Application.user_id == current_user.id, 
+        Application.user_id == current_user.id,
         Application.applied_at >= one_week_ago
     ).all()
 
@@ -301,16 +301,36 @@ def verify_certificate(username):
 
 @auth_bp.route('/force_upgrade')
 def force_upgrade():
+    """مسار التحديث القوي لإصلاح كافة مشاكل قاعدة البيانات في Vercel"""
     try:
         from sqlalchemy import text
-        # تحديث الجداول الأساسية والجديدة
+        # 1. إضافة أعمدة جدول المستخدم (User)
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)'))
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_enabled BOOLEAN DEFAULT FALSE'))
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_evaluation TEXT'))
-        # إضافة دعم المنح الدراسية في الميموري إذا لم يكن موجوداً
-        db.session.execute(text('ALTER TABLE "agent_memory" ADD COLUMN IF NOT EXISTS scholarship_id INTEGER REFERENCES scholarship(id)'))
+        
+        # 2. إضافة العمود الحرج في agent_memory (لربط المنح والدراسات)
+        db.session.execute(text('ALTER TABLE "agent_memory" ADD COLUMN IF NOT EXISTS scholarship_id INTEGER'))
+        
+        # 3. إنشاء جدول المنح (Scholarship) في حال عدم وجوده
+        db.session.execute(text('''
+            CREATE TABLE IF NOT EXISTS scholarship (
+                id SERIAL PRIMARY KEY,
+                title VARCHAR(200) NOT NULL,
+                university VARCHAR(200),
+                country VARCHAR(100),
+                field_of_study VARCHAR(200),
+                level VARCHAR(50),
+                funding_type VARCHAR(50),
+                deadline TIMESTAMP,
+                official_link VARCHAR(500),
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        '''))
+        
         db.session.commit()
-        return "✅ تم تحديث قاعدة البيانات بنجاح لتدعم المنح والوكيل الذكي"
-    except Exception as e: 
+        return "✅ تم تحديث قاعدة البيانات وإضافة scholarship_id وجدول المنح بنجاح! جرب الداشبورد الآن."
+    except Exception as e:
         db.session.rollback()
-        return f"❌ فشل التحديث: {e}"
+        return f"❌ فشل التحديث العميق: {str(e)}"
