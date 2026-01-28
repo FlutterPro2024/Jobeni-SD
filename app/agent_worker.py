@@ -14,7 +14,8 @@ from flask import Blueprint, current_app, request, redirect, url_for, flash, jso
 from flask_login import login_required, current_user
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
-from app.models import User, CV, db, Job, Application, AgentMemory, Notification
+# تم إضافة Scholarship هنا لضمان الحفظ في الجدول الجديد
+from app.models import User, CV, db, Job, Application, AgentMemory, Notification, Scholarship
 from app.openrouter_ai import openrouter_ai
 from app.notifications import add_notification
 from app.serper_search import serper_searcher
@@ -47,7 +48,7 @@ def send_whatsapp_via_whapi(to_number, message):
     """إرسال رسالة واتساب عبر Whapi مع نظام إعادة المحاولة ومحاكاة الكتابة"""
     token = os.getenv('WHAPI_TOKEN')
     api_url = "https://gate.whapi.cloud/messages/text"
-
+    
     if not token:
         logger.error("❌ WHAPI_TOKEN مفقود في متغيرات البيئة")
         return None
@@ -76,7 +77,7 @@ def send_whatsapp_via_whapi(to_number, message):
         raise e
 
 class JobeniAgent:
-    """المحرك المركزي للوكيل الذكي والشهادات المعتمدة"""
+    """المحرك المركزي للوكيل الذكي والشهادات المعتمدة ورادار المنح"""
 
     @staticmethod
     def create_qr_code(link="https://jobeni-sd.vercel.app"):
@@ -100,7 +101,7 @@ class JobeniAgent:
 
             draw.rectangle([20, 20, 830, 1080], outline=(15, 15, 15), width=20)
             draw.rectangle([40, 40, 810, 1060], outline=(218, 165, 32), width=5)
-
+            
             try:
                 base_dir = os.path.dirname(os.path.dirname(__file__))
                 logo_path = os.path.join(base_dir, 'app', 'static', 'icons.png')
@@ -146,14 +147,13 @@ class JobeniAgent:
 
     @staticmethod
     def calculate_match_strictly(cv_text, job_title, job_desc):
-        """المحلل الصارم (ATS Matcher): تحليل العمق الفني وفجوات المهارات"""
+        """المحلل الصارم (ATS Matcher) للوظائف"""
         prompt = f"""
         Act as a HARSH Recruiter. Analyze match for: {job_title}.
         CV: {cv_text[:1500]}
         Job: {job_desc[:800]}
         Rules:
         - Penalize missing hard skills (-20%).
-        - Evaluate technical depth, not just keywords.
         Output JSON ONLY: {{"score": 0-100, "verdict": "Match/Reject", "missing": [], "notes": "concise feedback"}}
         """
         try:
@@ -163,48 +163,153 @@ class JobeniAgent:
         except: pass
         return {"score": 0, "verdict": "Reject", "notes": "AI Analysis Failed"}
 
+    @staticmethod
+    def find_scholarships_strictly(user_context, query):
+        """الوكيل الذكي للبحث عن المنح (Scholarship AI Agent)"""
+        prompt = f"""
+        Act as a Global Scholarship AI Agent. Find opportunities for: {query}
+        User Academic Context: {user_context[:1500]}
+
+        Tasks:
+        1. Evaluate based on GPA, Field, and Eligibility for Sudanese.
+        2. Assign Match Score (0-100%).
+        3. Output exactly as JSON array of objects.
+
+        Required JSON Format:
+        [{{
+          "title": "Scholarship Name",
+          "university": "University Name",
+          "level": "Undergraduate/Masters/PhD",
+          "field": "Specialization",
+          "country": "Host Country",
+          "funding": "Full/Partial",
+          "deadline": "YYYY-MM-DD",
+          "match_score": 0-100,
+          "notes": "Brief AI advice",
+          "link": "Official URL"
+        }}]
+        """
+        try:
+            search_results = serper_searcher.search_jobs(f"{query} scholarship 2026 fully funded")
+            web_context = str(search_results.get('jobs', []))
+
+            full_prompt = f"{prompt}\n\nSearch Data: {web_context[:2000]}"
+            res = openrouter_ai.get_ai_response(full_prompt, temperature=0.3)
+            match = re.search(r'\[.*\]', res, re.DOTALL)
+            if match: return json.loads(match.group())
+        except Exception as e:
+            logger.error(f"❌ Scholarship Search Error: {e}")
+        return []
+
 # --- المسارات الذكية (Routes) ---
 
 @agent_bp.route('/run-jobs-agent')
 def run_agent():
-    """المحرك الرئيسي: رادار الوظائف الصارم مع التعلم من الفشل"""
+    """المحرك الرئيسي: رادار الوظائف والمنح الصارم"""
     try:
-        user = User.query.filter_by(agent_enabled=True, agent_active=True).order_by(db.func.random()).first()
+        user = User.query.filter_by(agent_enabled=True).order_by(db.func.random()).first()
         if not user: return "No active agents.", 200
 
         cv = CV.query.filter_by(user_id=user.id).order_by(CV.created_at.desc()).first()
-        if not cv: return f"User {user.username} has no CV.", 200
-
-        query = user.agent_query or cv.profession or "Professional"
-        search_results = serper_searcher.search_jobs(f"{query} jobs {user.agent_work_type}")
-        jobs_pool = search_results.get('jobs', [])[:10]
+        context_text = cv.extracted_text if cv else "Generic student"
 
         matches_found = 0
-        for j in jobs_pool:
-            if AgentMemory.query.filter_by(user_id=user.id, job_id=str(j.get('title'))).first():
-                continue
+        
+        # --- حالة باحث عن منحة (مع الحفظ في جدول Scholarship الجديد) ---
+        if user.role == 'scholarship_seeker':
+            query = user.agent_query or "Global"
+            scholarships = JobeniAgent.find_scholarships_strictly(context_text, query)
+            for sch in scholarships:
+                # تجنب التكرار بناءً على الرابط في جدول Scholarship
+                existing = Scholarship.query.filter_by(official_link=sch['link']).first()
+                if existing:
+                    # إذا كانت المنحة موجودة، نتحقق هل تم إرسالها لهذا المستخدم مسبقاً في الذاكرة؟
+                    if AgentMemory.query.filter_by(user_id=user.id, scholarship_id=existing.id).first():
+                        continue
+                
+                score = sch.get('match_score', 0)
+                if score >= 60:
+                    # 1. حفظ المنحة في جدول Scholarship إذا كانت جديدة
+                    if not existing:
+                        new_sch_entry = Scholarship(
+                            title=sch['title'],
+                            university=sch.get('university'),
+                            country=sch.get('country'),
+                            field_of_study=sch.get('field'),
+                            level=sch.get('level'),
+                            funding_type=sch.get('funding'),
+                            official_link=sch['link']
+                        )
+                        try:
+                            if sch.get('deadline'):
+                                new_sch_entry.deadline = datetime.strptime(sch['deadline'], '%Y-%m-%d')
+                        except: pass
+                        db.session.add(new_sch_entry)
+                        db.session.flush() # للحصول على ID المنحة
+                        scholar_id = new_sch_entry.id
+                    else:
+                        scholar_id = existing.id
 
-            analysis = JobeniAgent.calculate_match_strictly(cv.extracted_text, j['title'], j.get('snippet', ''))
-            score = analysis.get('score', 0)
+                    # 2. حفظ في ذاكرة الوكيل بربط الحقل الجديد scholarship_id
+                    memory = AgentMemory(
+                        user_id=user.id, 
+                        action='scholarship_found', 
+                        scholarship_id=scholar_id, # ربط الجدول الجديد
+                        action_url=sch['link'], 
+                        feedback_notes=f"Match: {score}%", 
+                        score=score
+                    )
+                    db.session.add(memory)
+                    
+                    msg = (
+                        f"🎓 *بشارة منحة دراسية!* \n\n"
+                        f"📌 {sch['title']}\n"
+                        f"📊 المطابقة: {score}%\n"
+                        f"🌍 البلد: {sch.get('country')}\n"
+                        f"💰 التمويل: {sch.get('funding')}\n"
+                        f"📅 التقديم: {sch.get('deadline')}\n\n"
+                        f"🔗 {sch['link']}"
+                    )
 
-            if score >= user.agent_target_score:
-                memory = AgentMemory(user_id=user.id, action='sent', job_id=j['title'], feedback_notes=f"Score: {score}%", score=score)
-                db.session.add(memory)
+                    if user.telegram_id:
+                        send_message(user.telegram_id, msg)
 
-                if user.telegram_id:
-                    msg = f"🎯 *فرصة مكنة:* {j['title']}\n🏢 {j['company']}\n📊 المطابقة: {score}%\n💡 {analysis.get('notes')}"
-                    kb = {"inline_keyboard": [[{"text": "🔗 التقديم الآن", "url": j['link']}]]}
-                    send_message(user.telegram_id, msg, reply_markup=kb)
+                    if user.whatsapp_number and score >= 85:
+                        send_whatsapp_via_whapi(user.whatsapp_number, msg)
 
-                if user.whatsapp_number and score >= 85:
-                    wa_msg = f"🎯 *يا {user.username}، وظيفة لقطة!*\n\n📌 {j['title']}\n🏢 {j['company']}\n🔥 درجة المطابقة: {score}%\n\n🔗 {j['link']}"
-                    send_whatsapp_via_whapi(user.whatsapp_number, wa_msg)
+                    matches_found += 1
 
-                matches_found += 1
+        # --- حالة باحث عن وظيفة ---
+        else:
+            query = user.agent_query or (cv.profession if cv else "Professional")
+            search_results = serper_searcher.search_jobs(f"{query} jobs {user.agent_work_type}")
+            jobs_pool = search_results.get('jobs', [])[:10]
 
+            for j in jobs_pool:
+                if AgentMemory.query.filter_by(user_id=user.id, job_id=str(j.get('title'))).first():
+                    continue
+
+                analysis = JobeniAgent.calculate_match_strictly(context_text, j['title'], j.get('snippet', ''))
+                score = analysis.get('score', 0)
+
+                if score >= user.agent_target_score:
+                    memory = AgentMemory(user_id=user.id, action='sent', job_id=j['title'], feedback_notes=f"Score: {score}%", score=score)
+                    db.session.add(memory)
+                    
+                    if user.telegram_id:
+                        msg = f"🎯 *فرصة مكنة:* {j['title']}\n🏢 {j['company']}\n📊 المطابقة: {score}%\n💡 {analysis.get('notes')}"
+                        kb = {"inline_keyboard": [[{"text": "🔗 التقديم الآن", "url": j['link']}]]}
+                        send_message(user.telegram_id, msg, reply_markup=kb)
+
+                    if user.whatsapp_number and score >= 85:
+                        wa_msg = f"🎯 *يا {user.username}، وظيفة لقطة!*\n\n📌 {j['title']}\n🏢 {j['company']}\n🔥 درجة المطابقة: {score}%\n\n🔗 {j['link']}"
+                        send_whatsapp_via_whapi(user.whatsapp_number, wa_msg)
+                    
+                    matches_found += 1
+        
         user.last_agent_run = datetime.utcnow()
         db.session.commit()
-        return f"Processed for {user.username}. Matches: {matches_found}", 200
+        return f"Processed for {user.username}. Found: {matches_found}", 200
     except Exception as e:
         db.session.rollback()
         logger.error(f"Agent System Error: {e}")
@@ -212,24 +317,30 @@ def run_agent():
 
 @agent_bp.route('/weekly-summary')
 def weekly_summary_cron():
-    """المحرك الذكي للتقارير الأسبوعية: تحليل الأداء وإرسال التوصيات"""
+    """المحرك الذكي للتقارير الأسبوعية (وظائف + منح)"""
     try:
         users = User.query.filter_by(agent_enabled=True).all()
         processed_count = 0
         one_week_ago = datetime.utcnow() - timedelta(days=7)
 
         for user in users:
-            recent_apps = Application.query.filter(Application.user_id == user.id, Application.created_at >= one_week_ago).all()
-            matches_count = len(recent_apps)
-            top_score = max([a.match_score for a in recent_apps]) if recent_apps else 0
+            memories = AgentMemory.query.filter(
+                AgentMemory.user_id == user.id,
+                AgentMemory.created_at >= one_week_ago,
+                AgentMemory.action.in_(['sent', 'scholarship_found'])
+            ).all()
 
-            prompt = f"بصفتك مستشار مهني ذكي، اكتب ملخصاً أسبوعياً مشجعاً ومختصراً جداً لمستخدم سوداني. البيانات: الفرص المكتشفة {matches_count}، أعلى مطابقة {top_score}%. اللغة: سودانية دارجة خفيفة ومهذبة."
+            matches_count = len(memories)
+            top_score = max([m.score for m in memories]) if memories else 0
+            
+            role_text = "المنح" if user.role == "scholarship_seeker" else "الوظائف"
+            prompt = f"بصفتك مستشار مهني ذكي، اكتب ملخصاً أسبوعياً لمستخدم سوداني يبحث عن {role_text}. الفرص المكتشفة {matches_count}، أعلى مطابقة {top_score}%. استخدم لهجة سودانية دارجة مهذبة."
             ai_advice = openrouter_ai.get_ai_response(prompt, temperature=0.7)
-
+            
             report_msg = (
                 f"📊 *تقرير جوبيني الأسبوعي يا {user.username}* \n"
                 f"━━━━━━━━━━━━━━━\n"
-                f"🕵️‍♂️ *الفرص المكتشفة:* {matches_count}\n"
+                f"🕵️‍♂️ *فرص {role_text} المكتشفة:* {matches_count}\n"
                 f"🚀 *أعلى مطابقة:* {top_score}%\n"
                 f"💡 *نصيحة الأسبوع:* {ai_advice}\n\n"
                 f"🇸🇩 _معاً نصنع مستقبلك بذكاء_"
@@ -238,9 +349,9 @@ def weekly_summary_cron():
             if user.whatsapp_number: send_whatsapp_via_whapi(user.whatsapp_number, report_msg)
             if user.telegram_id: send_message(user.telegram_id, report_msg)
 
-            db.session.add(AgentMemory(user_id=user.id, action='weekly_report', feedback_notes=f"Sent summary: {matches_count} jobs"))
+            db.session.add(AgentMemory(user_id=user.id, action='weekly_report', feedback_notes=f"Sent summary"))
             processed_count += 1
-
+            
         db.session.commit()
         return f"Weekly reports sent to {processed_count} users.", 200
     except Exception as e:
@@ -270,10 +381,10 @@ def get_certificate():
 @agent_bp.route('/toggle-agent', methods=['POST', 'GET'])
 @login_required
 def toggle_agent():
-    """تشغيل أو إيقاف رادار الوظائف"""
+    """تشغيل أو إيقاف الرادار"""
     current_user.agent_enabled = not current_user.agent_enabled
     db.session.commit()
     status = "نشط الآن" if current_user.agent_enabled else "متوقف"
     add_notification(current_user.id, "تحديث الرادار", f"حالة الوكيل الذكي: {status}", "info")
-    flash(f"تم {status} رادار الوظائف بنجاح.", "success")
+    flash(f"تم {status} رادار الفرص بنجاح.", "success")
     return redirect(url_for('auth.dashboard'))

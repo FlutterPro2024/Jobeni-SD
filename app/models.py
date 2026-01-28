@@ -17,7 +17,7 @@ class User(db.Model, UserMixin):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
     full_name = db.Column(db.String(100))
-    role = db.Column(db.String(20), default='jobseeker') # jobseeker or employer
+    role = db.Column(db.String(20), default='jobseeker') # jobseeker, employer, scholarship_seeker
     phone = db.Column(db.String(20))
     avatar = db.Column(db.String(200))
     cover_photo = db.Column(db.String(200))
@@ -72,7 +72,7 @@ class User(db.Model, UserMixin):
                     return self.avatar
                 return url_for('static', filename='uploads/' + self.avatar)
         except Exception:
-            pass # في حال فشل الـ SQL داخل الترانزاكشن المعلق
+            pass 
         return f"https://ui-avatars.com/api/?name={self.username}&background=random&color=fff"
 
     def get_cover(self):
@@ -86,13 +86,31 @@ class User(db.Model, UserMixin):
         self.last_seen = datetime.utcnow()
         db.session.commit()
 
+class Scholarship(db.Model):
+    """موديل المنح الدراسية المكتشفة بواسطة الرادار"""
+    __tablename__ = 'scholarship'
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    university = db.Column(db.String(200))
+    country = db.Column(db.String(100))
+    field_of_study = db.Column(db.String(200))
+    level = db.Column(db.String(50)) # Bachelors, Masters, PhD
+    funding_type = db.Column(db.String(50)) # Full, Partial
+    deadline = db.Column(db.DateTime)
+    official_link = db.Column(db.String(500))
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    memories = db.relationship('AgentMemory', backref='scholarship_ref', lazy=True)
+
 class AgentMemory(db.Model):
     """ذاكرة الوكيل الذكي: لتذكر التفضيلات والقرارات السابقة"""
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     job_id = db.Column(db.Integer, db.ForeignKey('job.id'), nullable=True)
+    scholarship_id = db.Column(db.Integer, db.ForeignKey('scholarship.id'), nullable=True) # ربط المنحة
     job_title = db.Column(db.String(200))
-    action = db.Column(db.String(50)) # 'sent', 'ignored', 'clicked', 'settings_updated'
+    action = db.Column(db.String(50)) # 'sent', 'ignored', 'scholarship_found', 'clicked'
     score_at_time = db.Column(db.Integer)
     feedback_notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -100,9 +118,9 @@ class AgentMemory(db.Model):
 class SystemConfig(db.Model):
     """إعدادات النظام (حل مشكلة الملفات في Vercel)"""
     id = db.Column(db.Integer, primary_key=True)
-    key = db.Column(db.String(50), unique=True) # 'maintenance', 'announcement'
+    key = db.Column(db.String(50), unique=True)
     value = db.Column(db.Text)
-    extra_value = db.Column(db.String(50)) # لحفظ ألوان التنبيهات مثلاً
+    extra_value = db.Column(db.String(50)) 
 
 class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)

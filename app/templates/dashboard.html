@@ -23,7 +23,13 @@
             <div class="row align-items-center position-relative" style="z-index: 2;">
                 <div class="col-md-8">
                     <h1 class="fw-bold mb-2 display-6">مرحباً، {{ current_user.full_name or current_user.username }}! ✨</h1>
-                    <p class="lead mb-0 opacity-75">وكيلك الذكي شغال حالياً بيبحث ليك عن فرص مكنة في السودان والعالم.</p>
+                    <p class="lead mb-0 opacity-75">
+                        {% if current_user.role == 'scholarship_seeker' %}
+                        وكيل المنح شغال حالياً بيبحث ليك عن أفضل الجامعات والتمويل العالمي.
+                        {% else %}
+                        وكيلك الذكي شغال حالياً بيبحث ليك عن فرص مكنة في السودان والعالم.
+                        {% endif %}
+                    </p>
                 </div>
                 <div class="col-md-4 text-md-start mt-4 mt-md-0">
                     <div class="glass-box d-inline-block p-3 rounded-4 text-center" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);">
@@ -33,7 +39,7 @@
                 </div>
             </div>
             <div class="position-absolute bottom-0 start-0 opacity-10 mb-n5 ms-n5">
-                <i class="fas fa-shield-alt" style="font-size: 20rem;"></i>
+                <i class="fas {% if current_user.role == 'scholarship_seeker' %}fa-graduation-cap{% else %}fa-shield-alt{% endif %}" style="font-size: 20rem;"></i>
             </div>
         </div>
     </div>
@@ -53,8 +59,8 @@
         </div>
         <div class="col-md-3">
             <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-bottom border-4 border-info">
-                <div class="small text-muted mb-1">جلسات التدريب</div>
-                <div class="h3 fw-bold mb-0 text-info">{{ weekly_stats.training_sessions if weekly_stats else 0 }}</div>
+                <div class="small text-muted mb-1">تنبيهات فاعلة</div>
+                <div class="h3 fw-bold mb-0 text-info">{{ agent_memories|length }}</div>
             </div>
         </div>
         <div class="col-md-3">
@@ -70,7 +76,7 @@
             <div class="card border-0 shadow-sm rounded-5 bg-white mb-4 border-top border-5 border-primary">
                 <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
                     <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-2">تحليل AI 2026</span>
-                    <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-microchip text-primary ms-2"></i> رادار المهارات الذكي</h5>
+                    <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-microchip text-primary ms-2"></i> رادار التحليل الذكي</h5>
                 </div>
                 <div class="card-body p-4">
                     <div class="row align-items-center">
@@ -79,7 +85,7 @@
                         </div>
                         <div class="col-md-6 mt-4 mt-md-0">
                             <div class="p-4 rounded-5 bg-light border-start border-4 border-primary">
-                                <h6 class="fw-bold text-dark mb-3"><i class="fas fa-lightbulb text-warning ms-2"></i> نصيحة الأسبوع مخصصة:</h6>
+                                <h6 class="fw-bold text-dark mb-3"><i class="fas fa-lightbulb text-warning ms-2"></i> نصيحة الوكيل:</h6>
                                 <div class="small text-secondary leading-relaxed">
                                     {{ weekly_stats.ai_advice if weekly_stats and weekly_stats.ai_advice else 'ارفع سيرتك الذاتية لبدء التحليل الفني العميق وتلقي نصائح الوكيل.' }}
                                 </div>
@@ -95,90 +101,100 @@
                         <input class="form-check-input" type="checkbox" id="masterSwitch" {% if current_user.agent_enabled %}checked{% endif %}
                                onchange="document.getElementById('agentSettingsForm').submit()">
                     </div>
-                    <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-satellite-dish text-success ms-2"></i> إعدادات الرادار الآلي (WhatsApp Agent)</h5>
+                    <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-satellite-dish text-success ms-2"></i> إعدادات رادار جوبيني (WhatsApp & Telegram)</h5>
                 </div>
                 <div class="card-body p-4">
                     <form id="agentSettingsForm" action="{{ url_for('auth.update_agent_settings') }}" method="POST">
                         <input type="hidden" name="agent_enabled" id="agent_enabled_hidden" value="{{ 'on' if current_user.agent_enabled else 'off' }}">
-                        <input type="hidden" name="agent_active" value="on">
                         <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold">المجال الوظيفي (مثلاً: محاسب، مبرمج):</label>
-                                <input type="text" name="agent_query" class="form-control rounded-4 bg-light border-0 p-3"
-                                       placeholder="Software Developer" value="{{ current_user.agent_query or '' }}">
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">هدفي الحالي:</label>
+                                <select name="role" class="form-select rounded-4 bg-light border-0 p-3 shadow-sm">
+                                    <option value="job_seeker" {% if current_user.role == 'job_seeker' %}selected{% endif %}>البحث عن وظائف</option>
+                                    <option value="scholarship_seeker" {% if current_user.role == 'scholarship_seeker' %}selected{% endif %}>البحث عن منح دراسية</option>
+                                </select>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold">رقم الواتساب (بالصيغة العالمية):</label>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">التخصص / الكلمة المفتاحية:</label>
+                                <input type="text" name="agent_query" class="form-control rounded-4 bg-light border-0 p-3"
+                                       placeholder="مثلاً: هندسة، طب، Python" value="{{ current_user.agent_query or '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">رقم الواتساب (للتنبيهات):</label>
                                 <input type="text" name="whatsapp_number" class="form-control rounded-4 bg-light border-0 p-3"
                                        placeholder="249..." value="{{ current_user.whatsapp_number or '' }}">
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label small fw-bold">نوع العمل المفضل:</label>
+                                <label class="form-label small fw-bold">نطاق البحث:</label>
                                 <select name="agent_work_type" class="form-select rounded-4 bg-light border-0 p-3">
-                                    <option value="both" {% if current_user.agent_work_type == 'both' %}selected{% endif %}>الكل (ريموت + موقع)</option>
-                                    <option value="remote" {% if current_user.agent_work_type == 'remote' %}selected{% endif %}>عن بعد فقط (Remote)</option>
-                                    <option value="onsite" {% if current_user.agent_work_type == 'onsite' %}selected{% endif %}>في الموقع فقط</option>
+                                    <option value="both" {% if current_user.agent_work_type == 'both' %}selected{% endif %}>عالمي (الكل)</option>
+                                    <option value="remote" {% if current_user.agent_work_type == 'remote' %}selected{% endif %}>عن بعد فقط</option>
                                 </select>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label small fw-bold">دقة المطابقة المطلوبة:</label>
+                                <label class="form-label small fw-bold">دقة الفلترة الذكية:</label>
                                 <select name="agent_target_score" class="form-select rounded-4 bg-light border-0 p-3">
                                     <option value="60" {% if current_user.agent_target_score == 60 %}selected{% endif %}>متساهل (60%)</option>
-                                    <option value="75" {% if current_user.agent_target_score == 75 %}selected{% endif %}>متوازن (75%)</option>
-                                    <option value="90" {% if current_user.agent_target_score == 90 %}selected{% endif %}>صارم جداً (90%)</option>
+                                    <option value="85" {% if current_user.agent_target_score == 85 %}selected{% endif %}>صارم (85%)</option>
                                 </select>
                             </div>
                             <div class="col-md-4 d-flex align-items-end">
                                 <button type="submit" class="btn btn-success w-100 rounded-4 p-3 fw-bold shadow-sm">
-                                    <i class="fas fa-save ms-2"></i> حفظ وتحديث الرادار
+                                    <i class="fas fa-sync-alt ms-2"></i> تحديث الرادار
                                 </button>
                             </div>
                         </div>
                     </form>
-                    <div class="mt-3">
-                        <button onclick="testWhatsApp(event)" class="btn btn-outline-success btn-sm rounded-pill px-3">
-                            <i class="fab fa-whatsapp ms-1"></i> اختبار التوصيل الآن
-                        </button>
-                    </div>
                 </div>
             </div>
 
             <div class="card border-0 shadow-sm rounded-5 bg-white mb-4 overflow-hidden">
-                <div class="card-header bg-white border-0 pt-4 px-4">
-                    <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-history text-muted ms-2"></i> ذاكرة الوكيل (آخر النشاطات)</h5>
+                <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-bullseye text-danger ms-2"></i> صيد الرادار (آخر الفرص المكتشفة)</h5>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0 text-end">
                             <thead class="bg-light">
                                 <tr class="small text-muted">
-                                    <th class="px-4 py-3">الوظيفة / النشاط</th>
-                                    <th class="py-3">الإجراء</th>
-                                    <th class="py-3 text-center">الحالة</th>
-                                    <th class="py-3 text-start px-4">التاريخ</th>
+                                    <th class="px-4 py-3">الفرصة / الموقع</th>
+                                    <th class="py-3">النوع</th>
+                                    <th class="py-3 text-center">المطابقة</th>
+                                    <th class="py-3 text-start px-4">رابط مباشر</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% if agent_memories %}
-                                    {% for memory in agent_memories %}
+                                    {% for memory in agent_memories if memory.action in ['sent', 'scholarship_found'] %}
                                     <tr>
-                                        <td class="px-4 fw-bold small text-truncate" style="max-width: 200px;">{{ memory.job_id or 'إشعار نظام' }}</td>
-                                        <td class="small">{{ memory.action }}</td>
-                                        <td class="text-center">
-                                            {% if memory.action == 'sent' %}
-                                                <span class="badge bg-success-subtle text-success rounded-pill px-3">تم الإرسال</span>
-                                            {% elif memory.action == 'weekly_report' %}
-                                                <span class="badge bg-info-subtle text-info rounded-pill px-3">تقرير</span>
+                                        <td class="px-4 fw-bold small">
+                                            <div class="text-truncate" style="max-width: 250px;">{{ memory.job_id or memory.feedback_notes.split('|')[0] }}</div>
+                                            <div class="x-small text-muted fw-normal">{{ memory.created_at.strftime('%Y-%m-%d') }}</div>
+                                        </td>
+                                        <td class="small">
+                                            {% if memory.action == 'scholarship_found' %}
+                                            <span class="text-primary"><i class="fas fa-graduation-cap ms-1"></i> منحة</span>
                                             {% else %}
-                                                <span class="badge bg-light text-muted rounded-pill px-3">تم الفحص</span>
+                                            <span class="text-success"><i class="fas fa-briefcase ms-1"></i> وظيفة</span>
                                             {% endif %}
                                         </td>
-                                        <td class="text-start px-4 small opacity-75">{{ memory.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                        <td class="text-center">
+                                            <div class="badge {% if memory.score >= 80 %}bg-success{% else %}bg-primary{% endif %} rounded-pill">
+                                                {{ memory.score }}%
+                                            </div>
+                                        </td>
+                                        <td class="text-start px-4">
+                                            <a href="{{ memory.action_url or '#' }}" target="_blank" class="btn btn-sm btn-outline-dark rounded-pill px-3">
+                                                تقديم <i class="fas fa-external-link-alt me-1" style="font-size: 0.7rem;"></i>
+                                            </a>
+                                        </td>
                                     </tr>
                                     {% endfor %}
                                 {% else %}
                                     <tr>
-                                        <td colspan="4" class="text-center py-5 text-muted small">لا توجد سجلات في الذاكرة بعد. الأيجنت سيبدأ الفحص قريباً.</td>
+                                        <td colspan="4" class="text-center py-5 text-muted small">
+                                            الرادار لم يجد فرصاً مطابقة حتى الآن. تأكد من تفعيل الرادار وتحديث بياناتك.
+                                        </td>
                                     </tr>
                                 {% endif %}
                             </tbody>
@@ -193,13 +209,13 @@
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center mb-3">
                         <div class="bg-warning bg-opacity-10 p-2 rounded-3 ms-2">
-                            <i class="fas fa-user-tie text-warning"></i>
+                            <i class="fas fa-robot text-warning"></i>
                         </div>
-                        <h6 class="fw-bold mb-0">مُدرب المقابلات الذكي</h6>
+                        <h6 class="fw-bold mb-0">مُدرب المقابلات / المنح</h6>
                     </div>
-                    <p class="x-small text-muted mb-3">تدرب على أسئلة تقنية صعبة تم تصميمها خصيصاً بناءً على تحليل سيرتك الذاتية.</p>
+                    <p class="x-small text-muted mb-3">تدرب على أسئلة تقنية صعبة تم تصميمها خصيصاً بناءً على سياقك المهني أو الأكاديمي.</p>
                     <button onclick="loadInterviewPrep()" class="btn btn-warning w-100 rounded-pill fw-bold text-white shadow-sm">
-                        <i class="fas fa-play-circle ms-1"></i> ابدأ جلسة تدريب
+                        <i class="fas fa-play-circle ms-1"></i> ابدأ جلسة محاكاة
                     </button>
                 </div>
             </div>
@@ -208,19 +224,16 @@
                 <div class="card-body p-4 text-center">
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <i class="fas fa-rss text-primary animate__animated animate__pulse animate__infinite"></i>
-                        <h6 class="fw-bold mb-0">هويتك الرقمية المعتمدة</h6>
+                        <h6 class="fw-bold mb-0">هويتك الرقمية 2026</h6>
                     </div>
                     <div class="qr-container bg-white p-3 rounded-5 d-inline-block shadow-lg mb-3 border border-4 border-primary">
                         <img src="data:image/png;base64,{{ user_qr }}" alt="QR Code" class="img-fluid" style="width: 160px;">
                     </div>
-                    <p class="x-small opacity-75 mb-4">امسح الكود لعرض بروفايلك الموثق من قبل جوبيني السودان لعام 2026.</p>
+                    <p class="x-small opacity-75 mb-4">بطاقة هوية جوبيني الموثقة عالمياً. امسح الكود لعرض التوثيق.</p>
                     <div class="d-grid gap-2">
                         <a href="{{ url_for('agent.get_certificate') }}" class="btn btn-primary rounded-pill py-3 fw-bold shadow-sm">
-                            <i class="fas fa-certificate ms-2"></i> استلام شهادة التوثيق
+                            <i class="fas fa-certificate ms-2"></i> تحميل الشهادة المعتمدة
                         </a>
-                        <button class="btn btn-outline-light rounded-pill btn-sm border-0 opacity-75" onclick="window.print()">
-                            <i class="fas fa-download ms-1"></i> تحميل بطاقة الهوية
-                        </button>
                     </div>
                 </div>
             </div>
@@ -266,13 +279,13 @@
                 <div id="interviewQuestionsContent" class="small leading-relaxed text-secondary">
                     <div class="text-center py-4">
                         <div class="spinner-border text-primary" role="status"></div>
-                        <p class="mt-2">جاري تحليل ملفك وتجهيز أسئلة المقابلة...</p>
+                        <p class="mt-2">جاري تحليل ملفك وتجهيز الأسئلة...</p>
                     </div>
                 </div>
             </div>
             <div class="modal-footer border-0 pb-4 justify-content-start px-4">
                 <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">إغلاق</button>
-                <button onclick="loadInterviewPrep()" class="btn btn-primary rounded-pill px-4">توليد أسئلة جديدة</button>
+                <button onclick="loadInterviewPrep()" class="btn btn-primary rounded-pill px-4">توليد جديد</button>
             </div>
         </div>
     </div>
@@ -281,7 +294,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // رسم رادار المهارات
         const ctxRadar = document.getElementById('skillsRadarChart');
         if (ctxRadar) {
             new Chart(ctxRadar.getContext('2d'), {
@@ -300,9 +312,7 @@
                 },
                 options: {
                     responsive: true,
-                    scales: {
-                        r: { suggestMin: 0, suggestMax: 100, ticks: { display: false } }
-                    },
+                    scales: { r: { suggestMin: 0, suggestMax: 100, ticks: { display: false } } },
                     plugins: { legend: { display: false } }
                 }
             });
@@ -313,24 +323,11 @@
         const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('interviewModal'));
         const content = document.getElementById('interviewQuestionsContent');
         modal.show();
-        content.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div><p class="mt-2">المحرك العالمي يحلل ملفك الآن...</p></div>';
+        content.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div><p class="mt-2">جاري التحليل...</p></div>';
         fetch("{{ url_for('auth.generate_interview_prep') }}")
             .then(r => r.json())
             .then(data => {
                 content.innerHTML = data.status === 'success' ? `<div class="animate__animated animate__fadeIn">${data.questions.replace(/\n/g, '<br>')}</div>` : `<div class="alert alert-danger">${data.message}</div>`;
-            });
-    }
-
-    function testWhatsApp(event) {
-        const btn = event.target.closest('button');
-        btn.disabled = true;
-        btn.innerHTML = 'جاري الإرسال...';
-        fetch("{{ url_for('auth.test_whatsapp_agent') }}")
-            .then(r => r.json())
-            .then(data => {
-                alert(data.message);
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fab fa-whatsapp ms-1"></i> اختبار التوصيل الآن';
             });
     }
 </script>
@@ -342,6 +339,5 @@
     .rounded-5 { border-radius: 1.5rem !important; }
     .x-small { font-size: 0.75rem; }
     .leading-relaxed { line-height: 1.7; }
-    #interviewQuestionsContent { max-height: 400px; overflow-y: auto; }
 </style>
 {% endblock %}

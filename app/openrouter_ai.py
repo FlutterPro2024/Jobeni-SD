@@ -79,6 +79,47 @@ class OpenRouterAI:
     def get_ai_response(self, prompt, temperature=0.5):
         return self._call_ai(prompt, temperature)
 
+    # --- محرك البحث عن المنح الدراسية (Scholarship AI Agent) ---
+    def find_scholarships(self, query, context_text):
+        """رادار المنح الدراسية المبرمج لجلب أفضل الفرص العالمية 2026"""
+        prompt = f"""
+        أنت "Scholarship AI Agent" مبرمج لجلب أفضل المنح الدراسية عالمياً لكل مستويات التعليم (الثانوية، البكالوريوس، الماجستير، الدكتوراه).
+
+        المهام الأساسية:
+        1. ابحث في سياق البيانات المرفقة عن منح دراسية تناسب: {query}
+        2. صنف المنح حسب: المستوى الدراسي، التخصص، الدولة، ونوع التمويل.
+        3. قيم كل منحة وفق تطابقها مع خلفية المستخدم: {context_text[:1500]}
+        4. اعط كل منحة درجة مطابقة (Match Score 0-100%) بصرامة.
+        5. مخرجاتك يجب أن تكون بصيغة JSON Array فقط بهذا الهيكل:
+        [
+          {{
+            "title": "اسم المنحة",
+            "level": "High School / Undergraduate / Masters / PhD",
+            "field": "التخصص",
+            "country": "الدولة",
+            "remote_option": true/false,
+            "funding": "Partial/Full",
+            "language": "لغة الدراسة",
+            "deadline": "yyyy-mm-dd",
+            "match_score": 0-100,
+            "notes": "ملاحظات مختصرة ومهنية باللغة العربية",
+            "link": "رابط المنحة الرسمي"
+          }}
+        ]
+        قواعد صارمة:
+        - لا ترسل أي نص خارج مصفوفة الـ JSON.
+        - تأكد من أهلية الطلاب السودانيين لهذه المنح.
+        - أرسل فقط الفرص التي تصل لمستوى مطابقة ≥ 60%.
+        """
+        res = self._call_ai(prompt, temperature=0.2)
+        try:
+            # استخراج مصفوفة الـ JSON من استجابة الـ AI
+            clean = re.search(r'\[.*\]', res, re.DOTALL).group()
+            return json.loads(clean)
+        except:
+            print("❌ فشل في تحليل JSON المنح")
+            return []
+
     def analyze_cv_complete(self, cv_text):
         """تحليل سيرة ذاتية صارم بمعايير التوظيف العالمية"""
         prompt = f"""
@@ -87,7 +128,7 @@ class OpenRouterAI:
         {{
             "skills": ["قائمة المهارات التقنية المستخرجة"],
             "profession": "المسمى الوظيفي الأمثل حسب المعايير الدولية",
-            "overall_score": 85, (تقييم صارم من 100 يعكس قوة الملف عالمياً)
+            "overall_score": 85,
             "feedback": "رسالة مهنية بلهجة عربية عالمية راقية تبرز نقاط القوة والضعف بوضوح.",
             "missing_skills": [
                 {{"skill": "اسم المهارة المفقودة", "reason": "لماذا تطلبها الشركات الكبرى", "learning_link": "رابط مقترح للتعلم"}}
@@ -102,7 +143,7 @@ class OpenRouterAI:
         except:
             return {
                 "skills": ["جاري الاستخراج"], "profession": "متخصص", "overall_score": 50,
-                "feedback": "نعتذر، واجه الذكاء الاصطناعي صعوبة في قراءة بعض التنسيقات. يرجى التأكد من وضوح ملفك.",
+                "feedback": "نعتذر، واجه الذكاء الاصطناعي صعوبة في قراءة بعض التنسيقات.",
                 "missing_skills": []
             }
 
@@ -116,7 +157,6 @@ class OpenRouterAI:
         4. Academic & Certifications (التعليم والشهادات الاحترافية)
         5. Projects & Real-world Impact (المشاريع والأثر الفعلي)
         Return ONLY a JSON object: {{"labels": ["Technical", "Soft Skills", "Experience", "Education", "Projects"], "scores": [0,0,0,0,0]}}
-        Be very strict; do not give high scores unless the evidence is crystal clear.
         CV Data: {cv_text[:2500]}
         """
         res = self._call_ai(prompt, temperature=0.1)
@@ -130,12 +170,11 @@ class OpenRouterAI:
         """توصيات أكاديمية رفيعة المستوى لسد الفجوات المهنية"""
         gaps = [label for label, score in zip(radar_data['labels'], radar_data['scores']) if score < 80]
         if not gaps:
-            return "🚀 <b>تهانينا!</b> ملفك المهني يطابق معايير النخبة عالمياً. استمر في تعزيز تواجدك الرقمي."
+            return "🚀 <b>تهانينا!</b> ملفك المهني يطابق معايير النخبة عالمياً."
 
         prompt = f"""
         المرشح لديه فجوات حقيقية في المهارات التالية: {gaps}.
-        اقترح مساراً تعليمياً واحداً (Coursera أو LinkedIn Learning) لكل فجوة لسد هذا النقص المهني.
-        اللغة: عربية مهنية عالمية (Professional Global Arabic).
+        اقترح مساراً تعليمياً واحداً لكل فجوة لسد هذا النقص المهني.
         التنسيق: HTML <ul><li>.
         """
         return self._call_ai(prompt, temperature=0.6)
@@ -143,11 +182,8 @@ class OpenRouterAI:
     def build_global_cv(self, cv_text):
         """تطوير السيرة الذاتية لتصبح نسخة عالمية (ATS-Optimized)"""
         prompt = f"""
-        أعد صياغة السيرة الذاتية التالية لتصبح ملفاً عالمياً فائق الجودة يتجاوز أنظمة الـ ATS الصارمة:
-        1. استخدم أفعال الإنجاز القوية (Strong Action Verbs).
-        2. ركز على النتائج القابلة للقياس (Quantifiable Achievements).
-        3. اللغة: English (Professional Level).
-        4. اجعل الملف متوافقاً تماماً مع أنظمة الفرز الآلي (ATS).
+        أعد صياغة السيرة الذاتية التالية لتصبح ملفاً عالمياً فائق الجودة يتجاوز أنظمة الـ ATS الصارمة.
+        اللغة: English (Professional Level).
         النص الأصلي: {cv_text[:4000]}
         """
         return self._call_ai(prompt, temperature=0.3)
@@ -156,8 +192,7 @@ class OpenRouterAI:
         """توليد أسئلة مقابلة ذكية بناءً على التناقضات في الملف"""
         prompt = f"""
         بناءً على وظيفة ({job_title}) وسيرة المرشح ({cv_text[:1000]}).
-        ضع 3 أسئلة مقابلة تقنية "صعبة ومستفزة" تكشف مدى صدق الخبرة المذكورة وتفضح أي مبالغة.
-        اللغة: عربية مهنية عالمية.
+        ضع 3 أسئلة مقابلة تقنية "صعبة ومستفزة" تكشف مدى صدق الخبرة.
         """
         return self._call_ai(prompt, temperature=0.7)
 

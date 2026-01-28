@@ -1,87 +1,125 @@
 {% extends "base.html" %}
 
-{% block title %}إنشاء حساب جديد - Jobeni SD{% endblock %}
+{% block title %}انضم إلى مستقبل الفرص - Jobeni SD{% endblock %}
 
 {% block content %}
-<div class="container py-5" dir="rtl">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+
+<div class="container py-5 mt-md-4" dir="rtl">
     <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
-                <div class="row g-0">
-                    <div class="col-md-4 bg-primary d-none d-md-flex align-items-center justify-content-center text-white p-4" style="background: var(--gradient-blue) !important;">
-                        <div class="text-center">
-                            <i class="fas fa-user-rocket fa-4x mb-4"></i>
-                            <h4 class="fw-bold">خطوة واحدة تفصلك عن النجاح</h4>
-                            <p class="small opacity-75">انضم إلى آلاف السودانيين الذين وجدوا وظائفهم عبر الذكاء الاصطناعي</p>
+        <div class="col-lg-10 col-xl-9">
+            <div class="card border-0 shadow-lg rounded-5 overflow-hidden animate__animated animate__zoomIn" style="min-height: 650px;">
+                <div class="row g-0 h-100">
+                    <div class="col-md-5 d-none d-md-flex flex-column justify-content-between p-5 text-white position-relative" 
+                         style="background: linear-gradient(135deg, #0f172a 0%, #2563eb 100%);">
+                        
+                        <div class="position-relative" style="z-index: 2;">
+                            <a href="/" class="text-white text-decoration-none mb-5 d-block">
+                                <h2 class="fw-bold mb-0">JOBENI <span class="text-info">SD</span></h2>
+                            </a>
+                            
+                            <div class="mt-5">
+                                <h3 class="fw-bold lh-base animate__animated animate__fadeInLeft animate__delay-1s">بوابتك الذكية للوظائف والمنح العالمية 🌍</h3>
+                                <p class="opacity-75 mt-3 lead">انضم إلى أكثر من 50,000 كفاءة سودانية تستخدم الوكيل الذكي لتغيير مسارها المهني.</p>
+                            </div>
+                        </div>
+
+                        <div class="features-list position-relative" style="z-index: 2;">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-white bg-opacity-20 p-2 rounded-circle me-3"><i class="fas fa-check small"></i></div>
+                                <span class="small">رادار وظائف يعمل بالذكاء الاصطناعي 24/7</span>
+                            </div>
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-white bg-opacity-20 p-2 rounded-circle me-3"><i class="fas fa-check small"></i></div>
+                                <span class="small">كاشف منح دراسية ممولة بالكامل</span>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <div class="bg-white bg-opacity-20 p-2 rounded-circle me-3"><i class="fas fa-check small"></i></div>
+                                <span class="small">شهادات موثقة بنظام QR الرقمي</span>
+                            </div>
+                        </div>
+
+                        <div class="position-absolute bottom-0 start-0 opacity-10 mb-n5 ms-n5">
+                            <i class="fas fa-graduation-cap" style="font-size: 15rem;"></i>
                         </div>
                     </div>
 
-                    <div class="col-md-8 bg-white p-4 p-md-5">
-                        <h3 class="fw-bold mb-4">إنشاء حساب جديد</h3>
-                        
-                        <form method="POST" action="{{ url_for('auth.register') }}">
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
+                    <div class="col-md-7 bg-white p-4 p-md-5">
+                        <div class="text-md-start mb-4">
+                            <h3 class="fw-bold text-dark mb-2">إنشاء حساب جديد ✨</h3>
+                            <p class="text-muted">ابدأ رحلتك الآن، مجاناً وبكل سهولة.</p>
+                        </div>
+
+                        <form method="POST" action="{{ url_for('auth.register') }}" class="needs-validation">
+                            <div class="row g-3">
+                                <div class="col-md-6">
                                     <label class="form-label small fw-bold">اسم المستخدم</label>
-                                    <input type="text" class="form-control bg-light border-0" name="username" placeholder="مثلاً: ahmed99" required>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light border-0"><i class="fas fa-at text-muted"></i></span>
+                                        <input type="text" class="form-control bg-light border-0 py-2" name="username" placeholder="ahmed_sd" required>
+                                    </div>
                                 </div>
-                                <div class="col-md-6 mb-3">
+                                <div class="col-md-6">
                                     <label class="form-label small fw-bold">البريد الإلكتروني</label>
-                                    <input type="email" class="form-control bg-light border-0" name="email" placeholder="mail@example.com" required>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light border-0"><i class="fas fa-envelope text-muted"></i></span>
+                                        <input type="email" class="form-control bg-light border-0 py-2" name="email" placeholder="mail@jobeni.com" required>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label small fw-bold">الاسم الكامل</label>
-                                    <input type="text" class="form-control bg-light border-0" name="full_name" placeholder="الاسم ثلاثي">
+                                <div class="col-12">
+                                    <label class="form-label small fw-bold">ما هو هدفك الأساسي؟ (يمكنك التغيير لاحقاً)</label>
+                                    <div class="row g-2">
+                                        <div class="col-4">
+                                            <input type="radio" class="btn-check" name="role" id="role_seeker" value="jobseeker" checked>
+                                            <label class="btn btn-outline-primary w-100 py-3 rounded-4 role-card" for="role_seeker">
+                                                <i class="fas fa-briefcase d-block mb-1 fs-5"></i>
+                                                <span class="x-small fw-bold">وظائف</span>
+                                            </label>
+                                        </div>
+                                        <div class="col-4">
+                                            <input type="radio" class="btn-check" name="role" id="role_scholarship" value="scholarship_seeker">
+                                            <label class="btn btn-outline-info w-100 py-3 rounded-4 role-card" for="role_scholarship">
+                                                <i class="fas fa-graduation-cap d-block mb-1 fs-5"></i>
+                                                <span class="x-small fw-bold">منح</span>
+                                            </label>
+                                        </div>
+                                        <div class="col-4">
+                                            <input type="radio" class="btn-check" name="role" id="role_employer" value="employer">
+                                            <label class="btn btn-outline-secondary w-100 py-3 rounded-4 role-card" for="role_employer">
+                                                <i class="fas fa-user-tie d-block mb-1 fs-5"></i>
+                                                <span class="x-small fw-bold">توظيف</span>
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label small fw-bold">رقم الهاتف</label>
-                                    <input type="tel" class="form-control bg-light border-0" name="phone" placeholder="09xxxxxxxx">
-                                </div>
-                            </div>
 
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
+                                <div class="col-md-6">
                                     <label class="form-label small fw-bold">كلمة المرور</label>
-                                    <input type="password" class="form-control bg-light border-0" name="password" required>
+                                    <input type="password" class="form-control bg-light border-0 py-2" name="password" required>
                                 </div>
-                                <div class="col-md-6 mb-3">
+                                <div class="col-md-6">
                                     <label class="form-label small fw-bold">تأكيد كلمة المرور</label>
-                                    <input type="password" class="form-control bg-light border-0" name="confirm_password" required>
+                                    <input type="password" class="form-control bg-light border-0 py-2" name="confirm_password" required>
                                 </div>
                             </div>
 
-                            <div class="mb-4 mt-3">
-                                <label class="form-label small fw-bold mb-3">ما هو هدفك من الانضمام؟</label>
-                                <div class="row g-3">
-                                    <div class="col-6">
-                                        <input type="radio" class="btn-check" name="role" id="role_seeker" value="seeker" checked>
-                                        <label class="btn btn-outline-primary w-100 py-3 rounded-3" for="role_seeker">
-                                            <i class="fas fa-search-dollar d-block mb-2 fs-4"></i>
-                                            أبحث عن وظيفة
-                                        </label>
-                                    </div>
-                                    <div class="col-6">
-                                        <input type="radio" class="btn-check" name="role" id="role_employer" value="employer">
-                                        <label class="btn btn-outline-primary w-100 py-3 rounded-3" for="role_employer">
-                                            <i class="fas fa-user-tie d-block mb-2 fs-4"></i>
-                                            أريد التوظيف
-                                        </label>
-                                    </div>
-                                </div>
+                            <div class="form-check mt-4 mb-4">
+                                <input class="form-check-input" type="checkbox" value="" id="terms" required checked>
+                                <label class="form-check-label x-small text-muted" for="terms">
+                                    أوافق على <a href="#" class="text-decoration-none">شروط الخدمة</a> و <a href="#" class="text-decoration-none">سياسة الخصوصية</a> لجوبيني.
+                                </label>
                             </div>
 
-                            <div class="d-grid mt-4">
-                                <button type="submit" class="btn btn-primary btn-lg rounded-pill fw-bold py-3 border-0 shadow" style="background: var(--gradient-blue);">
-                                    إنشاء حسابك الآن <i class="fas fa-arrow-left ms-2"></i>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary btn-lg rounded-pill fw-bold py-3 border-0 shadow-lg pulse-hover" style="background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);">
+                                    إنشاء حسابي الآن <i class="fas fa-rocket ms-2"></i>
                                 </button>
                             </div>
                         </form>
 
-                        <div class="text-center mt-4">
-                            <p class="text-muted small">لديك حساب بالفعل؟ <a href="{{ url_for('auth.login') }}" class="text-primary fw-bold text-decoration-none">سجل دخولك من هنا</a></p>
+                        <div class="text-center mt-4 pt-2">
+                            <p class="text-muted small">لديك حساب بالفعل؟ <a href="{{ url_for('auth.login') }}" class="text-primary fw-bold text-decoration-none">سجل دخولك</a></p>
                         </div>
                     </div>
                 </div>
@@ -89,4 +127,15 @@
         </div>
     </div>
 </div>
+
+<style>
+    body { background: #f1f5f9; font-family: 'Tajawal', sans-serif; }
+    .rounded-5 { border-radius: 2rem !important; }
+    .x-small { font-size: 0.8rem; }
+    .role-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border: 2px solid #f1f5f9; background: #f8fafc; color: #64748b; }
+    .btn-check:checked + .role-card { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); border-width: 2px; }
+    .pulse-hover:hover { transform: scale(1.02); }
+    .input-group-text { color: #94a3b8; }
+    .form-control:focus { box-shadow: none; background-color: #fff !important; border: 1px solid #2563eb !important; }
+</style>
 {% endblock %}

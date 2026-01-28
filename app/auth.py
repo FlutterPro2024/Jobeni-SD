@@ -90,11 +90,20 @@ def login():
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
+    """تسجيل حساب جديد مع دعم خيار باحث عن منحة 2026"""
     if current_user.is_authenticated:
         return redirect(url_for('auth.dashboard'))
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         email = request.form.get('email', '').lower().strip()
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        role = request.form.get('role', 'jobseeker') # القادم من register.html الجديد
+
+        if password != confirm_password:
+            flash('كلمات المرور غير متطابقة.', 'danger')
+            return redirect(url_for('auth.register'))
+
         if User.query.filter((User.email == email) | (User.username == username)).first():
             flash('البريد أو اسم المستخدم مسجل مسبقاً.', 'warning')
             return redirect(url_for('auth.register'))
@@ -102,16 +111,17 @@ def register():
         new_user = User(
             username=username,
             email=email,
-            full_name=request.form.get('full_name', '').strip(),
-            password=generate_password_hash(request.form.get('password'), method='pbkdf2:sha256'),
-            role=request.form.get('role', 'jobseeker'),
+            password=generate_password_hash(password, method='pbkdf2:sha256'),
+            role=role,
             avatar=f"https://ui-avatars.com/api/?name={username}&background=random&color=fff",
             last_seen=datetime.utcnow()
         )
         db.session.add(new_user)
         db.session.commit()
-        flash('تم إنشاء الحساب بنجاح! مرحباً بك في جوبيني.', 'success')
-        return redirect(url_for('auth.login'))
+        
+        flash(f'مرحباً بك في جوبيني! تم إنشاء حسابك كـ {"باحث عن منحة" if role == "scholarship_seeker" else "عضو جديد"}.', 'success')
+        login_user(new_user)
+        return redirect(url_for('auth.dashboard'))
     return render_template('register.html')
 
 @auth_bp.route('/dashboard')
@@ -125,9 +135,9 @@ def dashboard():
     # 1. إحصائيات الأداء الأسبوعي (لآخر 7 أيام)
     one_week_ago = datetime.utcnow() - timedelta(days=7)
     recent_apps = Application.query.filter(Application.user_id == current_user.id, Application.created_at >= one_week_ago).all()
-    
+
     training_sessions = AgentMemory.query.filter(
-        AgentMemory.user_id == current_user.id, 
+        AgentMemory.user_id == current_user.id,
         AgentMemory.action == 'interview_prep',
         AgentMemory.created_at >= one_week_ago
     ).count()
@@ -144,11 +154,16 @@ def dashboard():
         'ai_advice': weekly_report_memory.feedback_notes if weekly_report_memory else "أكمل بياناتك ليبدأ الأيجنت في تقديم نصائح مخصصة لك."
     }
 
-    # 2. رادار المهارات
+    # 2. رادار المهارات / رادار المنح
     last_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
     radar_labels = ["تقني", "تواصل", "خبرة", "قيادة", "إبداع"]
     radar_scores = [50, 50, 50, 50, 50]
-    course_suggestions = "ارفع سيرتك الذاتية للحصول على توصيات مخصصة."
+    
+    # رسالة ترحيبية بناءً على الدور
+    if current_user.role == 'scholarship_seeker':
+        course_suggestions = "الوكيل الذكي يستعد الآن لجلب منح دراسية تناسب خلفيتك الأكاديمية. ارفع شهاداتك للبدء."
+    else:
+        course_suggestions = "ارفع سيرتك الذاتية للحصول على توصيات مخصصة من مستشار AI عالمي."
 
     if last_cv and last_cv.extracted_text:
         try:
@@ -196,7 +211,7 @@ def update_agent_settings():
                 current_user.whatsapp_number = clean_wa
                 try:
                     from app.agent_worker import send_whatsapp_via_whapi
-                    welcome_msg = f"مرحباً بك يا *{current_user.username}*! 🤖 تم تفعيل الرادار بنسبة مطابقة {current_user.agent_target_score}%."
+                    welcome_msg = f"مرحباً بك في جوبيني يا *{current_user.username}*! 🤖 تم ربط رادارك الذكي بنجاح."
                     send_whatsapp_via_whapi(clean_wa, welcome_msg)
                 except: pass
 
