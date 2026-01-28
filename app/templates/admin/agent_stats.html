@@ -1,69 +1,137 @@
 {% extends "base.html" %}
+
+{% block title %}مراقبة الأيجنت الذكي - جوبيني AI{% endblock %}
+
 {% block content %}
-<div class="container py-4">
-    <h2 class="mb-4">📊 مراقبة الأيجنت الذكي</h2>
-    
-    <div class="row g-4 mb-4">
+<div class="container py-5 text-end" dir="rtl">
+    <div class="d-flex align-items-center mb-4">
+        <div class="icon-box bg-primary text-white rounded-4 p-3 ms-3 shadow-sm">
+            <i class="fas fa-robot fa-2x"></i>
+        </div>
+        <div>
+            <h2 class="fw-bold mb-0">رادار الأيجنت الذكي 📊</h2>
+            <p class="text-muted mb-0">مراقبة حية لعمليات مطابقة الوظائف وتحليل السير الذاتية</p>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-5">
         <div class="col-md-6">
-            <div class="card bg-primary text-white shadow-sm">
-                <div class="card-body text-center">
-                    <h3>{{ total_matches }}</h3>
-                    <p class="mb-0">إجمالي عمليات المطابقة الناجحة</p>
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden position-relative">
+                <div class="card-body p-4 bg-primary text-white">
+                    <div class="position-relative" style="z-index: 2;">
+                        <h1 class="display-4 fw-bold mb-1">{{ total_matches }}</h1>
+                        <h5 class="opacity-75 mb-0">إجمالي عمليات المطابقة الناجحة</h5>
+                    </div>
+                    <i class="fas fa-microchip position-absolute" style="bottom: -20px; left: -10px; font-size: 8rem; opacity: 0.1;"></i>
                 </div>
             </div>
         </div>
         <div class="col-md-6">
-            <div class="card bg-success text-white shadow-sm">
-                <div class="card-body text-center">
-                    <h3>{{ today_matches }}</h3>
-                    <p class="mb-0">تمت مطابقتهم في آخر 24 ساعة</p>
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden position-relative">
+                <div class="card-body p-4 bg-success text-white">
+                    <div class="position-relative" style="z-index: 2;">
+                        <h1 class="display-4 fw-bold mb-1">{{ today_matches or 0 }}</h1>
+                        <h5 class="opacity-75 mb-0">تمت مطابقتهم في آخر 24 ساعة</h5>
+                    </div>
+                    <i class="fas fa-bolt position-absolute" style="bottom: -20px; left: -10px; font-size: 8rem; opacity: 0.1;"></i>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row">
-        <div class="col-md-8">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-white fw-bold">🚀 سجل الإرسال الأخير</div>
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+                <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0 text-dark">🚀 سجل الإرسال الذكي الأخير</h5>
+                    <span class="badge bg-light text-primary rounded-pill px-3 py-2 border">تحديث لحظي</span>
+                </div>
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
+                    <table class="table table-hover align-middle mb-0 text-end">
+                        <thead class="bg-light text-muted small">
                             <tr>
-                                <th>المستخدم</th>
-                                <th>الوظيفة</th>
-                                <th>التوقيت</th>
-                                <th>الدرجة</th>
+                                <th class="py-3 pe-4">المستخدم</th>
+                                <th>الوظيفة المستهدفة</th>
+                                <th>توقيت المعالجة</th>
+                                <th class="ps-4">دقة المطابقة</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for log in recent_logs %}
-                            <tr>
-                                <td>{{ log.applicant.username }}</td>
-                                <td>{{ log.job_ref.title }}</td>
-                                <td class="small">{{ log.applied_at.strftime('%H:%M - %d/%m') }}</td>
-                                <td><span class="badge bg-info text-dark">{{ log.match_score }}%</span></td>
-                            </tr>
-                            {% endfor %}
+                            {% if recent_logs %}
+                                {% for log in recent_logs %}
+                                <tr>
+                                    <td class="pe-4">
+                                        <div class="fw-bold">@{{ log.applicant.username }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="small fw-bold text-dark">{{ log.job_ref.title }}</div>
+                                        <div class="text-muted" style="font-size: 0.75rem;">{{ log.job_ref.company_name }}</div>
+                                    </td>
+                                    <td class="small text-muted">
+                                        {{ log.applied_at.strftime('%H:%M - %Y/%m/%d') }}
+                                    </td>
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="progress flex-grow-1" style="height: 6px; min-width: 50px;">
+                                                <div class="progress-bar bg-info" style="width: {{ log.match_score or 75 }}%"></div>
+                                            </div>
+                                            <span class="badge bg-info-soft text-info fw-bold">{{ log.match_score or 75 }}%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-5 text-muted">لا توجد عمليات معالجة حالياً</td>
+                                </tr>
+                            {% endif %}
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-white fw-bold">🔥 الأكثر طلباً للذكاء</div>
-                <ul class="list-group list-group-flush">
-                    {% for job_title, count in top_jobs %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        {{ job_title }}
-                        <span class="badge bg-primary rounded-pill">{{ count }}</span>
-                    </li>
-                    {% endfor %}
-                </ul>
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+                <div class="card-header bg-white py-3 border-0">
+                    <h5 class="fw-bold mb-0 text-dark">🔥 الأكثر طلباً للذكاء</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% if top_jobs %}
+                            {% for job_title, count in top_jobs %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center py-3 border-0 border-bottom">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-primary-soft text-primary rounded-circle p-2 ms-3" style="width: 35px; height: 35px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-briefcase small"></i>
+                                    </div>
+                                    <span class="fw-bold text-dark small">{{ job_title }}</span>
+                                </div>
+                                <span class="badge bg-primary rounded-pill px-3">{{ count }} طلب</span>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="p-4 text-center text-muted">
+                                <i class="fas fa-inbox fa-2x mb-2 d-block opacity-25"></i>
+                                <small>لا توجد بيانات كافية</small>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+
+
+<style>
+    body { background-color: #f8fafc; }
+    .icon-box { width: fit-content; }
+    .bg-info-soft { background: rgba(13, 202, 240, 0.1); }
+    .bg-primary-soft { background: rgba(13, 110, 253, 0.1); }
+    .card { border: none !important; }
+    .table th { font-weight: 600; font-size: 0.85rem; }
+    .progress { border-radius: 10px; background-color: #f1f5f9; }
+</style>
 {% endblock %}

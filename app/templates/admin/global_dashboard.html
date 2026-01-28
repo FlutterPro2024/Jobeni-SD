@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{% block title %}لوحة التحكم السيادية - جوبيني AI{% endblock %}
+
 {% block content %}
 <div class="container py-5 text-end" dir="rtl">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -7,7 +9,11 @@
             <span class="badge bg-dark rounded-pill px-3 py-2 small">مسؤول النظام</span>
             <form action="{{ url_for('admin.toggle_maintenance') }}" method="POST">
                 <button type="submit" class="btn btn-sm {% if is_maintenance %}btn-success{% else %}btn-warning{% endif %} rounded-pill fw-bold shadow-sm">
-                    {% if is_maintenance %}<i class="fas fa-play me-1"></i> إنهاء الصيانة{% else %}<i class="fas fa-pause me-1"></i> تفعيل الصيانة{% endif %}
+                    {% if is_maintenance %}
+                        <i class="fas fa-play me-1"></i> إنهاء الصيانة
+                    {% else %}
+                        <i class="fas fa-pause me-1"></i> تفعيل الصيانة
+                    {% endif %}
                 </button>
             </form>
         </div>
@@ -49,31 +55,31 @@
 
     <div class="row g-3 mb-5">
         <div class="col-md-2 col-6">
-            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-primary border-4 text-center text-md-end">
+            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-primary border-4 text-center text-md-end h-100">
                 <small class="text-muted small fw-bold d-block mb-1">المستخدمين</small>
                 <h2 class="fw-bold text-primary mb-0">{{ stats.total_users }}</h2>
             </div>
         </div>
         <div class="col-md-2 col-6">
-            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-info border-4 text-center text-md-end">
+            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-info border-4 text-center text-md-end h-100">
                 <small class="text-muted small fw-bold d-block mb-1">ربط تليجرام</small>
                 <h2 class="fw-bold text-info mb-0">{{ stats.tg_users }}</h2>
             </div>
         </div>
         <div class="col-md-2 col-6">
-            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-success border-4 text-center text-md-end">
+            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-success border-4 text-center text-md-end h-100">
                 <small class="text-muted small fw-bold d-block mb-1">تحليلات الـ AI</small>
                 <h2 class="fw-bold text-success mb-0">{{ stats.total_cvs }}</h2>
             </div>
         </div>
         <div class="col-md-2 col-6">
-            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-warning border-4 text-center text-md-end">
+            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-warning border-4 text-center text-md-end h-100">
                 <small class="text-muted small fw-bold d-block mb-1">الوظائف</small>
                 <h2 class="fw-bold text-warning mb-0">{{ stats.total_jobs }}</h2>
             </div>
         </div>
         <div class="col-md-2 col-12">
-            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-danger border-4 text-center text-md-end">
+            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white border-bottom border-danger border-4 text-center text-md-end h-100">
                 <small class="text-muted small fw-bold d-block mb-1">المنشورات</small>
                 <h2 class="fw-bold text-danger mb-0">{{ stats.total_posts }}</h2>
             </div>
@@ -96,64 +102,63 @@
         </div>
     </div>
 
-    <div class="row g-4">
-        <div class="col-lg-12">
-            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
-                <div class="table-responsive">
-                    <table class="table align-middle table-hover text-end">
-                        <thead class="bg-light small text-muted">
-                            <tr>
-                                <th>ID</th>
-                                <th>المستخدم</th>
-                                <th>البريد الإلكتروني</th>
-                                <th>الرتبة</th>
-                                <th class="text-start">الإجراءات السيادية</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for user in all_users %}
-                            <tr>
-                                <td class="fw-bold">#{{ user.id }}</td>
-                                <td>
-                                    <div class="fw-bold text-dark">{{ user.full_name or 'بدون اسم' }}</div>
-                                    <small class="text-muted">@{{ user.username }}</small>
-                                </td>
-                                <td><span class="text-primary small">{{ user.email }}</span></td>
-                                <td>
-                                    <div class="dropdown">
-                                        <button class="badge border-0 dropdown-toggle py-2 px-3 {% if user.role == 'admin' %}bg-danger{% else %}bg-secondary{% endif %}"
-                                                type="button" data-bs-toggle="dropdown">
-                                            {{ user.role }}
-                                        </button>
-                                        <ul class="dropdown-menu shadow border-0 text-end">
-                                            <li><a class="dropdown-item small" href="{{ url_for('admin.update_user_role', user_id=user.id, new_role='admin') }}">ترقية لـ Admin</a></li>
-                                            <li><a class="dropdown-item small" href="{{ url_for('admin.update_user_role', user_id=user.id, new_role='user') }}">تنزيل لـ User</a></li>
-                                        </ul>
-                                    </div>
-                                </td>
-                                <td class="text-start">
-                                    {% if user.id != current_user.id %}
-                                    <form action="{{ url_for('admin.delete_user', user_id=user.id) }}" method="POST" class="d-inline" onsubmit="return confirm('⚠️ خطر: هل أنت متأكد من طرد هذا المستخدم نهائياً؟');">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0 fw-bold">
-                                            <i class="fas fa-user-slash"></i> طرد
-                                        </button>
-                                    </form>
-                                    {% else %}
-                                    <span class="badge bg-light text-muted fw-normal p-2">أنت (المدير)</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+    <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white overflow-hidden">
+        <div class="table-responsive">
+            <table class="table align-middle table-hover text-end">
+                <thead class="bg-light small text-muted">
+                    <tr>
+                        <th>ID</th>
+                        <th>المستخدم</th>
+                        <th>البريد الإلكتروني</th>
+                        <th>الرتبة</th>
+                        <th class="text-start">الإجراءات السيادية</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in all_users %}
+                    <tr>
+                        <td class="fw-bold">#{{ user.id }}</td>
+                        <td>
+                            <div class="fw-bold text-dark">{{ user.full_name or 'بدون اسم' }}</div>
+                            <small class="text-muted">@{{ user.username }}</small>
+                        </td>
+                        <td><span class="text-primary small">{{ user.email }}</span></td>
+                        <td>
+                            <div class="dropdown">
+                                <button class="badge border-0 dropdown-toggle py-2 px-3 {% if user.role == 'admin' %}bg-danger{% else %}bg-secondary{% endif %}"
+                                        type="button" data-bs-toggle="dropdown">
+                                    {{ user.role }}
+                                </button>
+                                <ul class="dropdown-menu shadow border-0 text-end">
+                                    <li><a class="dropdown-item small" href="{{ url_for('admin.update_user_role', user_id=user.id, new_role='admin') }}">ترقية لـ Admin</a></li>
+                                    <li><a class="dropdown-item small" href="{{ url_for('admin.update_user_role', user_id=user.id, new_role='user') }}">تنزيل لـ User</a></li>
+                                    <li><a class="dropdown-item small" href="{{ url_for('admin.update_user_role', user_id=user.id, new_role='employer') }}">صاحب عمل</a></li>
+                                </ul>
+                            </div>
+                        </td>
+                        <td class="text-start">
+                            {% if user.id != current_user.id %}
+                            <form action="{{ url_for('admin.delete_user', user_id=user.id) }}" method="POST" class="d-inline" onsubmit="return confirm('⚠️ خطر: هل أنت متأكد من طرد هذا المستخدم نهائياً؟');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger border-0 fw-bold">
+                                    <i class="fas fa-user-slash"></i> طرد
+                                </button>
+                            </form>
+                            {% else %}
+                            <span class="badge bg-light text-muted fw-normal p-2">أنت (المدير)</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
+    </div>
 
+    <div class="row g-4">
         <div class="col-lg-8">
-            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white text-end">
+            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white text-end h-100">
                 <h5 class="fw-bold mb-4 text-warning"><i class="fas fa-briefcase me-2"></i> الرقابة على الوظائف</h5>
-                <div class="table-responsive text-end">
+                <div class="table-responsive">
                     <table class="table align-middle table-hover">
                         <thead class="bg-light small">
                             <tr>
@@ -188,7 +193,7 @@
         </div>
 
         <div class="col-lg-4">
-            <div class="card border-0 shadow-sm rounded-4 p-4 border-end border-primary border-4 bg-white">
+            <div class="card border-0 shadow-sm rounded-4 p-4 border-end border-primary border-4 bg-white h-100">
                 <h5 class="fw-bold mb-4 text-primary"><i class="fas fa-robot me-2"></i> نشاطات AI الأخيرة</h5>
                 <div class="list-group list-group-flush text-end">
                     {% for cv in recent_analyses %}
@@ -211,6 +216,8 @@
     </div>
 </div>
 
+
+
 <style>
     body { background-color: #f4f7f6; }
     .card { transition: transform 0.2s; border: none !important; }
@@ -222,5 +229,7 @@
     .btn-check:checked + .btn-outline-danger { background-color: #dc3545; color: white; }
     .btn-check:checked + .btn-outline-success { background-color: #198754; color: white; }
     .btn-check:checked + .btn-outline-primary { background-color: #0d6efd; color: white; }
+    .list-group-item { transition: all 0.3s ease; }
+    .list-group-item:hover { background-color: #e9ecef !important; }
 </style>
 {% endblock %}

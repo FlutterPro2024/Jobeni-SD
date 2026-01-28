@@ -2,7 +2,7 @@
 import os
 from flask import Blueprint, render_template, abort, request, redirect, url_for, flash, Response
 from flask_login import login_required, current_user
-from app.models import User, Job, Application, CV, db, Post, SystemConfig # أضفنا SystemConfig هنا
+from app.models import User, Job, Application, CV, db, Post, SystemConfig
 from sqlalchemy import func, or_
 from datetime import datetime, timedelta
 
@@ -11,10 +11,12 @@ admin_bp = Blueprint('admin', __name__)
 # --- دوال مساعدة للتعامل مع الإعدادات في قاعدة البيانات بدل الملفات ---
 
 def get_config(key, default=None):
+    """جلب قيمة إعداد معين من الداتابيز"""
     config = SystemConfig.query.filter_by(key=key).first()
     return config.value if config else default
 
 def set_config(key, value, extra=None):
+    """تحديث أو إنشاء إعداد جديد في الداتابيز"""
     config = SystemConfig.query.filter_by(key=key).first()
     if not config:
         config = SystemConfig(key=key)
@@ -56,12 +58,13 @@ def global_dashboard():
         'tg_users': User.query.filter(User.telegram_id != None).count()
     }
 
-    # قراءة الإعدادات من قاعدة البيانات (آمن لـ Vercel)
+    # قراءة الإعدادات من قاعدة البيانات (آمن لـ Vercel/Postgres)
     is_maintenance = get_config('maintenance') == 'on'
     current_announcement = get_config('announcement')
+    
     # اللون يتم جره من extra_value في موديل SystemConfig
-    announcement_color = SystemConfig.query.filter_by(key='announcement').first()
-    color_type = announcement_color.extra_value if announcement_color else 'danger'
+    announcement_entry = SystemConfig.query.filter_by(key='announcement').first()
+    color_type = announcement_entry.extra_value if announcement_entry else 'danger'
 
     all_jobs = Job.query.order_by(Job.created_at.desc()).limit(20).all()
     recent_analyses = CV.query.order_by(CV.created_at.desc()).limit(10).all()
@@ -74,12 +77,12 @@ def global_dashboard():
                            all_users=all_users,
                            search_query=search_query,
                            global_announcement=current_announcement,
-                           announcement_color=color_type) # تمرير اللون للتمبلت
+                           announcement_color=color_type)
 
 @admin_bp.route('/super-admin/broadcast', methods=['POST'])
 @login_required
 def broadcast():
-    """إرسال تعميم سيادي وحفظه في قاعدة البيانات"""
+    """إرسال تعميم سيادي وحفظه في قاعدة البيانات ليظهر لكل المستخدمين"""
     if current_user.role != 'admin': abort(403)
     message = request.form.get('message', '').strip()
     color_type = request.form.get('color_type', 'danger')
@@ -104,7 +107,7 @@ def clear_broadcast():
 @admin_bp.route('/super-admin/update-role/<int:user_id>/<string:new_role>')
 @login_required
 def update_user_role(user_id, new_role):
-    """تعديل صلاحيات الوصول (أدمن / مستخدم)"""
+    """تعديل صلاحيات الوصول (أدمن / مستخدم / صاحب عمل)"""
     if current_user.role != 'admin': abort(403)
     user = User.query.get_or_404(user_id)
     if user.id == current_user.id:
@@ -118,7 +121,7 @@ def update_user_role(user_id, new_role):
 @admin_bp.route('/super-admin/delete-user/<int:user_id>', methods=['POST'])
 @login_required
 def delete_user(user_id):
-    """طرد مستخدم نهائياً من المنصة"""
+    """طرد مستخدم نهائياً من المنصة وحذف بياناته"""
     if current_user.role != 'admin': abort(403)
     user = User.query.get_or_404(user_id)
     if user.id == current_user.id:
@@ -132,7 +135,7 @@ def delete_user(user_id):
 @admin_bp.route('/super-admin/export-users')
 @login_required
 def export_users():
-    """تصدير قائمة المستخدمين كملف CSV"""
+    """تصدير قائمة كافة المستخدمين كملف CSV للتقارير الخارجية"""
     if current_user.role != 'admin': abort(403)
     users = User.query.all()
     csv_data = "ID,Username,Full Name,Email,Role\n"
@@ -144,22 +147,22 @@ def export_users():
 @admin_bp.route('/super-admin/toggle-maintenance', methods=['POST'])
 @login_required
 def toggle_maintenance():
-    """تفعيل أو إيقاف وضع الصيانة عبر قاعدة البيانات"""
+    """تفعيل أو إيقاف وضع الصيانة (Maintenance Mode)"""
     if current_user.role != 'admin': abort(403)
-    
+
     current_status = get_config('maintenance')
     if current_status == 'on':
         set_config('maintenance', 'off')
-        flash("✅ تم إلغاء وضع الصيانة.", "success")
+        flash("✅ تم إلغاء وضع الصيانة والموقع متاح للجميع الآن.", "success")
     else:
         set_config('maintenance', 'on')
-        flash("⚠️ تم تفعيل وضع الصيانة.", "warning")
+        flash("⚠️ تم تفعيل وضع الصيانة. الموقع الآن متاح للأدمن فقط.", "warning")
     return redirect(url_for('admin.global_dashboard'))
 
 @admin_bp.route('/agent-stats')
 @login_required
 def agent_stats():
-    """مراقبة أداء ذكاء الأيجنت"""
+    """مراقبة أداء ذكاء الأيجنت (تحليلات المطابقة الذكية)"""
     if current_user.role != 'admin': abort(403)
     total_matches = Application.query.filter_by(status='suggested').count()
     recent_logs = Application.query.filter_by(status='suggested').order_by(Application.applied_at.desc()).limit(10).all()
