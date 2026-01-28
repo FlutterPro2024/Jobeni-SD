@@ -203,7 +203,7 @@ def test_whatsapp_agent():
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         if is_success: return jsonify({'status': 'success', 'message': 'وصلت رسالة الاختبار! ✅'})
         return jsonify({'status': 'error', 'message': 'فشل الاتصال'}), 500
-    
+
     flash('وصلت رسالة الاختبار! ✅', 'success') if is_success else flash('فشل الإرسال.', 'danger')
     return redirect(url_for('auth.dashboard'))
 
@@ -285,11 +285,9 @@ def profile():
         if 'avatar' in request.files:
             img_url = upload_to_imgbb(request.files['avatar'])
             if img_url: current_user.avatar = img_url
-
         if 'cover_photo' in request.files:
             cover_url = upload_to_imgbb(request.files['cover_photo'])
             if cover_url: current_user.cover_photo = cover_url
-
         db.session.commit()
         flash('تم تحديث بروفايلك بنجاح ✅', 'success')
         return redirect(url_for('auth.profile'))
@@ -320,7 +318,7 @@ def user_profile(username):
     is_online = (datetime.utcnow() - user.last_seen).total_seconds() < 300 if user.last_seen else False
     last_cv = CV.query.filter_by(user_id=user.id).order_by(CV.created_at.desc()).first()
     radar_data = last_cv.radar_scores if last_cv and last_cv.radar_scores else [50, 50, 50, 50, 50]
-    
+
     profile_url = url_for('auth.user_profile', username=user.username, _external=True)
     qr = qrcode.QRCode(version=1, box_size=10, border=2)
     qr.add_data(profile_url)

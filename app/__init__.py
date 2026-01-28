@@ -111,20 +111,23 @@ def create_app(config_name='default'):
 
     @app.context_processor
     def inject_vars():
-        """حقن متغيرات عالمية (التعميم من الداتابيز، الإشعارات، الوقت)"""
+        """حقن متغيرات عالمية مع معالجة ذكية لأخطاء قاعدة البيانات"""
         from app.models import Notification, SystemConfig
         from datetime import datetime, timedelta
 
-        # قراءة التعميم من قاعدة البيانات بدل الملفات (لضمان عمله على Vercel)
         announcement = None
         announcement_color = 'danger'
-        
+
         try:
+            # محاولة جلب الإعلان من قاعدة البيانات
             config_entry = SystemConfig.query.filter_by(key='announcement').first()
             if config_entry:
                 announcement = config_entry.value
                 announcement_color = config_entry.extra_value or 'danger'
-        except Exception:
+        except Exception as e:
+            # الحل الحاسم: عمل rollback لمنع تسمم الـ Transaction
+            db.session.rollback()
+            app.logger.error(f"Database error in inject_vars: {e}")
             announcement = None
 
         return dict(

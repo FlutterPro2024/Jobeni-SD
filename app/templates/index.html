@@ -3,7 +3,7 @@
 
 {% block content %}
 <style>
-    /* التنسيقات العالمية الجديدة */
+    /* التنسيقات العالمية الجديدة واجهة 2026 */
     .hero-custom {
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
         min-height: 85vh;
@@ -66,6 +66,11 @@
         border-radius: 18px;
         margin-bottom: 20px;
     }
+    /* ألوان إضافية ناعمة للأيقونات */
+    .bg-primary-soft { background: rgba(13, 110, 253, 0.1); }
+    .bg-info-soft { background: rgba(13, 202, 240, 0.1); }
+    .bg-success-soft { background: rgba(25, 135, 84, 0.1); }
+    .bg-warning-soft { background: rgba(255, 193, 7, 0.1); }
 </style>
 
 <div class="hero-custom position-relative" dir="rtl">
@@ -164,7 +169,7 @@
 
 <div class="container py-5" dir="rtl">
     <div class="d-flex justify-content-between align-items-center mb-5">
-        <div>
+        <div class="text-end">
             <h3 class="fw-bold mb-0">🔥 أحدث الفرص المتاحة</h3>
             <p class="text-muted small mb-0">فرص مختارة بعناية لتناسب طموحك</p>
         </div>
@@ -260,12 +265,4 @@
         </div>
     </div>
 </div>
-
-<style>
-    /* ألوان إضافية ناعمة للأيقونات */
-    .bg-primary-soft { background: rgba(13, 110, 253, 0.1); }
-    .bg-info-soft { background: rgba(13, 202, 240, 0.1); }
-    .bg-success-soft { background: rgba(25, 135, 84, 0.1); }
-    .bg-warning-soft { background: rgba(255, 193, 7, 0.1); }
-</style>
 {% endblock %}

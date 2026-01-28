@@ -66,10 +66,13 @@ class User(db.Model, UserMixin):
         backref=db.backref('followers', lazy='dynamic'), lazy='dynamic')
 
     def get_avatar(self):
-        if self.avatar:
-            if self.avatar.startswith('http'):
-                return self.avatar
-            return url_for('static', filename='uploads/' + self.avatar)
+        try:
+            if self.avatar:
+                if self.avatar.startswith('http'):
+                    return self.avatar
+                return url_for('static', filename='uploads/' + self.avatar)
+        except Exception:
+            pass # في حال فشل الـ SQL داخل الترانزاكشن المعلق
         return f"https://ui-avatars.com/api/?name={self.username}&background=random&color=fff"
 
     def get_cover(self):
@@ -127,7 +130,7 @@ class Job(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     employer_user = db.relationship('User', back_populates='jobs')
-    
+
     applications = db.relationship('Application', backref='job_ref', lazy=True, cascade="all, delete-orphan")
     questions = db.relationship('JobQuestion', backref='job', lazy=True, cascade="all, delete-orphan")
 
