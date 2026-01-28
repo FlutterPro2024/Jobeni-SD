@@ -34,3 +34,4 @@ qrcode==7.4.2
 tenacity==8.2.3
 # أدوات الأمان
 cryptography==41.0.5
+tenacity==8.2.3
