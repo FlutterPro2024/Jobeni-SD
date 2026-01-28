@@ -6,7 +6,7 @@
       "use": "@vercel/python",
       "config": {
         "maxDuration": 60,
-        "runtime": "python3.10"
+        "runtime": "python3.12"
       }
     }
   ],
@@ -21,7 +21,7 @@
   "crons": [
     {
       "path": "/agent/run-jobs-agent",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/agent/run-discovery",
