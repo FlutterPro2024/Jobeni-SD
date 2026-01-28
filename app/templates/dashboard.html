@@ -38,6 +38,33 @@
         </div>
     </div>
 
+    <div class="row g-4 mb-4 animate__animated animate__fadeInUp">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-bottom border-4 border-primary">
+                <div class="small text-muted mb-1">فرص الأسبوع</div>
+                <div class="h3 fw-bold mb-0 text-primary">{{ weekly_stats.matches_count if weekly_stats else 0 }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-bottom border-4 border-success">
+                <div class="small text-muted mb-1">أعلى مطابقة</div>
+                <div class="h3 fw-bold mb-0 text-success">{{ weekly_stats.top_score if weekly_stats else 0 }}%</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-bottom border-4 border-info">
+                <div class="small text-muted mb-1">جلسات التدريب</div>
+                <div class="h3 fw-bold mb-0 text-info">{{ weekly_stats.training_sessions if weekly_stats else 0 }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-bottom border-4 border-warning">
+                <div class="small text-muted mb-1">حالة الوكيل</div>
+                <div class="h3 fw-bold mb-0 text-warning">{% if current_user.agent_enabled %}نشط{% else %}خامل{% endif %}</div>
+            </div>
+        </div>
+    </div>
+
     <div class="row g-4">
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm rounded-5 bg-white mb-4 border-top border-5 border-primary">
@@ -52,9 +79,9 @@
                         </div>
                         <div class="col-md-6 mt-4 mt-md-0">
                             <div class="p-4 rounded-5 bg-light border-start border-4 border-primary">
-                                <h6 class="fw-bold text-dark mb-3"><i class="fas fa-lightbulb text-warning ms-2"></i> نصيحة المساعد المهني:</h6>
+                                <h6 class="fw-bold text-dark mb-3"><i class="fas fa-lightbulb text-warning ms-2"></i> نصيحة الأسبوع مخصصة:</h6>
                                 <div class="small text-secondary leading-relaxed">
-                                    {{ course_suggestions | safe if course_suggestions else 'ارفع سيرتك الذاتية لبدء التحليل الفني العميق.' }}
+                                    {{ weekly_stats.ai_advice if weekly_stats and weekly_stats.ai_advice else 'ارفع سيرتك الذاتية لبدء التحليل الفني العميق وتلقي نصائح الوكيل.' }}
                                 </div>
                             </div>
                         </div>
@@ -122,7 +149,7 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle mb-0 text-end">
                             <thead class="bg-light">
                                 <tr class="small text-muted">
                                     <th class="px-4 py-3">الوظيفة / النشاط</th>
@@ -135,13 +162,13 @@
                                 {% if agent_memories %}
                                     {% for memory in agent_memories %}
                                     <tr>
-                                        <td class="px-4 fw-bold small text-truncate" style="max-width: 200px;">{{ memory.job_title or 'إشعار نظام' }}</td>
+                                        <td class="px-4 fw-bold small text-truncate" style="max-width: 200px;">{{ memory.job_id or 'إشعار نظام' }}</td>
                                         <td class="small">{{ memory.action }}</td>
                                         <td class="text-center">
                                             {% if memory.action == 'sent' %}
                                                 <span class="badge bg-success-subtle text-success rounded-pill px-3">تم الإرسال</span>
-                                            {% elif memory.action == 'interview_prep' %}
-                                                <span class="badge bg-warning-subtle text-warning rounded-pill px-3">تدريب</span>
+                                            {% elif memory.action == 'weekly_report' %}
+                                                <span class="badge bg-info-subtle text-info rounded-pill px-3">تقرير</span>
                                             {% else %}
                                                 <span class="badge bg-light text-muted rounded-pill px-3">تم الفحص</span>
                                             {% endif %}
@@ -188,8 +215,8 @@
                     </div>
                     <p class="x-small opacity-75 mb-4">امسح الكود لعرض بروفايلك الموثق من قبل جوبيني السودان لعام 2026.</p>
                     <div class="d-grid gap-2">
-                        <a href="{{ url_for('auth.verify_certificate', username=current_user.username) }}" class="btn btn-primary rounded-pill py-3 fw-bold shadow-sm">
-                            <i class="fas fa-certificate ms-2"></i> عرض شهادة التوثيق
+                        <a href="{{ url_for('agent.get_certificate') }}" class="btn btn-primary rounded-pill py-3 fw-bold shadow-sm">
+                            <i class="fas fa-certificate ms-2"></i> استلام شهادة التوثيق
                         </a>
                         <button class="btn btn-outline-light rounded-pill btn-sm border-0 opacity-75" onclick="window.print()">
                             <i class="fas fa-download ms-1"></i> تحميل بطاقة الهوية
@@ -254,6 +281,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // رسم رادار المهارات
         const ctxRadar = document.getElementById('skillsRadarChart');
         if (ctxRadar) {
             new Chart(ctxRadar.getContext('2d'), {
@@ -267,63 +295,37 @@
                         borderColor: '#2563eb',
                         pointBackgroundColor: '#2563eb',
                         pointBorderColor: '#fff',
-                        pointHoverBackgroundColor: '#fff',
-                        pointHoverBorderColor: '#2563eb',
                         borderWidth: 3
                     }]
                 },
                 options: {
                     responsive: true,
                     scales: {
-                        r: {
-                            angleLines: { display: true, color: '#e2e8f0' },
-                            suggestMin: 0,
-                            suggestMax: 100,
-                            ticks: { display: false }
-                        }
+                        r: { suggestMin: 0, suggestMax: 100, ticks: { display: false } }
                     },
                     plugins: { legend: { display: false } }
                 }
             });
         }
-
-        const masterSwitch = document.getElementById('masterSwitch');
-        const hiddenInput = document.getElementById('agent_enabled_hidden');
-        if(masterSwitch) {
-            masterSwitch.addEventListener('change', function() {
-                hiddenInput.value = this.checked ? 'on' : 'off';
-            });
-        }
     });
 
     function loadInterviewPrep() {
-        const modalElement = document.getElementById('interviewModal');
-        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('interviewModal'));
         const content = document.getElementById('interviewQuestionsContent');
-
         modal.show();
         content.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div><p class="mt-2">المحرك العالمي يحلل ملفك الآن...</p></div>';
-
         fetch("{{ url_for('auth.generate_interview_prep') }}")
-            .then(response => response.json())
+            .then(r => r.json())
             .then(data => {
-                if (data.status === 'success') {
-                    content.innerHTML = `<div class="animate__animated animate__fadeIn">${data.questions.replace(/\n/g, '<br>')}</div>`;
-                } else {
-                    content.innerHTML = `<div class="alert alert-danger rounded-4">${data.message}</div>`;
-                }
-            })
-            .catch(err => {
-                content.innerHTML = `<p class="text-danger text-center">عذراً، حدث خطأ في الاتصال بالسيرفر.</p>`;
+                content.innerHTML = data.status === 'success' ? `<div class="animate__animated animate__fadeIn">${data.questions.replace(/\n/g, '<br>')}</div>` : `<div class="alert alert-danger">${data.message}</div>`;
             });
     }
 
     function testWhatsApp(event) {
         const btn = event.target.closest('button');
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm ms-1"></span> جاري الإرسال...';
-
-        fetch("{{ url_for('auth.test_whatsapp_agent') }}", { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        btn.innerHTML = 'جاري الإرسال...';
+        fetch("{{ url_for('auth.test_whatsapp_agent') }}")
             .then(r => r.json())
             .then(data => {
                 alert(data.message);
@@ -335,14 +337,11 @@
 
 <style>
     body { background-color: #f8fafc; font-family: 'Tajawal', sans-serif; }
-    .card { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+    .card { transition: all 0.3s ease; }
     .shadow-hover:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1) !important; }
     .rounded-5 { border-radius: 1.5rem !important; }
     .x-small { font-size: 0.75rem; }
     .leading-relaxed { line-height: 1.7; }
-    .form-switch .form-check-input { width: 3em; height: 1.5em; cursor: pointer; }
-    .btn-white { background: white; color: #2563eb; }
-    .qr-container img { filter: contrast(1.1); }
     #interviewQuestionsContent { max-height: 400px; overflow-y: auto; }
 </style>
 {% endblock %}

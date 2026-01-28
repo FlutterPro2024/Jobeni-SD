@@ -8,7 +8,7 @@ import logging
 import requests
 import qrcode
 import urllib.parse
-from datetime import datetime
+from datetime import datetime, timedelta
 from PIL import Image, ImageDraw, ImageFont
 from flask import Blueprint, current_app, request, redirect, url_for, flash, jsonify, abort
 from flask_login import login_required, current_user
@@ -20,7 +20,7 @@ from app.notifications import add_notification
 from app.serper_search import serper_searcher
 from app.telegram_bot import send_message
 
-# إعداد الـ Logging السيادي
+# إعداد الـ Logging السيادي لمراقبة الأداء
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("JobeniAgent")
 
@@ -47,7 +47,7 @@ def send_whatsapp_via_whapi(to_number, message):
     """إرسال رسالة واتساب عبر Whapi مع نظام إعادة المحاولة ومحاكاة الكتابة"""
     token = os.getenv('WHAPI_TOKEN')
     api_url = "https://gate.whapi.cloud/messages/text"
-    
+
     if not token:
         logger.error("❌ WHAPI_TOKEN مفقود في متغيرات البيئة")
         return None
@@ -98,11 +98,9 @@ class JobeniAgent:
             img = Image.new('RGB', (width, height), color=(255, 255, 255))
             draw = ImageDraw.Draw(img)
 
-            # الإطارات الفخمة (الذهبي والأسود السيادي)
             draw.rectangle([20, 20, 830, 1080], outline=(15, 15, 15), width=20)
             draw.rectangle([40, 40, 810, 1060], outline=(218, 165, 32), width=5)
 
-            # محاولة إضافة شعار المنصة
             try:
                 base_dir = os.path.dirname(os.path.dirname(__file__))
                 logo_path = os.path.join(base_dir, 'app', 'static', 'icons.png')
@@ -111,21 +109,18 @@ class JobeniAgent:
                     img.paste(logo, (360, 60), logo)
             except: pass
 
-            # نصوص الشهادة بتنسيق 2026
             draw.text((320, 200), "JOBENI SUDAN", fill=(184, 134, 11))
             draw.text((260, 240), "AI-POWERED CAREER VERIFICATION", fill=(0, 0, 0))
             draw.text((250, 310), "CERTIFICATE OF EXCELLENCE", fill=(218, 165, 32))
             draw.text((340, 350), "This is to certify that", fill=(100, 100, 100))
-            
-            # اسم المستخدم (كبير وبارز)
+
             draw.text((250, 390), user_name.upper(), fill=(0, 0, 0))
             draw.line((180, 450, 670, 450), fill=(218, 165, 32), width=3)
 
-            # منطقة التقييم الفني
             margin, offset = 90, 490
             draw.text((margin, offset), "Technical Assessment Summary:", fill=(184, 134, 11))
             offset += 45
-            
+
             display_eval = evaluation_text or "Candidate demonstrated high proficiency in modern professional workflows and AI integration."
             for line in display_eval.split('\n'):
                 for w_line in textwrap.wrap(line, width=65):
@@ -134,11 +129,9 @@ class JobeniAgent:
                     offset += 28
                 offset += 8
 
-            # التذييل والتوثيق
             draw.text((90, 960), "Issued by Jobeni AI Engine v2.0", fill=(150, 150, 150))
             draw.text((90, 985), f"Verification Date: {datetime.now().strftime('%d %B %Y')}", fill=(150, 150, 150))
 
-            # إدراج QR Code للتحقق الفوري
             verify_url = f"https://jobeni-sd.vercel.app/verify/{urllib.parse.quote(user_name)}"
             qr_img = Image.open(JobeniAgent.create_qr_code(verify_url)).resize((150, 150))
             img.paste(qr_img, (640, 910))
@@ -176,46 +169,33 @@ class JobeniAgent:
 def run_agent():
     """المحرك الرئيسي: رادار الوظائف الصارم مع التعلم من الفشل"""
     try:
-        # اختيار مستخدم بنظام Batch للموازنة
         user = User.query.filter_by(agent_enabled=True, agent_active=True).order_by(db.func.random()).first()
         if not user: return "No active agents.", 200
 
         cv = CV.query.filter_by(user_id=user.id).order_by(CV.created_at.desc()).first()
         if not cv: return f"User {user.username} has no CV.", 200
 
-        # البحث الذكي عبر Serper
         query = user.agent_query or cv.profession or "Professional"
         search_results = serper_searcher.search_jobs(f"{query} jobs {user.agent_work_type}")
         jobs_pool = search_results.get('jobs', [])[:10]
 
         matches_found = 0
         for j in jobs_pool:
-            # تجنب التكرار
             if AgentMemory.query.filter_by(user_id=user.id, job_id=str(j.get('title'))).first():
                 continue
 
             analysis = JobeniAgent.calculate_match_strictly(cv.extracted_text, j['title'], j.get('snippet', ''))
             score = analysis.get('score', 0)
 
-            # معيار الصرامة: المطابقة بناءً على هدف المستخدم
             if score >= user.agent_target_score:
-                # حفظ الفرصة في الذاكرة
-                memory = AgentMemory(
-                    user_id=user.id, 
-                    action='sent', 
-                    job_id=j['title'], 
-                    feedback_notes=f"Score: {score}%",
-                    score=score
-                )
+                memory = AgentMemory(user_id=user.id, action='sent', job_id=j['title'], feedback_notes=f"Score: {score}%", score=score)
                 db.session.add(memory)
 
-                # إشعار تليجرام الفوري
                 if user.telegram_id:
                     msg = f"🎯 *فرصة مكنة:* {j['title']}\n🏢 {j['company']}\n📊 المطابقة: {score}%\n💡 {analysis.get('notes')}"
                     kb = {"inline_keyboard": [[{"text": "🔗 التقديم الآن", "url": j['link']}]]}
                     send_message(user.telegram_id, msg, reply_markup=kb)
 
-                # إشعار واتساب (للوظائف الذهبية فقط)
                 if user.whatsapp_number and score >= 85:
                     wa_msg = f"🎯 *يا {user.username}، وظيفة لقطة!*\n\n📌 {j['title']}\n🏢 {j['company']}\n🔥 درجة المطابقة: {score}%\n\n🔗 {j['link']}"
                     send_whatsapp_via_whapi(user.whatsapp_number, wa_msg)
@@ -225,10 +205,47 @@ def run_agent():
         user.last_agent_run = datetime.utcnow()
         db.session.commit()
         return f"Processed for {user.username}. Matches: {matches_found}", 200
-
     except Exception as e:
         db.session.rollback()
         logger.error(f"Agent System Error: {e}")
+        return f"Error: {str(e)}", 500
+
+@agent_bp.route('/weekly-summary')
+def weekly_summary_cron():
+    """المحرك الذكي للتقارير الأسبوعية: تحليل الأداء وإرسال التوصيات"""
+    try:
+        users = User.query.filter_by(agent_enabled=True).all()
+        processed_count = 0
+        one_week_ago = datetime.utcnow() - timedelta(days=7)
+
+        for user in users:
+            recent_apps = Application.query.filter(Application.user_id == user.id, Application.created_at >= one_week_ago).all()
+            matches_count = len(recent_apps)
+            top_score = max([a.match_score for a in recent_apps]) if recent_apps else 0
+
+            prompt = f"بصفتك مستشار مهني ذكي، اكتب ملخصاً أسبوعياً مشجعاً ومختصراً جداً لمستخدم سوداني. البيانات: الفرص المكتشفة {matches_count}، أعلى مطابقة {top_score}%. اللغة: سودانية دارجة خفيفة ومهذبة."
+            ai_advice = openrouter_ai.get_ai_response(prompt, temperature=0.7)
+
+            report_msg = (
+                f"📊 *تقرير جوبيني الأسبوعي يا {user.username}* \n"
+                f"━━━━━━━━━━━━━━━\n"
+                f"🕵️‍♂️ *الفرص المكتشفة:* {matches_count}\n"
+                f"🚀 *أعلى مطابقة:* {top_score}%\n"
+                f"💡 *نصيحة الأسبوع:* {ai_advice}\n\n"
+                f"🇸🇩 _معاً نصنع مستقبلك بذكاء_"
+            )
+
+            if user.whatsapp_number: send_whatsapp_via_whapi(user.whatsapp_number, report_msg)
+            if user.telegram_id: send_message(user.telegram_id, report_msg)
+
+            db.session.add(AgentMemory(user_id=user.id, action='weekly_report', feedback_notes=f"Sent summary: {matches_count} jobs"))
+            processed_count += 1
+
+        db.session.commit()
+        return f"Weekly reports sent to {processed_count} users.", 200
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Weekly Summary Error: {e}")
         return f"Error: {str(e)}", 500
 
 @agent_bp.route('/get-my-certificate')
@@ -239,25 +256,15 @@ def get_certificate():
         flash("يرجى ربط حساب تليجرام أولاً لاستلام الشهادة.", "warning")
         return redirect(url_for('auth.dashboard'))
 
-    cert_img = JobeniAgent.create_certificate_image(
-        current_user.full_name or current_user.username, 
-        current_user.last_evaluation
-    )
-    
+    cert_img = JobeniAgent.create_certificate_image(current_user.full_name or current_user.username, current_user.last_evaluation)
     if cert_img:
         BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
         files = {'photo': ('jobeni_cert.png', cert_img, 'image/png')}
         caption = "📜 *شهادة اعتماد جوبيني AI*\nتم توثيق مهاراتك رقمياً لعام 2026."
-        
-        requests.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
-            data={'chat_id': current_user.telegram_id, 'caption': caption, 'parse_mode': 'Markdown'},
-            files=files
-        )
+        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto", data={'chat_id': current_user.telegram_id, 'caption': caption, 'parse_mode': 'Markdown'}, files=files)
         flash("أبشر! الشهادة الموثقة أصبحت في جيبك (تليجرام).", "success")
     else:
-        flash("حدث خطأ في توليد الشهادة، يرجى المحاولة لاحقاً.", "danger")
-        
+        flash("حدث خطأ في توليد الشهادة.", "danger")
     return redirect(url_for('auth.dashboard'))
 
 @agent_bp.route('/toggle-agent', methods=['POST', 'GET'])

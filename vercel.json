@@ -3,15 +3,26 @@
   "builds": [
     {
       "src": "run.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "maxDuration": 60,
+        "runtime": "python3.10"
+      }
     }
   ],
   "routes": [
     { "src": "/webhook", "dest": "run.py" },
     { "src": "/telegram/webhook", "dest": "run.py" },
+    { "src": "/agent/run-jobs-agent", "dest": "run.py" },
+    { "src": "/agent/run-discovery", "dest": "run.py" },
+    { "src": "/agent/weekly-summary", "dest": "run.py" },
     { "src": "/(.*)", "dest": "run.py" }
   ],
   "crons": [
+    {
+      "path": "/agent/run-jobs-agent",
+      "schedule": "*/30 * * * *"
+    },
     {
       "path": "/agent/run-discovery",
       "schedule": "0 8 * * *"
