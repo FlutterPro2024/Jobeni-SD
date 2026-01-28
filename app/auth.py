@@ -72,6 +72,17 @@ def index():
         latest_jobs = []
     return render_template('index.html', jobs=latest_jobs)
 
+@auth_bp.route('/instructions')
+def instructions():
+    """صفحة شرح كيفية عمل المنصة لعام 2026"""
+    return render_template('instructions.html')
+
+@auth_bp.route('/scanner')
+@login_required
+def scanner():
+    """مسار الماسح الضوئي للـ QR"""
+    return render_template('scanner.html')
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -98,7 +109,7 @@ def register():
         email = request.form.get('email', '').lower().strip()
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
-        role = request.form.get('role', 'job_seeker') # استلام القيمة المحدثة من HTML
+        role = request.form.get('role', 'job_seeker')
 
         if password != confirm_password:
             flash('كلمات المرور غير متطابقة.', 'danger')
@@ -107,7 +118,7 @@ def register():
         if User.query.filter((User.email == email) | (User.username == username)).first():
             flash('البريد أو اسم المستخدم مسجل مسبقاً.', 'warning')
             return redirect(url_for('auth.register'))
-        
+
         new_user = User(
             username=username,
             email=email,
@@ -133,7 +144,6 @@ def dashboard():
         jobs = Job.query.filter_by(user_id=current_user.id).all()
         return render_template('dashboard_employer.html', jobs=jobs)
 
-    # 1. إحصائيات الأداء الأسبوعي (لآخر 7 أيام)
     one_week_ago = datetime.utcnow() - timedelta(days=7)
     recent_apps = Application.query.filter(Application.user_id == current_user.id, Application.created_at >= one_week_ago).all()
     training_sessions = AgentMemory.query.filter(
@@ -154,17 +164,15 @@ def dashboard():
         'ai_advice': weekly_report_memory.feedback_notes if weekly_report_memory else "أكمل بياناتك ليبدأ الأيجنت في تقديم نصائح مخصصة لك."
     }
 
-    # 2. رادار المهارات / رادار المنح
     last_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
     radar_labels = ["تقني", "تواصل", "خبرة", "قيادة", "إبداع"]
     radar_scores = [50, 50, 50, 50, 50]
 
-    # رسالة ترحيبية بناءً على الدور
     if current_user.role == 'scholarship_seeker':
         course_suggestions = "الوكيل الذكي يستعد الآن لجلب منح دراسية تناسب خلفيتك الأكاديمية. ارفع شهاداتك للبدء."
     else:
         course_suggestions = "ارفع سيرتك الذاتية للحصول على توصيات مخصصة من مستشار AI عالمي."
-    
+
     if last_cv and last_cv.extracted_text:
         try:
             if last_cv.radar_labels and last_cv.radar_scores:
@@ -181,7 +189,6 @@ def dashboard():
         except Exception as e:
             logger.error(f"Radar Error: {e}")
 
-    # 3. بيانات الذاكرة والهوية الرقمية
     agent_memories = AgentMemory.query.filter_by(user_id=current_user.id).order_by(AgentMemory.created_at.desc()).limit(10).all()
     user_link = url_for('auth.verify_certificate', username=current_user.username, _external=True)
     user_qr_base64 = generate_secure_qr(user_link)
@@ -203,7 +210,7 @@ def update_agent_settings():
         current_user.agent_query = request.form.get('agent_query')
         current_user.agent_work_type = request.form.get('agent_work_type', 'both')
         current_user.agent_target_score = int(request.form.get('agent_target_score', 75))
-        
+
         whatsapp = request.form.get('whatsapp_number')
         if whatsapp:
             clean_wa = whatsapp.strip().replace('+', '').replace(' ', '').replace('-', '')
@@ -214,7 +221,7 @@ def update_agent_settings():
                     welcome_msg = f"مرحباً بك في جوبيني يا *{current_user.username}*! 🤖 تم ربط رادارك الذكي بنجاح."
                     send_whatsapp_via_whapi(clean_wa, welcome_msg)
                 except: pass
-        
+
         db.session.add(AgentMemory(user_id=current_user.id, action='settings_updated', feedback_notes="تم تحديث إعدادات الرادار"))
         db.session.commit()
         flash('تم تحديث إعدادات الرادار بنجاح ✅', 'success')
@@ -226,10 +233,9 @@ def update_agent_settings():
 @auth_bp.route('/test_whatsapp_agent', methods=['POST', 'GET'])
 @login_required
 def test_whatsapp_agent():
-    """إرسال رسالة اختبار فورية للواتساب"""
     if not current_user.whatsapp_number:
         return jsonify({'status': 'error', 'message': 'يرجى حفظ رقم الواتساب أولاً'}), 400
-    
+
     from app.agent_worker import send_whatsapp_via_whapi
     test_msg = f"🔔 اختبار الرادار الذكي: الاتصال مستقر يا {current_user.username} ✅"
     res = send_whatsapp_via_whapi(current_user.whatsapp_number, test_msg)
@@ -241,7 +247,6 @@ def test_whatsapp_agent():
 @auth_bp.route('/generate_interview_prep')
 @login_required
 def generate_interview_prep():
-    """توليد جلسة محاكاة مقابلة ذكية"""
     last_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
     if not last_cv: return jsonify({'status': 'error', 'message': 'ارفع سيرتك الذاتية أولاً'}), 400
     try:
@@ -255,7 +260,6 @@ def generate_interview_prep():
 @auth_bp.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
-    """إدارة الملف الشخصي"""
     if request.method == 'POST':
         current_user.full_name = request.form.get('full_name')
         current_user.bio = request.form.get('bio')
@@ -266,7 +270,7 @@ def profile():
         db.session.commit()
         flash('تم تحديث بروفايلك بنجاح ✅', 'success')
         return redirect(url_for('auth.profile'))
-    
+
     user_link = url_for('auth.user_profile', username=current_user.username, _external=True)
     user_qr_base64 = generate_secure_qr(user_link)
     return render_template('profile.html', user_qr=user_qr_base64)
@@ -291,7 +295,6 @@ def verify_certificate(username):
 
 @auth_bp.route('/force_upgrade')
 def force_upgrade():
-    """تحديث قاعدة البيانات لعام 2026"""
     try:
         from sqlalchemy import text
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)'))
