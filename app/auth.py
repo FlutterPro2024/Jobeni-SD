@@ -31,7 +31,7 @@ def upload_to_imgbb(file):
             return data['data']['url']
     except Exception as e:
         print(f"❌ ImgBB Upload Error: {e}")
-        return None
+    return None
 
 @auth_bp.before_app_request
 def update_last_seen():
@@ -151,13 +151,13 @@ def dashboard():
 @auth_bp.route('/update_agent_settings', methods=['POST'])
 @login_required
 def update_agent_settings():
-    """تحديث إعدادات الوكيل الذكي (النوع، النسبة، الموقع) والواتساب"""
+    """تحديث إعدادات الوكيل الذكي والواتساب"""
     try:
         current_user.agent_enabled = 'agent_enabled' in request.form
         current_user.agent_query = request.form.get('agent_query')
         current_user.agent_work_type = request.form.get('agent_work_type', 'both')
         current_user.agent_target_score = int(request.form.get('agent_target_score', 75))
-        
+
         whatsapp = request.form.get('whatsapp_number')
         if whatsapp:
             clean_wa = whatsapp.strip().replace('+', '').replace(' ', '').replace('-', '')
@@ -172,7 +172,7 @@ def update_agent_settings():
                     )
                     send_whatsapp_via_whapi(clean_wa, welcome_msg)
                 except Exception: pass
-        
+
         memory = AgentMemory(user_id=current_user.id, action='settings_updated',
                              feedback_notes=f"الوضع: {current_user.agent_work_type} | الهدف: {current_user.agent_target_score}%")
         db.session.add(memory)
@@ -186,7 +186,7 @@ def update_agent_settings():
 @auth_bp.route('/test_whatsapp_agent', methods=['POST', 'GET'])
 @login_required
 def test_whatsapp_agent():
-    """إرسال رسالة اختبار فورية للتأكد من ربط الواتساب بـ Whapi"""
+    """إرسال رسالة اختبار فورية للواتساب"""
     if not current_user.whatsapp_number:
         return jsonify({'status': 'error', 'message': 'يرجى حفظ رقم الواتساب أولاً'}), 400
 
@@ -201,13 +201,17 @@ def test_whatsapp_agent():
     is_success = res and ('id' in str(res) or 'sent' in str(res).lower())
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        if is_success:
-            return jsonify({'status': 'success', 'message': 'وصلت رسالة الاختبار! ✅'})
-        return jsonify({'status': 'error', 'message': 'فشل الاتصال بـ API الواتساب'}), 500
-
-    if is_success: flash('وصلت رسالة الاختبار! ✅', 'success')
-    else: flash('فشل الإرسال. تأكد من إعدادات API.', 'danger')
+        if is_success: return jsonify({'status': 'success', 'message': 'وصلت رسالة الاختبار! ✅'})
+        return jsonify({'status': 'error', 'message': 'فشل الاتصال'}), 500
+    
+    flash('وصلت رسالة الاختبار! ✅', 'success') if is_success else flash('فشل الإرسال.', 'danger')
     return redirect(url_for('auth.dashboard'))
+
+@auth_bp.route('/scanner')
+@login_required
+def scanner():
+    """مسار الماسح الضوئي للتحقق من الشهادات والبروفايلات"""
+    return render_template('scanner.html')
 
 @auth_bp.route('/generate_interview_prep')
 @login_required
@@ -216,7 +220,6 @@ def generate_interview_prep():
     last_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
     if not last_cv or not last_cv.extracted_text:
         return jsonify({'status': 'error', 'message': 'يرجى رفع سيرتك الذاتية أولاً.'}), 400
-
     try:
         questions = openrouter_ai.generate_interview_simulation(last_cv.profession or "متخصص", last_cv.extracted_text)
         memory = AgentMemory(user_id=current_user.id, action='interview_prep', feedback_notes="توليد جلسة محاكاة")
@@ -228,10 +231,9 @@ def generate_interview_prep():
 
 @auth_bp.route('/force_upgrade')
 def force_upgrade():
-    """تحديث قاعدة البيانات لإضافة الأعمدة السيادية 2026 المطابقة لنسخة السيرفر العالمي"""
+    """تحديث قاعدة البيانات لإضافة الأعمدة السيادية 2026"""
     try:
         from sqlalchemy import text
-        # قائمة الأعمدة الجديدة المطلوبة لمواكبة نسخة Vercel
         user_cols = [
             ('whatsapp_number', 'VARCHAR(20)'),
             ('agent_enabled', 'BOOLEAN DEFAULT FALSE'),
@@ -246,39 +248,29 @@ def force_upgrade():
             ('bio', 'TEXT'),
             ('headline', 'VARCHAR(150)')
         ]
-        
         for col, col_type in user_cols:
             try:
                 db.session.execute(text(f'ALTER TABLE "user" ADD COLUMN {col} {col_type}'))
                 db.session.commit()
             except Exception: db.session.rollback()
 
-        # تحديث جداول التطبيقات والـ CV والمجتمع
         updates = [
             'ALTER TABLE "application" ADD COLUMN IF NOT EXISTS quiz_score INTEGER',
             'ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS radar_labels JSON',
             'ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS radar_scores JSON',
-            'ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS course_recommendations TEXT',
             'ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS profession VARCHAR(100)',
             'ALTER TABLE "post" ADD COLUMN IF NOT EXISTS image_file VARCHAR(100)',
-            'ALTER TABLE "post" ADD COLUMN IF NOT EXISTS video_file VARCHAR(100)',
-            'ALTER TABLE "notification" ADD COLUMN IF NOT EXISTS sender_id INTEGER',
-            'ALTER TABLE "notification" ADD COLUMN IF NOT EXISTS post_id INTEGER'
+            'ALTER TABLE "notification" ADD COLUMN IF NOT EXISTS sender_id INTEGER'
         ]
-        
         for sql in updates:
             try:
                 db.session.execute(text(sql))
                 db.session.commit()
             except Exception: db.session.rollback()
 
-        return """<div style='direction:rtl;text-align:center;padding:50px;font-family:sans-serif;'>
-                  <h1 style='color:green;'>✅ تم التحديث بنجاح!</h1>
-                  <p>قاعدة البيانات الآن متوافقة تماماً مع نسخة Vercel 2026.</p>
-                  <a href='/dashboard'>الذهاب للوحة التحكم</a></div>"""
+        return "<h1 style='color:green; text-align:center;'>✅ تم التحديث بنجاح!</h1>"
     except Exception as e:
-        db.session.rollback()
-        return f"<h1>❌ فشل التحديث</h1><p>{str(e)}</p>"
+        return f"<h1>❌ فشل التحديث: {e}</h1>"
 
 @auth_bp.route('/profile', methods=['GET', 'POST'])
 @login_required
@@ -289,18 +281,14 @@ def profile():
         current_user.headline = request.form.get('headline')
         current_user.phone = request.form.get('phone')
         current_user.location_name = request.form.get('location_name')
-        
+
         if 'avatar' in request.files:
-            file = request.files['avatar']
-            if file and file.filename != '':
-                img_url = upload_to_imgbb(file)
-                if img_url: current_user.avatar = img_url
+            img_url = upload_to_imgbb(request.files['avatar'])
+            if img_url: current_user.avatar = img_url
 
         if 'cover_photo' in request.files:
-            file = request.files['cover_photo']
-            if file and file.filename != '':
-                cover_url = upload_to_imgbb(file)
-                if cover_url: current_user.cover_photo = cover_url
+            cover_url = upload_to_imgbb(request.files['cover_photo'])
+            if cover_url: current_user.cover_photo = cover_url
 
         db.session.commit()
         flash('تم تحديث بروفايلك بنجاح ✅', 'success')
@@ -308,7 +296,6 @@ def profile():
 
     cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
     radar_data = cv.radar_scores if cv and cv.radar_scores else [0, 0, 0, 0, 0]
-    
     user_link = url_for('auth.user_profile', username=current_user.username, _external=True)
     qr = qrcode.QRCode(version=1, box_size=5, border=1)
     qr.add_data(user_link)
@@ -317,7 +304,6 @@ def profile():
     buffered = io.BytesIO()
     img.save(buffered, format="PNG")
     user_qr_base64 = base64.b64encode(buffered.getvalue()).decode()
-                                                                
     return render_template('profile.html', user_qr=user_qr_base64, cv=cv, radar_data=radar_data)
 
 @auth_bp.route('/logout')
@@ -343,15 +329,13 @@ def user_profile(username):
     buffered = io.BytesIO()
     img.save(buffered, format="PNG")
     user_qr_base64 = base64.b64encode(buffered.getvalue()).decode()
-    
     return render_template('user_profile.html', user=user, posts=posts, is_online=is_online, user_qr=user_qr_base64, radar_data=radar_data)
 
 @auth_bp.route('/verify/<username>')
 def verify_certificate(username):
     clean_name = urllib.parse.unquote(username).replace('_', ' ')
     user = User.query.filter((User.username.ilike(clean_name)) | (User.full_name.ilike(clean_name))).first()
-    if not user:
-        return render_template('errors/404.html'), 404
+    if not user: return render_template('errors/404.html'), 404
     report = user.last_evaluation or "هذا الملف المهني معتمد وموثق من قبل أنظمة جوبيني السودان لعام 2026."
     return render_template('certificate_verify.html', user=user, evaluation=report)
 
