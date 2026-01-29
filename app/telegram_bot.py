@@ -15,17 +15,17 @@ BOT_TOKEN = "8450110637:AAEMNOzpc8phiBr0Dmjm2UHoEWfKi30Ja_s"
 telegram_bp = Blueprint('telegram', __name__)
 user_sessions = {}
 
-# --- وظائف المساعدة الإضافية ---          
+# --- وظائف المساعدة الإضافية ---
 
 def send_message(chat_id, text, reply_markup=None):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     payload = {
-        "chat_id": chat_id, 
-        "text": text, 
-        "parse_mode": "HTML", 
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
         "disable_web_page_preview": False
     }
-    if reply_markup: 
+    if reply_markup:
         payload["reply_markup"] = reply_markup
     try:
         res = requests.post(url, json=payload, timeout=30, verify=False)
@@ -36,7 +36,7 @@ def send_message(chat_id, text, reply_markup=None):
 
 def send_photo(chat_id, photo_bytes, caption=None):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
-    if hasattr(photo_bytes, 'seek'): 
+    if hasattr(photo_bytes, 'seek'):
         photo_bytes.seek(0)
     files = {'photo': ('image.png', photo_bytes, 'image/png')}
     try:
@@ -47,7 +47,7 @@ def send_photo(chat_id, photo_bytes, caption=None):
 
 def send_document(chat_id, document_bytes, caption=None):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
-    if hasattr(document_bytes, 'seek'): 
+    if hasattr(document_bytes, 'seek'):
         document_bytes.seek(0)
     files = {'document': ('Jobeni_Report.pdf', document_bytes)}
     try:
@@ -173,14 +173,14 @@ def process_logic(chat_id, text):
         user = User.query.filter(User.telegram_id == str(chat_id)).first()
         if user:
             role_text = "باحث عن منح 🎓" if user.role == "scholarship_seeker" else "عضو في جوبيني 🤖"
-            send_message(chat_id, f"مرحباً بك مجدداً يا {user.username}!\nأنت مسجل كـ: {role_text}\n\nاستخدم /interview للبدء.")
+            send_message(chat_id, f"مرحباً بك مجدداً يا {user.username}!\nأنت مسجل كـ: {role_text}\n\nاستخدم /interview للمقابلة أو /qrcode للرمز.")
         else:
-            send_message(chat_id, "🤖 مرحباً بك في جوبيني! يرجى الضغط على زر 'ربط الآن' من بروفايلك في الموقع لربط حسابك.")
+            send_message(chat_id, "🤖 مرحباً بك في جوبيني! يرجى الضغط على زر 'ربط الآن' من بروفايلك في الموقع لربط حسابك، أو استخدم /qrcode.")
         return
 
     user = User.query.filter(User.telegram_id == str(chat_id)).first()
 
-    # ميزة الربط اليدوي
+    # 2. ميزة الربط اليدوي
     if text.startswith("ربط"):
         target_username = text.replace("ربط", "").strip()
         found_user = User.query.filter_by(username=target_username).first()
@@ -192,12 +192,30 @@ def process_logic(chat_id, text):
             send_message(chat_id, "❌ لم نجد مستخدم بهذا الاسم.")
         return
 
+    # 3. أمر الـ QR Code الجديد
+    elif text.startswith("/qrcode"):
+        send_message(chat_id, "🖼️ جاري توليد رمز الـ QR الخاص بك...")
+        if user:
+            link = f"https://jobeni-sd.vercel.app/verify/{user.username}"
+            caption = f"🔗 الرمز الخاص ببروفايلك الموثق يا {user.username}\nيمكن لأصحاب العمل مسحه للتحقق من مهاراتك وشهاداتك."
+        else:
+            link = "https://jobeni-sd.vercel.app"
+            caption = "🌐 رمز الوصول السريع لمنصة جوبيني السودان 2026.\nسجل الآن لتوثيق مهاراتك!"
+        
+        qr_img = JobeniAgent.create_qr_code(link)
+        if qr_img:
+            send_photo(chat_id, qr_img, caption=caption)
+        else:
+            send_message(chat_id, "❌ فشل توليد الرمز، حاول مرة أخرى.")
+        return
+
     elif text.startswith("/interview") or "مقابلة" in text:
         if not user:
             send_message(chat_id, "⚠️ يجب ربط حسابك أولاً لتتمكن من إجراء المقابلة.")
             return
         keyboard = {"inline_keyboard": [[{"text": "العربية 🇸🇩", "callback_data": "lang_ar"},{"text": "English 🇬🇧", "callback_data": "lang_en"}]]}
         send_message(chat_id, "الرجاء اختيار لغة المقابلة:", reply_markup=keyboard)
+        return
 
     elif text.startswith("/certified"):
         if user and user.last_evaluation:
@@ -209,7 +227,8 @@ def process_logic(chat_id, text):
             else:
                 send_message(chat_id, "❌ خطأ في إنشاء الشهادة.")
         else:
-            send_message(chat_id, "⚠️ لا يوجد تقييم مسجل.")
+            send_message(chat_id, "⚠️ لا يوجد تقييم مسجل لتوليد شهادة.")
+        return
 
     elif chat_id in user_sessions:
         session = user_sessions[chat_id]
@@ -218,14 +237,14 @@ def process_logic(chat_id, text):
             session['question_count'] = 6
 
         if session['question_count'] >= 5:
-            send_message(chat_id, "🏁 جاري تحليل الأداء...")
+            send_message(chat_id, "🏁 جاري تحليل الأداء وإصدار التقييم...")
             cert_prompt = f"Analyze this interview for {session['job']}: {session['history']}. Provide a professional assessment."
             certificate = openrouter_ai.get_ai_response(cert_prompt)
             if user:
                 user.last_evaluation = certificate
                 db.session.commit()
                 cert_img = JobeniAgent.create_certificate_image(user.username, certificate)
-                send_photo(chat_id, cert_img, "📜 تم إصدار شهادتك!")
+                send_photo(chat_id, cert_img, "📜 اكتملت المقابلة! إليك شهادة الاعتماد المبدئية.")
             del user_sessions[chat_id]
         else:
             session['question_count'] += 1
@@ -236,7 +255,7 @@ def process_logic(chat_id, text):
             send_message(chat_id, f"<b>السؤال [{count}/5]</b>\n\n{ai_next}")
             send_voice_response(chat_id, ai_next, lang=lang)
     else:
-        # إرسال تنبيه للمستخدم بأنه جاري التفكير لضمان استمرارية الاتصال في Vercel
+        # معالجة عامة بالذكاء الاصطناعي
         send_message(chat_id, "🔍 <i>جاري التحليل عبر الوكيل الذكي...</i>")
         resp = openrouter_ai.get_ai_response(text)
         send_message(chat_id, resp)
@@ -246,8 +265,10 @@ def process_logic(chat_id, text):
 def telegram_webhook():
     try:
         data = request.get_json()
-        if data: 
-            handle_telegram_webhook(data)
+        if data:
+            # تغليف المعالجة داخل سياق التطبيق لضمان عمل SQLAlchemy في Vercel
+            with current_app.app_context():
+                handle_telegram_webhook(data)
         return jsonify({"status": "ok"}), 200
     except Exception as e:
         print(f"Webhook Error: {e}")
