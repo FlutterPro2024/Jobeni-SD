@@ -11,12 +11,30 @@
     }
   ],
   "routes": [
-    { "src": "/webhook", "dest": "run.py" },
-    { "src": "/telegram/webhook", "dest": "run.py" },
-    { "src": "/agent/run-jobs-agent", "dest": "run.py" },
-    { "src": "/agent/run-discovery", "dest": "run.py" },
-    { "src": "/agent/weekly-summary", "dest": "run.py" },
-    { "src": "/(.*)", "dest": "run.py" }
+    { 
+      "src": "/telegram/webhook", 
+      "dest": "run.py" 
+    },
+    { 
+      "src": "/webhook", 
+      "dest": "run.py" 
+    },
+    { 
+      "src": "/agent/run-jobs-agent", 
+      "dest": "run.py" 
+    },
+    { 
+      "src": "/agent/run-discovery", 
+      "dest": "run.py" 
+    },
+    { 
+      "src": "/agent/weekly-summary", 
+      "dest": "run.py" 
+    },
+    { 
+      "src": "/(.*)", 
+      "dest": "run.py" 
+    }
   ],
   "crons": [
     {

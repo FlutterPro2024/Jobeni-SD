@@ -134,12 +134,12 @@
                                                 <div class="text-muted small" style="font-size: 0.7rem;">{% if current_user.role == 'scholarship_seeker' %}للحصول على تدريب المقابلات الأكاديمية{% else %}للحصول على تدريب مقابلات العمل{% endif %}</div>
                                             </div>
                                         </div>
-                                        <a href="https://t.me/JOBENISDbot?start={{ current_user.id }}" target="_blank" class="btn btn-info btn-sm rounded-pill px-4 fw-bold shadow-sm text-white">
-                                            ابدأ الربط
+                                        <a href="https://t.me/JOBENSDbot?start={{ current_user.username }}" target="_blank" class="btn btn-info btn-sm rounded-pill px-4 fw-bold shadow-sm text-white">
+                                            ابدأ الربط الآن
                                         </a>
                                     {% endif %}
                                 </div>
-                                
+
                                 {% if current_user.role == 'scholarship_seeker' %}
                                 <div class="p-2 px-3 bg-light rounded-pill d-inline-block border">
                                     <small class="text-primary fw-bold"><i class="fas fa-graduation-cap ms-1"></i> وضع طالب المنح مفعل: سيقوم البوت بمحاكاة لجان القبول الأكاديمي.</small>

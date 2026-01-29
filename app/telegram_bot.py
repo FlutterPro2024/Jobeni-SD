@@ -111,8 +111,7 @@ def handle_telegram_webhook(data):
 def start_interview(chat_id, lang):
     from app.models import User
     user = User.query.filter_by(telegram_id=str(chat_id)).first()
-    
-    # تحديد هدف المقابلة بناءً على نوع الحساب (منحة أو وظيفة)
+
     if user and user.role == 'scholarship_seeker':
         job = user.agent_query or "Academic Scholarship Candidate"
         context = "Academic Admission Interview"
@@ -144,100 +143,98 @@ def process_logic(chat_id, text):
     from app.models import User, db
     from app.agent_worker import JobeniAgent
 
-    # البحث عن المستخدم بالرقم التعريفي للتليجرام
-    user = User.query.filter(User.telegram_id == str(chat_id)).first()
-
-    # 1. أوامر النظام
+    # 1. معالجة أمر البداية والربط التلقائي (Deep Link)
     if text.startswith("/start"):
+        parts = text.split()
+        if len(parts) > 1:
+            identifier = parts[1]
+            # البحث عن المستخدم بالاسم أو الـ ID القادم من الموقع
+            user_to_link = User.query.filter((User.username == identifier) | (User.id == identifier)).first()
+            if user_to_link:
+                user_to_link.telegram_id = str(chat_id)
+                db.session.commit()
+                role_text = "باحث عن منح 🎓" if user_to_link.role == "scholarship_seeker" else "باحث عن عمل 💼"
+                welcome_msg = f"✅ <b>تم ربط الحساب بنجاح!</b>\n\nأهلاً بك يا {user_to_link.username} في جوبيني 2026.\nهويتك الحالية: {role_text}\n\nاستخدم /interview للبدء."
+                send_message(chat_id, welcome_msg)
+                return
+            else:
+                send_message(chat_id, "❌ عذراً، لم نتمكن من العثور على الحساب المطلوب للربط.")
+                return
+        
+        # إذا دخل بدون باراميترات، نبحث عنه بالرقم
+        user = User.query.filter(User.telegram_id == str(chat_id)).first()
         if user:
             role_text = "باحث عن منح 🎓" if user.role == "scholarship_seeker" else "عضو في جوبيني 🤖"
-            welcome_msg = f"مرحباً بك مجدداً يا {user.username}!\nأنت مسجل كـ: {role_text}\n\nاستخدم /interview للبدء أو /certified للحصول على شهادتك."
+            send_message(chat_id, f"مرحباً بك مجدداً يا {user.username}!\nأنت مسجل كـ: {role_text}\n\nاستخدم /interview للبدء.")
         else:
-            welcome_msg = "🤖 Welcome to Jobeni! \nلم نتمكن من العثور على حساب مرتب بهذا الرقم.\n\n💡 لربط الحساب: أرسل اسم المستخدم الخاص بك في الموقع مسبوقاً بكلمة 'ربط' (مثال: ربط ahmed2026)"
-        send_message(chat_id, welcome_msg)
+            send_message(chat_id, "🤖 مرحباً بك في جوبيني! يرجى الضغط على زر 'ربط الآن' من بروفايلك في الموقع لربط حسابك.")
+        return
 
-    # ميزة الربط اليدوي للأمان
-    elif text.startswith("ربط"):
+    # البحث عن المستخدم الحالي لبقية الأوامر
+    user = User.query.filter(User.telegram_id == str(chat_id)).first()
+
+    # ميزة الربط اليدوي (للأمان الإضافي)
+    if text.startswith("ربط"):
         target_username = text.replace("ربط", "").strip()
         found_user = User.query.filter_by(username=target_username).first()
         if found_user:
             found_user.telegram_id = str(chat_id)
             db.session.commit()
-            send_message(chat_id, f"✅ تم ربط الحساب بنجاح يا {found_user.username}!\nنوع الحساب: {found_user.role}")
+            send_message(chat_id, f"✅ تم ربط الحساب يدوياً يا {found_user.username}!")
         else:
-            send_message(chat_id, "❌ لم نجد مستخدم بهذا الاسم في المنصة.")
+            send_message(chat_id, "❌ لم نجد مستخدم بهذا الاسم.")
+        return
 
     elif text.startswith("/interview") or "مقابلة" in text:
         if not user:
-            send_message(chat_id, "⚠️ يجب ربط حسابك أولاً لتتمكن من إجراء المقابلة وحفظ النتائج.")
+            send_message(chat_id, "⚠️ يجب ربط حسابك أولاً لتتمكن من إجراء المقابلة.")
             return
-        keyboard = {
-            "inline_keyboard": [[
-                {"text": "العربية 🇸🇩", "callback_data": "lang_ar"},
-                {"text": "English 🇬🇧", "callback_data": "lang_en"}
-            ]]
-        }
-        send_message(chat_id, "الرجاء اختيار لغة المقابلة | Please select language:", reply_markup=keyboard)
+        keyboard = {"inline_keyboard": [[{"text": "العربية 🇸🇩", "callback_data": "lang_ar"},{"text": "English 🇬🇧", "callback_data": "lang_en"}]]}
+        send_message(chat_id, "الرجاء اختيار لغة المقابلة:", reply_markup=keyboard)
 
     elif text.startswith("/certified"):
         if user and user.last_evaluation:
-            send_message(chat_id, "📜 <i>جاري استخراج شهادتك الموثقة...</i>")
+            send_message(chat_id, "📜 جاري استخراج شهادتك...")
             display_name = user.full_name or user.username
             cert_img = JobeniAgent.create_certificate_image(display_name, user.last_evaluation)
             if cert_img:
-                caption = f"📜 تهانينا {display_name}!\nلقد اجتزت التقييم بنجاح."
-                send_photo(chat_id, cert_img, caption=caption)
+                send_photo(chat_id, cert_img, caption=f"📜 شهادتك يا {display_name}")
             else:
-                send_message(chat_id, "❌ حدث خطأ في إنشاء صورة الشهادة.")
+                send_message(chat_id, "❌ خطأ في إنشاء الشهادة.")
         else:
-            send_message(chat_id, "⚠️ لا يوجد تقييم مسجل. ابدأ مقابلة أولاً عبر /interview")
+            send_message(chat_id, "⚠️ لا يوجد تقييم مسجل.")
 
-    # 2. إدارة جلسة المقابلة النشطة
     elif chat_id in user_sessions:
+        # إدارة المقابلة
         session = user_sessions[chat_id]
         lang = session['lang']
-
         if any(x in text.lower() for x in ["خلاص", "إنهاء", "done", "finish"]):
             session['question_count'] = 6
 
         if session['question_count'] >= 5:
-            finish_msg = "🏁 Analyzing..." if lang == "English" else "🏁 جاري تحليل الأداء..."
-            send_message(chat_id, finish_msg)
-
-            cert_prompt = f"Analyze this interview for {session['job']}: {session['history']}. Provide a professional assessment starting with 'Expert Assessment:'."
+            send_message(chat_id, "🏁 جاري تحليل الأداء...")
+            cert_prompt = f"Analyze this interview for {session['job']}: {session['history']}. Provide a professional assessment."
             certificate = openrouter_ai.get_ai_response(cert_prompt)
-
             if user:
                 user.last_evaluation = certificate
                 db.session.commit()
-                display_name = user.full_name or user.username
-                cert_img = JobeniAgent.create_certificate_image(display_name, certificate)
-                send_photo(chat_id, cert_img, "📜 Official Certificate Generated!")
-
+                cert_img = JobeniAgent.create_certificate_image(user.username, certificate)
+                send_photo(chat_id, cert_img, "📜 تم إصدار شهادتك!")
             del user_sessions[chat_id]
         else:
             session['question_count'] += 1
             count = session['question_count']
-            levels = {2: "Easy", 3: "Medium", 4: "Advanced", 5: "Hardcore"} if lang == "English" else {2: "سهل", 3: "متوسط", 4: "متقدم", 5: "معقد جداً"}
-            icons = {2: "🟢", 3: "🟡", 4: "🟠", 5: "🔴"}
-
             session['history'].append(f"User: {text}")
-            next_prompt = f"Ask next question for {session['job']} (Difficulty: {levels[count]}) in {lang}."
+            next_prompt = f"Ask next question for {session['job']} (Question {count}/5) in {lang}."
             ai_next = openrouter_ai.get_ai_response(next_prompt)
-
-            header = f"{icons[count]} <b>Question [{count}/5]</b>" if lang == "English" else f"{icons[count]} <b>السؤال [{count}/5]</b>"
-            send_message(chat_id, f"{header}\n\n{ai_next}")
+            send_message(chat_id, f"<b>السؤال [{count}/5]</b>\n\n{ai_next}")
             send_voice_response(chat_id, ai_next, lang=lang)
-
     else:
-        # رد ذكاء اصطناعي عام
         resp = openrouter_ai.get_ai_response(text)
         send_message(chat_id, resp)
-        send_voice_response(chat_id, resp)
 
 @telegram_bp.route('/webhook', methods=['POST'])
 def telegram_webhook():
     data = request.get_json()
     if data: handle_telegram_webhook(data)
     return jsonify({"status": "ok"}), 200
-
