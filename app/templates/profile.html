@@ -67,7 +67,7 @@
                                  style="max-width: 140px;"
                                  alt="User QR Code">
                             <p class="small text-muted mt-2 mb-0" style="font-size: 0.65rem;">
-                                امسح الكود لمشاركة ملفك الشخصي مع أصحاب العمل
+                                امسح الكود لمشاركة ملفك الشخصي مع {% if current_user.role == 'scholarship_seeker' %}الجامعات والمنظمات{% else %}أصحاب العمل{% endif %}
                             </p>
                             {% else %}
                             <p class="small text-danger">جاري تجهيز الكود...</p>
@@ -89,8 +89,8 @@
                                 <input type="text" name="full_name" class="form-control rounded-3 bg-light border-0" value="{{ current_user.full_name or '' }}" placeholder="أدخل اسمك بالكامل">
                             </div>
                             <div class="col-md-6 text-end">
-                                <label class="form-label small fw-bold text-muted">المسمى الوظيفي (Headline)</label>
-                                <input type="text" name="headline" class="form-control rounded-3 bg-light border-0" value="{{ current_user.headline or '' }}" placeholder="مثلاً: مهندس برمجيات | خبير تسويق">
+                                <label class="form-label small fw-bold text-muted">المسمى {% if current_user.role == 'scholarship_seeker' %}الأكاديمي{% else %}الوظيفي{% endif %}</label>
+                                <input type="text" name="headline" class="form-control rounded-3 bg-light border-0" value="{{ current_user.headline or '' }}" placeholder="{% if current_user.role == 'scholarship_seeker' %}مثلاً: طالب هندسة | باحث دكتوراه{% else %}مثلاً: مهندس برمجيات | خبير تسويق{% endif %}">
                             </div>
 
                             <div class="col-md-6 text-end">
@@ -110,32 +110,41 @@
 
                             <div class="col-12 text-end">
                                 <label class="form-label small fw-bold text-muted">النبذة التعريفية (Bio)</label>
-                                <textarea name="bio" class="form-control rounded-3 bg-light border-0" rows="4" placeholder="اكتب نبذة مختصرة عن خبراتك وأهدافك المهنية...">{{ current_user.bio or '' }}</textarea>
+                                <textarea name="bio" class="form-control rounded-3 bg-light border-0" rows="4" placeholder="اكتب نبذة مختصرة عن خبراتك وأهدافك {% if current_user.role == 'scholarship_seeker' %}الأكاديمية{% else %}المهنية{% endif %}...">{{ current_user.bio or '' }}</textarea>
                             </div>
 
                             <div class="col-12 text-end">
                                 <hr class="my-4">
-                                <label class="form-label small fw-bold text-muted">تكامل المنصات</label>
-                                <div class="p-3 rounded-4 {% if current_user.telegram_id %}bg-success-subtle{% else %}bg-warning-subtle{% endif %} d-flex justify-content-between align-items-center shadow-sm border-0">
+                                <label class="form-label small fw-bold text-muted">تكامل المنصات الذكية لعام 2026</label>
+                                <div class="p-3 rounded-4 {% if current_user.telegram_id %}bg-success-subtle{% else %}bg-info-subtle{% endif %} d-flex justify-content-between align-items-center shadow-sm border-0 mb-3">
                                     {% if current_user.telegram_id %}
                                         <div class="d-flex align-items-center">
-                                            <i class="fab fa-telegram text-success fs-3 me-3"></i>
-                                            <div>
-                                                <div class="text-success fw-bold small">بوت تليجرام متصل</div>
-                                                <div class="text-muted small" style="font-size: 0.7rem;">ستصلك الإشعارات مباشرة</div>
+                                            <i class="fab fa-telegram text-success fs-3 ms-3"></i>
+                                            <div class="text-end">
+                                                <div class="text-success fw-bold small">بوت تليجرام متصل بنجاح ✅</div>
+                                                <div class="text-muted small" style="font-size: 0.7rem;">تصلك الآن تنبيهات {% if current_user.role == 'scholarship_seeker' %}المنح والقبولات{% else %}الوظائف والمقابلات{% endif %}</div>
                                             </div>
                                         </div>
                                         <span class="badge bg-success rounded-pill px-3">نشط</span>
                                     {% else %}
                                         <div class="d-flex align-items-center">
-                                            <i class="fab fa-telegram text-warning fs-3 me-3"></i>
-                                            <div class="text-dark fw-bold small">ربط بوت التنبيهات الذكي</div>
+                                            <i class="fab fa-telegram text-info fs-3 ms-3"></i>
+                                            <div class="text-end">
+                                                <div class="text-dark fw-bold small">ربط الرادار الذكي (تليجرام)</div>
+                                                <div class="text-muted small" style="font-size: 0.7rem;">{% if current_user.role == 'scholarship_seeker' %}للحصول على تدريب المقابلات الأكاديمية{% else %}للحصول على تدريب مقابلات العمل{% endif %}</div>
+                                            </div>
                                         </div>
-                                        <a href="https://t.me/JOBENISDbot?start={{ current_user.id }}" target="_blank" class="btn btn-warning btn-sm rounded-pill px-3 fw-bold shadow-sm">
-                                            ربط الآن
+                                        <a href="https://t.me/JOBENISDbot?start={{ current_user.id }}" target="_blank" class="btn btn-info btn-sm rounded-pill px-4 fw-bold shadow-sm text-white">
+                                            ابدأ الربط
                                         </a>
                                     {% endif %}
                                 </div>
+                                
+                                {% if current_user.role == 'scholarship_seeker' %}
+                                <div class="p-2 px-3 bg-light rounded-pill d-inline-block border">
+                                    <small class="text-primary fw-bold"><i class="fas fa-graduation-cap ms-1"></i> وضع طالب المنح مفعل: سيقوم البوت بمحاكاة لجان القبول الأكاديمي.</small>
+                                </div>
+                                {% endif %}
                             </div>
 
                             <div class="col-12 mt-4 text-start">
@@ -154,7 +163,7 @@
     function previewAndSubmit() {
         Swal.fire({
             title: 'جاري رفع الصور...',
-            text: 'يتم الآن المعالجة عبر ImgBB السحابي',
+            text: 'يتم الآن المعالجة عبر ImgBB السحابي لضمان استقرار الملف الشخصي',
             allowOutsideClick: false,
             didOpen: () => {
                 Swal.showLoading();
