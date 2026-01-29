@@ -48,7 +48,7 @@ def send_whatsapp_via_whapi(to_number, message):
     """إرسال رسالة واتساب عبر Whapi مع نظام إعادة المحاولة ومحاكاة الكتابة"""
     token = os.getenv('WHAPI_TOKEN')
     api_url = "https://gate.whapi.cloud/messages/text"
-    
+
     if not token:
         logger.error("❌ WHAPI_TOKEN مفقود في متغيرات البيئة")
         return None
@@ -101,7 +101,7 @@ class JobeniAgent:
 
             draw.rectangle([20, 20, 830, 1080], outline=(15, 15, 15), width=20)
             draw.rectangle([40, 40, 810, 1060], outline=(218, 165, 32), width=5)
-            
+
             try:
                 base_dir = os.path.dirname(os.path.dirname(__file__))
                 logo_path = os.path.join(base_dir, 'app', 'static', 'icons.png')
@@ -214,7 +214,7 @@ def run_agent():
         context_text = cv.extracted_text if cv else "Generic student"
 
         matches_found = 0
-        
+
         # --- حالة باحث عن منحة (مع الحفظ في جدول Scholarship الجديد) ---
         if user.role == 'scholarship_seeker':
             query = user.agent_query or "Global"
@@ -226,7 +226,7 @@ def run_agent():
                     # إذا كانت المنحة موجودة، نتحقق هل تم إرسالها لهذا المستخدم مسبقاً في الذاكرة؟
                     if AgentMemory.query.filter_by(user_id=user.id, scholarship_id=existing.id).first():
                         continue
-                
+
                 score = sch.get('match_score', 0)
                 if score >= 60:
                     # 1. حفظ المنحة في جدول Scholarship إذا كانت جديدة
@@ -252,15 +252,15 @@ def run_agent():
 
                     # 2. حفظ في ذاكرة الوكيل بربط الحقل الجديد scholarship_id
                     memory = AgentMemory(
-                        user_id=user.id, 
-                        action='scholarship_found', 
+                        user_id=user.id,
+                        action='scholarship_found',
                         scholarship_id=scholar_id, # ربط الجدول الجديد
-                        action_url=sch['link'], 
-                        feedback_notes=f"Match: {score}%", 
+                        action_url=sch['link'],
+                        feedback_notes=f"Match: {score}%",
                         score=score
                     )
                     db.session.add(memory)
-                    
+
                     msg = (
                         f"🎓 *بشارة منحة دراسية!* \n\n"
                         f"📌 {sch['title']}\n"
@@ -295,7 +295,7 @@ def run_agent():
                 if score >= user.agent_target_score:
                     memory = AgentMemory(user_id=user.id, action='sent', job_id=j['title'], feedback_notes=f"Score: {score}%", score=score)
                     db.session.add(memory)
-                    
+
                     if user.telegram_id:
                         msg = f"🎯 *فرصة مكنة:* {j['title']}\n🏢 {j['company']}\n📊 المطابقة: {score}%\n💡 {analysis.get('notes')}"
                         kb = {"inline_keyboard": [[{"text": "🔗 التقديم الآن", "url": j['link']}]]}
@@ -304,9 +304,9 @@ def run_agent():
                     if user.whatsapp_number and score >= 85:
                         wa_msg = f"🎯 *يا {user.username}، وظيفة لقطة!*\n\n📌 {j['title']}\n🏢 {j['company']}\n🔥 درجة المطابقة: {score}%\n\n🔗 {j['link']}"
                         send_whatsapp_via_whapi(user.whatsapp_number, wa_msg)
-                    
+
                     matches_found += 1
-        
+
         user.last_agent_run = datetime.utcnow()
         db.session.commit()
         return f"Processed for {user.username}. Found: {matches_found}", 200
@@ -332,11 +332,11 @@ def weekly_summary_cron():
 
             matches_count = len(memories)
             top_score = max([m.score for m in memories]) if memories else 0
-            
+
             role_text = "المنح" if user.role == "scholarship_seeker" else "الوظائف"
             prompt = f"بصفتك مستشار مهني ذكي، اكتب ملخصاً أسبوعياً لمستخدم سوداني يبحث عن {role_text}. الفرص المكتشفة {matches_count}، أعلى مطابقة {top_score}%. استخدم لهجة سودانية دارجة مهذبة."
             ai_advice = openrouter_ai.get_ai_response(prompt, temperature=0.7)
-            
+
             report_msg = (
                 f"📊 *تقرير جوبيني الأسبوعي يا {user.username}* \n"
                 f"━━━━━━━━━━━━━━━\n"
@@ -351,7 +351,7 @@ def weekly_summary_cron():
 
             db.session.add(AgentMemory(user_id=user.id, action='weekly_report', feedback_notes=f"Sent summary"))
             processed_count += 1
-            
+
         db.session.commit()
         return f"Weekly reports sent to {processed_count} users.", 200
     except Exception as e:
@@ -369,6 +369,7 @@ def get_certificate():
 
     cert_img = JobeniAgent.create_certificate_image(current_user.full_name or current_user.username, current_user.last_evaluation)
     if cert_img:
+        # تأكد من وجود TELEGRAM_BOT_TOKEN في .env
         BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
         files = {'photo': ('jobeni_cert.png', cert_img, 'image/png')}
         caption = "📜 *شهادة اعتماد جوبيني AI*\nتم توثيق مهاراتك رقمياً لعام 2026."

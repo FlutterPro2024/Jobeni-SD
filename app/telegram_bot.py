@@ -9,16 +9,24 @@ from pydub import AudioSegment
 # تعطيل تحذيرات الـ SSL لضمان العمل في بيئة تيرمكس و Vercel
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+# التوكن الأساسي للبوت
 BOT_TOKEN = "8450110637:AAEMNOzpc8phiBr0Dmjm2UHoEWfKi30Ja_s"
+
 telegram_bp = Blueprint('telegram', __name__)
 user_sessions = {}
 
-# --- وظائف المساعدة الإضافية لضمان عدم حدوث Error ---
+# --- وظائف المساعدة الإضافية ---          
 
 def send_message(chat_id, text, reply_markup=None):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML", "disable_web_page_preview": False}
-    if reply_markup: payload["reply_markup"] = reply_markup
+    payload = {
+        "chat_id": chat_id, 
+        "text": text, 
+        "parse_mode": "HTML", 
+        "disable_web_page_preview": False
+    }
+    if reply_markup: 
+        payload["reply_markup"] = reply_markup
     try:
         res = requests.post(url, json=payload, timeout=30, verify=False)
         return res.json()
@@ -28,7 +36,8 @@ def send_message(chat_id, text, reply_markup=None):
 
 def send_photo(chat_id, photo_bytes, caption=None):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
-    if hasattr(photo_bytes, 'seek'): photo_bytes.seek(0)
+    if hasattr(photo_bytes, 'seek'): 
+        photo_bytes.seek(0)
     files = {'photo': ('image.png', photo_bytes, 'image/png')}
     try:
         return requests.post(url, data={'chat_id': chat_id, 'caption': caption}, files=files, verify=False).json()
@@ -38,7 +47,8 @@ def send_photo(chat_id, photo_bytes, caption=None):
 
 def send_document(chat_id, document_bytes, caption=None):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
-    if hasattr(document_bytes, 'seek'): document_bytes.seek(0)
+    if hasattr(document_bytes, 'seek'): 
+        document_bytes.seek(0)
     files = {'document': ('Jobeni_Report.pdf', document_bytes)}
     try:
         return requests.post(url, data={'chat_id': chat_id, 'caption': caption}, files=files, verify=False).json()
@@ -148,7 +158,6 @@ def process_logic(chat_id, text):
         parts = text.split()
         if len(parts) > 1:
             identifier = parts[1]
-            # البحث عن المستخدم بالاسم أو الـ ID القادم من الموقع
             user_to_link = User.query.filter((User.username == identifier) | (User.id == identifier)).first()
             if user_to_link:
                 user_to_link.telegram_id = str(chat_id)
@@ -160,8 +169,7 @@ def process_logic(chat_id, text):
             else:
                 send_message(chat_id, "❌ عذراً، لم نتمكن من العثور على الحساب المطلوب للربط.")
                 return
-        
-        # إذا دخل بدون باراميترات، نبحث عنه بالرقم
+
         user = User.query.filter(User.telegram_id == str(chat_id)).first()
         if user:
             role_text = "باحث عن منح 🎓" if user.role == "scholarship_seeker" else "عضو في جوبيني 🤖"
@@ -170,10 +178,9 @@ def process_logic(chat_id, text):
             send_message(chat_id, "🤖 مرحباً بك في جوبيني! يرجى الضغط على زر 'ربط الآن' من بروفايلك في الموقع لربط حسابك.")
         return
 
-    # البحث عن المستخدم الحالي لبقية الأوامر
     user = User.query.filter(User.telegram_id == str(chat_id)).first()
 
-    # ميزة الربط اليدوي (للأمان الإضافي)
+    # ميزة الربط اليدوي
     if text.startswith("ربط"):
         target_username = text.replace("ربط", "").strip()
         found_user = User.query.filter_by(username=target_username).first()
@@ -205,7 +212,6 @@ def process_logic(chat_id, text):
             send_message(chat_id, "⚠️ لا يوجد تقييم مسجل.")
 
     elif chat_id in user_sessions:
-        # إدارة المقابلة
         session = user_sessions[chat_id]
         lang = session['lang']
         if any(x in text.lower() for x in ["خلاص", "إنهاء", "done", "finish"]):
@@ -230,11 +236,19 @@ def process_logic(chat_id, text):
             send_message(chat_id, f"<b>السؤال [{count}/5]</b>\n\n{ai_next}")
             send_voice_response(chat_id, ai_next, lang=lang)
     else:
+        # إرسال تنبيه للمستخدم بأنه جاري التفكير لضمان استمرارية الاتصال في Vercel
+        send_message(chat_id, "🔍 <i>جاري التحليل عبر الوكيل الذكي...</i>")
         resp = openrouter_ai.get_ai_response(text)
         send_message(chat_id, resp)
+        send_voice_response(chat_id, resp)
 
 @telegram_bp.route('/webhook', methods=['POST'])
 def telegram_webhook():
-    data = request.get_json()
-    if data: handle_telegram_webhook(data)
-    return jsonify({"status": "ok"}), 200
+    try:
+        data = request.get_json()
+        if data: 
+            handle_telegram_webhook(data)
+        return jsonify({"status": "ok"}), 200
+    except Exception as e:
+        print(f"Webhook Error: {e}")
+        return jsonify({"status": "error"}), 500
