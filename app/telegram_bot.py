@@ -1,3 +1,4 @@
+# ~/jobeni-sD/app/telegram_bot.py
 import requests, os, re, json, time, io, urllib3
 from flask import Blueprint, request, jsonify, current_app
 from app.openrouter_ai import openrouter_ai
@@ -5,7 +6,7 @@ from gtts import gTTS
 import speech_recognition as sr
 from pydub import AudioSegment
 
-# تعطيل تحذيرات الـ SSL لضمان العمل في بيئة تيرمكس
+# تعطيل تحذيرات الـ SSL لضمان العمل في بيئة تيرمكس و Vercel
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 BOT_TOKEN = "8450110637:AAEMNOzpc8phiBr0Dmjm2UHoEWfKi30Ja_s"
@@ -63,22 +64,15 @@ def send_voice_response(chat_id, text, lang='ar'):
 
 def convert_voice_to_text(file_id):
     try:
-        # جلب رابط الملف من تليجرام
         file_info = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getFile?file_id={file_id}", verify=False).json()
         file_path = file_info['result']['file_path']
         voice_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
-        
-        # تحميل الملف
         voice_data = requests.get(voice_url, verify=False).content
         ogg_io = io.BytesIO(voice_data)
-        
-        # تحويل من OGG إلى WAV باستخدام pydub
         audio = AudioSegment.from_ogg(ogg_io)
         wav_io = io.BytesIO()
         audio.export(wav_io, format="wav")
         wav_io.seek(0)
-        
-        # التعرف على الكلام
         recognizer = sr.Recognizer()
         with sr.AudioFile(wav_io) as source:
             audio_data = recognizer.record(source)
@@ -95,7 +89,6 @@ def handle_telegram_webhook(data):
         callback = data["callback_query"]
         chat_id = callback["message"]["chat"]["id"]
         data_payload = callback["data"]
-
         if data_payload.startswith("lang_"):
             selected_lang = "English" if "en" in data_payload else "العربية"
             start_interview(chat_id, selected_lang)
@@ -104,8 +97,6 @@ def handle_telegram_webhook(data):
     if "message" in data:
         message = data["message"]
         chat_id = message["chat"]["id"]
-        
-        # معالجة الرسائل الصوتية
         if "voice" in message:
             send_message(chat_id, "⏳ <i>جاري معالجة صوتك...</i>")
             voice_text = convert_voice_to_text(message["voice"]["file_id"])
@@ -114,30 +105,37 @@ def handle_telegram_webhook(data):
             else:
                 send_message(chat_id, voice_text)
             return
-            
-        # معالجة النصوص
         if "text" in message:
             process_logic(chat_id, message["text"])
 
 def start_interview(chat_id, lang):
     from app.models import User
     user = User.query.filter_by(telegram_id=str(chat_id)).first()
-    job = user.agent_query if (user and user.agent_query) else "Cloud Solutions Architect"
+    
+    # تحديد هدف المقابلة بناءً على نوع الحساب (منحة أو وظيفة)
+    if user and user.role == 'scholarship_seeker':
+        job = user.agent_query or "Academic Scholarship Candidate"
+        context = "Academic Admission Interview"
+    else:
+        job = user.agent_query if (user and user.agent_query) else "Cloud Solutions Architect"
+        context = "Professional Job Interview"
 
     user_sessions[chat_id] = {
         "mode": "interview",
         "job": job,
         "history": [],
         "question_count": 1,
-        "lang": lang
+        "lang": lang,
+        "role": user.role if user else 'jobseeker'
     }
 
-    prompt = f"Start a professional interview for {job}. Ask question #1 (Level: Very Easy). Conduct the interview entirely in {lang}."
+    prompt = f"Start a {context} for {job}. Ask question #1 (Level: Easy). Conduct entirely in {lang}."
     ai_q = openrouter_ai.get_ai_response(prompt)
 
-    msg = f"🎙️ <b>Interview Started: {job}</b>\n🌐 Language: {lang}\n━━━━━━━━━━━━━━\nQ [1/5] - 🟢 Easy"
+    msg = f"🎙️ <b>Started: {job}</b>\n🌐 Language: {lang}\n━━━━━━━━━━━━━━\nQ [1/5]"
     if lang == "العربية":
-        msg = f"🎙️ <b>بدأت المقابلة: {job}</b>\n🌐 اللغة: {lang}\n━━━━━━━━━━━━━━\nالسؤال [1/5] - 🟢 سهل"
+        type_label = "مقابلة منحة" if (user and user.role == 'scholarship_seeker') else "مقابلة وظيفة"
+        msg = f"🎙️ <b>بدأت {type_label}: {job}</b>\n🌐 اللغة: {lang}\n━━━━━━━━━━━━━━\nالسؤال [1/5]"
 
     send_message(chat_id, f"{msg}\n\n{ai_q}")
     send_voice_response(chat_id, ai_q, lang=lang)
@@ -146,28 +144,42 @@ def process_logic(chat_id, text):
     from app.models import User, db
     from app.agent_worker import JobeniAgent
 
+    # البحث عن المستخدم بالرقم التعريفي للتليجرام
+    user = User.query.filter(User.telegram_id == str(chat_id)).first()
+
     # 1. أوامر النظام
     if text.startswith("/start"):
-        # محاولة ربط حساب المستخدم تلقائياً عند البداية
-        user = User.query.filter_by(telegram_id=str(chat_id)).first()
-        welcome_msg = "🤖 Welcome to Jobeni! Use /interview to start or /certified to get your certificate."
-        if not user:
-            welcome_msg += "\n\n⚠️ يرجى التأكد من ربط حسابك في الموقع برقم تليجرام الخاص بك."
+        if user:
+            role_text = "باحث عن منح 🎓" if user.role == "scholarship_seeker" else "عضو في جوبيني 🤖"
+            welcome_msg = f"مرحباً بك مجدداً يا {user.username}!\nأنت مسجل كـ: {role_text}\n\nاستخدم /interview للبدء أو /certified للحصول على شهادتك."
+        else:
+            welcome_msg = "🤖 Welcome to Jobeni! \nلم نتمكن من العثور على حساب مرتب بهذا الرقم.\n\n💡 لربط الحساب: أرسل اسم المستخدم الخاص بك في الموقع مسبوقاً بكلمة 'ربط' (مثال: ربط ahmed2026)"
         send_message(chat_id, welcome_msg)
 
+    # ميزة الربط اليدوي للأمان
+    elif text.startswith("ربط"):
+        target_username = text.replace("ربط", "").strip()
+        found_user = User.query.filter_by(username=target_username).first()
+        if found_user:
+            found_user.telegram_id = str(chat_id)
+            db.session.commit()
+            send_message(chat_id, f"✅ تم ربط الحساب بنجاح يا {found_user.username}!\nنوع الحساب: {found_user.role}")
+        else:
+            send_message(chat_id, "❌ لم نجد مستخدم بهذا الاسم في المنصة.")
+
     elif text.startswith("/interview") or "مقابلة" in text:
+        if not user:
+            send_message(chat_id, "⚠️ يجب ربط حسابك أولاً لتتمكن من إجراء المقابلة وحفظ النتائج.")
+            return
         keyboard = {
-            "inline_keyboard": [
-                [
-                    {"text": "العربية 🇸🇩", "callback_data": "lang_ar"},
-                    {"text": "English 🇬🇧", "callback_data": "lang_en"}
-                ]
-            ]
+            "inline_keyboard": [[
+                {"text": "العربية 🇸🇩", "callback_data": "lang_ar"},
+                {"text": "English 🇬🇧", "callback_data": "lang_en"}
+            ]]
         }
-        send_message(chat_id, "الرجاء اختيار لغة المقابلة | Please select interview language:", reply_markup=keyboard)
+        send_message(chat_id, "الرجاء اختيار لغة المقابلة | Please select language:", reply_markup=keyboard)
 
     elif text.startswith("/certified"):
-        user = User.query.filter_by(telegram_id=str(chat_id)).first()
         if user and user.last_evaluation:
             send_message(chat_id, "📜 <i>جاري استخراج شهادتك الموثقة...</i>")
             display_name = user.full_name or user.username
@@ -178,9 +190,9 @@ def process_logic(chat_id, text):
             else:
                 send_message(chat_id, "❌ حدث خطأ في إنشاء صورة الشهادة.")
         else:
-            send_message(chat_id, "⚠️ لا يوجد تقييم مسجل لك حالياً. ابدأ مقابلة أولاً عبر /interview")
+            send_message(chat_id, "⚠️ لا يوجد تقييم مسجل. ابدأ مقابلة أولاً عبر /interview")
 
-    # 2. إدارة جلسة المقابلة النشطة (للمستخدمين الآخرين)
+    # 2. إدارة جلسة المقابلة النشطة
     elif chat_id in user_sessions:
         session = user_sessions[chat_id]
         lang = session['lang']
@@ -189,22 +201,19 @@ def process_logic(chat_id, text):
             session['question_count'] = 6
 
         if session['question_count'] >= 5:
-            finish_msg = "🏁 Analysing your performance..." if lang == "English" else "🏁 جاري تحليل الأداء وإصدار الشهادة..."
+            finish_msg = "🏁 Analyzing..." if lang == "English" else "🏁 جاري تحليل الأداء..."
             send_message(chat_id, finish_msg)
 
-            # طلب التقييم النهائي
-            cert_prompt = f"Analyze this interview for {session['job']}: {session['history']}. Provide a professional assessment in English starting with 'Expert Technical Assessment:'."
+            cert_prompt = f"Analyze this interview for {session['job']}: {session['history']}. Provide a professional assessment starting with 'Expert Assessment:'."
             certificate = openrouter_ai.get_ai_response(cert_prompt)
 
-            user = User.query.filter_by(telegram_id=str(chat_id)).first()
             if user:
                 user.last_evaluation = certificate
                 db.session.commit()
                 display_name = user.full_name or user.username
                 cert_img = JobeniAgent.create_certificate_image(display_name, certificate)
-                success_msg = "📜 Your official certificate!" if lang == "English" else "📜 شهادتك الرسمية من جوبيني!"
-                send_photo(chat_id, cert_img, success_msg)
-            
+                send_photo(chat_id, cert_img, "📜 Official Certificate Generated!")
+
             del user_sessions[chat_id]
         else:
             session['question_count'] += 1
@@ -213,7 +222,7 @@ def process_logic(chat_id, text):
             icons = {2: "🟢", 3: "🟡", 4: "🟠", 5: "🔴"}
 
             session['history'].append(f"User: {text}")
-            next_prompt = f"Ask question #{count} for {session['job']} (Difficulty: {levels[count]}) in {lang}."
+            next_prompt = f"Ask next question for {session['job']} (Difficulty: {levels[count]}) in {lang}."
             ai_next = openrouter_ai.get_ai_response(next_prompt)
 
             header = f"{icons[count]} <b>Question [{count}/5]</b>" if lang == "English" else f"{icons[count]} <b>السؤال [{count}/5]</b>"
@@ -221,7 +230,7 @@ def process_logic(chat_id, text):
             send_voice_response(chat_id, ai_next, lang=lang)
 
     else:
-        # رد ذكاء اصطناعي عام إذا لم يكن في مقابلة
+        # رد ذكاء اصطناعي عام
         resp = openrouter_ai.get_ai_response(text)
         send_message(chat_id, resp)
         send_voice_response(chat_id, resp)
@@ -231,3 +240,4 @@ def telegram_webhook():
     data = request.get_json()
     if data: handle_telegram_webhook(data)
     return jsonify({"status": "ok"}), 200
+
