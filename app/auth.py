@@ -146,7 +146,7 @@ def dashboard():
 
     one_week_ago = datetime.utcnow() - timedelta(days=7)
 
-    # تصحيح: استخدام applied_at بدلاً من created_at لجدول Application
+    # استخدام applied_at بدلاً من created_at لجدول Application
     recent_apps = Application.query.filter(
         Application.user_id == current_user.id,
         Application.applied_at >= one_week_ago
@@ -301,17 +301,19 @@ def verify_certificate(username):
 
 @auth_bp.route('/force_upgrade')
 def force_upgrade():
-    """مسار التحديث القوي لإصلاح كافة مشاكل قاعدة البيانات في Vercel"""
+    """مسار التحديث القوي والشامل لإصلاح كافة نقص الأعمدة في Vercel لعام 2026"""
     try:
         from sqlalchemy import text
         # 1. إضافة أعمدة جدول المستخدم (User)
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)'))
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS agent_enabled BOOLEAN DEFAULT FALSE'))
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_evaluation TEXT'))
-        
-        # 2. إضافة العمود الحرج في agent_memory (لربط المنح والدراسات)
+
+        # 2. إضافة الأعمدة الناقصة في agent_memory (لضمان عمل الرادار دون Crash)
         db.session.execute(text('ALTER TABLE "agent_memory" ADD COLUMN IF NOT EXISTS scholarship_id INTEGER'))
-        
+        db.session.execute(text('ALTER TABLE "agent_memory" ADD COLUMN IF NOT EXISTS score INTEGER DEFAULT 0'))
+        db.session.execute(text('ALTER TABLE "agent_memory" ADD COLUMN IF NOT EXISTS action_url VARCHAR(500)'))
+
         # 3. إنشاء جدول المنح (Scholarship) في حال عدم وجوده
         db.session.execute(text('''
             CREATE TABLE IF NOT EXISTS scholarship (
@@ -328,9 +330,9 @@ def force_upgrade():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         '''))
-        
+
         db.session.commit()
-        return "✅ تم تحديث قاعدة البيانات وإضافة scholarship_id وجدول المنح بنجاح! جرب الداشبورد الآن."
+        return "✅ تم تحديث قاعدة البيانات بنجاح! تم إضافة أعمدة score و action_url وجدول المنح. جرب الداشبورد الآن."
     except Exception as e:
         db.session.rollback()
         return f"❌ فشل التحديث العميق: {str(e)}"
