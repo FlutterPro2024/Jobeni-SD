@@ -100,21 +100,19 @@ class Scholarship(db.Model):
     official_link = db.Column(db.String(500))
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # علاقة الذاكرة (Memory Relationship)
-    memories = db.relationship('AgentMemory', backref='scholarship_ref', lazy=True)
 
 class AgentMemory(db.Model):
     """ذاكرة الوكيل الذكي: لتذكر التفضيلات والقرارات السابقة"""
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    job_id = db.Column(db.Integer, db.ForeignKey('job.id'), nullable=True)
-    scholarship_id = db.Column(db.Integer, db.ForeignKey('scholarship.id'), nullable=True) # ربط المنحة
+    # تعديل: تحويل job_id و scholarship_id لـ String لاستيعاب معرفات المواقع الخارجية
+    job_id = db.Column(db.String(500), nullable=True) 
+    scholarship_id = db.Column(db.String(500), nullable=True)
     job_title = db.Column(db.String(200))
     action = db.Column(db.String(50)) # 'sent', 'ignored', 'scholarship_found', 'clicked'
-    score = db.Column(db.Integer) # تعديل ليكون متناسق مع الكود في agent_worker
+    score = db.Column(db.Integer) 
     feedback_notes = db.Column(db.Text)
-    action_url = db.Column(db.String(500)) # لتخزين الرابط المباشر
+    action_url = db.Column(db.String(500)) 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class SystemConfig(db.Model):
@@ -149,7 +147,7 @@ class Job(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    
+
     employer_user = db.relationship('User', back_populates='jobs')
     applications = db.relationship('Application', backref='job_ref', lazy=True, cascade="all, delete-orphan")
     questions = db.relationship('JobQuestion', backref='job', lazy=True, cascade="all, delete-orphan")
