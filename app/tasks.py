@@ -44,7 +44,7 @@ def run_ai_agent_discovery():
 
     # جلب المستخدمين الذين فعلوا الوكيل ولديهم رقم واتساب وسيرة ذاتية
     active_users = User.query.filter(
-        User.agent_enabled == True, 
+        User.agent_enabled == True,
         User.agent_active == True,
         User.whatsapp_number != None
     ).all()
@@ -61,12 +61,14 @@ def run_ai_agent_discovery():
 
         for job in available_jobs:
             # 1. فحص الذاكرة: هل تعاملنا مع هذه الوظيفة من قبل؟
-            already_processed = AgentMemory.query.filter_by(user_id=user.id, job_id=job.id).first()
+            already_processed = AgentMemory.query.filter_by(user_id=user.id, job_id=str(job.id)).first()
             if already_processed:
                 continue
 
             # 2. فحص الأهداف (Work Type): ريموت أم حضوري؟
-            job_is_remote = any(word in (job.description + job.title).lower() for word in ['remote', 'عن بعد', 'home'])
+            job_text = (job.description + job.title).lower()
+            job_is_remote = any(word in job_text for word in ['remote', 'عن بعد', 'home', 'من المنزل'])
+            
             if user.agent_work_type == 'remote' and not job_is_remote:
                 continue
             if user.agent_work_type == 'onsite' and job_is_remote:
@@ -87,7 +89,7 @@ def run_ai_agent_discovery():
 
             try:
                 ai_response = openrouter_ai.get_ai_response(prompt, temperature=0.1)
-                
+
                 if ai_response and "MATCH" in ai_response.upper():
                     report = ai_response.upper().replace('MATCH', '').strip()
                     if report.startswith(':'): report = report[1:].strip()
@@ -97,22 +99,22 @@ def run_ai_agent_discovery():
                         f"🎯 *رادار جوبيني لقى ليك فرصة مكنة!* 🎯\n\n"
                         f"يا {user.full_name or user.username}، دي وظيفة طابقت معاييرك: *{job.title}*\n\n"
                         f"{report}\n\n"
-                        f"🔗 *التقديم عبر جوبيني:* https://jobeni-sd.com/job/{job.id}\n\n"
+                        f"🔗 *التفاصيل:* https://jobeni-sd.com/jobs/{job.id}\n\n"
                         f"🤖 _تم الفحص بواسطة وكيلك الذكي بناءً على هدفك ({user.agent_work_type})_"
                     )
-
+                    
                     if send_whatsapp_ai_agent(user.whatsapp_number, wa_message):
                         # تسجيل في الذاكرة لمنع التكرار
                         memory = AgentMemory(
-                            user_id=user.id, 
-                            job_id=job.id, 
+                            user_id=user.id,
+                            job_id=str(job.id),
                             job_title=job.title,
                             action='sent',
-                            score_at_time=user.agent_target_score
+                            score=user.agent_target_score
                         )
                         db.session.add(memory)
                         
-                        # إضافة تطبيق مقترح
+                        # إضافة تطبيق مقترح في قاعدة البيانات
                         new_app = Application(
                             user_id=user.id, job_id=job.id, status='suggested',
                             match_score=85, match_explanation=report
@@ -120,10 +122,10 @@ def run_ai_agent_discovery():
                         db.session.add(new_app)
                         db.session.commit()
                         print(f"✅ تم إرسال {job.title} للمستخدم {user.username}")
-                
+
                 else:
                     # حتى لو رفضنا، نسجل في الذاكرة إننا فحصناها عشان ما نرجع ليها تاني
-                    memory = AgentMemory(user_id=user.id, job_id=job.id, action='ignored', job_title=job.title)
+                    memory = AgentMemory(user_id=user.id, job_id=str(job.id), action='ignored', job_title=job.title)
                     db.session.add(memory)
                     db.session.commit()
 
@@ -140,10 +142,9 @@ def send_weekly_agent_summary():
     active_users = User.query.filter(User.agent_enabled == True, User.whatsapp_number != None).all()
 
     for user in active_users:
-        # إحصائيات من الذاكرة
         total_scanned = AgentMemory.query.filter(AgentMemory.user_id == user.id, AgentMemory.created_at >= one_week_ago).count()
         matches = AgentMemory.query.filter(AgentMemory.user_id == user.id, AgentMemory.action == 'sent', AgentMemory.created_at >= one_week_ago).count()
-        
+
         if total_scanned == 0: continue
 
         summary_msg = (

@@ -48,7 +48,6 @@ def send_whatsapp_via_whapi(to_number, message):
     """إرسال رسالة واتساب عبر Whapi مع نظام إعادة المحاولة ومحاكاة الكتابة"""
     token = os.getenv('WHAPI_TOKEN')
     api_url = "https://gate.whapi.cloud/messages/text"
-
     if not token:
         logger.error("❌ WHAPI_TOKEN مفقود في متغيرات البيئة")
         return None
@@ -108,7 +107,8 @@ class JobeniAgent:
                 if os.path.exists(logo_path):
                     logo = Image.open(logo_path).convert("RGBA").resize((130, 130))
                     img.paste(logo, (360, 60), logo)
-            except: pass
+            except:
+                pass
 
             draw.text((320, 200), "JOBENI SUDAN", fill=(184, 134, 11))
             draw.text((260, 240), "AI-POWERED CAREER VERIFICATION", fill=(0, 0, 0))
@@ -152,15 +152,15 @@ class JobeniAgent:
         Act as a HARSH Recruiter. Analyze match for: {job_title}.
         CV: {cv_text[:1500]}
         Job: {job_desc[:800]}
-        Rules:
-        - Penalize missing hard skills (-20%).
+        Rules: - Penalize missing hard skills (-20%).
         Output JSON ONLY: {{"score": 0-100, "verdict": "Match/Reject", "missing": [], "notes": "concise feedback"}}
         """
         try:
             res = openrouter_ai.get_ai_response(prompt, temperature=0.1)
             match = re.search(r'\{.*\}', res, re.DOTALL)
             if match: return json.loads(match.group())
-        except: pass
+        except:
+            pass
         return {"score": 0, "verdict": "Reject", "notes": "AI Analysis Failed"}
 
     @staticmethod
@@ -169,7 +169,6 @@ class JobeniAgent:
         prompt = f"""
         Act as a Global Scholarship AI Agent. Find opportunities for: {query}
         User Academic Context: {user_context[:1500]}
-
         Tasks:
         1. Evaluate based on GPA, Field, and Eligibility for Sudanese.
         2. Assign Match Score (0-100%).
@@ -192,7 +191,6 @@ class JobeniAgent:
         try:
             search_results = serper_searcher.search_jobs(f"{query} scholarship 2026 fully funded")
             web_context = str(search_results.get('jobs', []))
-
             full_prompt = f"{prompt}\n\nSearch Data: {web_context[:2000]}"
             res = openrouter_ai.get_ai_response(full_prompt, temperature=0.3)
             match = re.search(r'\[.*\]', res, re.DOTALL)
@@ -243,7 +241,8 @@ def run_agent():
                         try:
                             if sch.get('deadline'):
                                 new_sch_entry.deadline = datetime.strptime(sch['deadline'], '%Y-%m-%d')
-                        except: pass
+                        except:
+                            pass
                         db.session.add(new_sch_entry)
                         db.session.flush() # للحصول على ID المنحة
                         scholar_id = new_sch_entry.id
@@ -273,12 +272,10 @@ def run_agent():
 
                     if user.telegram_id:
                         send_message(user.telegram_id, msg)
-
                     if user.whatsapp_number and score >= 85:
                         send_whatsapp_via_whapi(user.whatsapp_number, msg)
 
                     matches_found += 1
-
         # --- حالة باحث عن وظيفة ---
         else:
             query = user.agent_query or (cv.profession if cv else "Professional")
@@ -306,7 +303,7 @@ def run_agent():
                         send_whatsapp_via_whapi(user.whatsapp_number, wa_msg)
 
                     matches_found += 1
-
+        
         user.last_agent_run = datetime.utcnow()
         db.session.commit()
         return f"Processed for {user.username}. Found: {matches_found}", 200
@@ -348,10 +345,10 @@ def weekly_summary_cron():
 
             if user.whatsapp_number: send_whatsapp_via_whapi(user.whatsapp_number, report_msg)
             if user.telegram_id: send_message(user.telegram_id, report_msg)
-            
+
             db.session.add(AgentMemory(user_id=user.id, action='weekly_report', feedback_notes=f"Sent summary"))
             processed_count += 1
-            
+
         db.session.commit()
         return f"Weekly reports sent to {processed_count} users.", 200
     except Exception as e:

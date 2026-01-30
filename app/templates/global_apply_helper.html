@@ -29,7 +29,7 @@
                             <i class="fas fa-file-alt me-2 text-primary"></i> تحليل الملاءمة وخطاب التقديم:
                         </label>
                         <div class="position-relative">
-                            <textarea id="coverLetterText" class="form-control rounded-3 shadow-sm border-0 p-3" rows="12" readonly style="background: white; line-height: 1.6;">{{ analysis }}</textarea>
+                            <textarea id="coverLetterText" class="form-control rounded-3 shadow-sm border-0 p-3" rows="12" readonly style="background: white; line-height: 1.6; resize: none;">{{ analysis }}</textarea>
                             <button onclick="copyCoverLetter()" class="btn btn-dark btn-sm position-absolute top-0 end-0 m-2 rounded-pill px-3">
                                 <i class="fas fa-copy me-1"></i> نسخ النص
                             </button>
@@ -51,7 +51,7 @@
                         <a href="{{ job_link }}" target="_blank" class="btn btn-primary btn-lg rounded-pill px-5 fw-bold shadow">
                             الذهاب لموقع التقديم <i class="fas fa-external-link-alt ms-2"></i>
                         </a>
-                        <a href="{{ url_for('search.jobs_list') }}" class="btn btn-outline-secondary btn-lg rounded-pill px-4">
+                        <a href="{{ url_for('jobs.jobs_list') }}" class="btn btn-outline-secondary btn-lg rounded-pill px-4">
                             العودة للبحث
                         </a>
                     </div>
@@ -69,9 +69,23 @@
 function copyCoverLetter() {
     var copyText = document.getElementById("coverLetterText");
     copyText.select();
-    copyText.setSelectionRange(0, 99999);
-    document.execCommand("copy");
-    alert("تم نسخ التحليل بنجاح!");
+    copyText.setSelectionRange(0, 99999); // للهواتف
+    navigator.clipboard.writeText(copyText.value).then(() => {
+        alert("تم نسخ التحليل بنجاح! يمكنك الآن لصقه في موقع التقديم.");
+    }).catch(err => {
+        // للطرق القديمة في حال فشل الكليب بورد
+        document.execCommand("copy");
+        alert("تم نسخ النص!");
+    });
 }
 </script>
+
+<style>
+    .icon-box { min-width: 50px; }
+    #coverLetterText:focus { outline: none; box-shadow: none; }
+    .job-info-card { transition: all 0.3s ease; }
+    .job-info-card:hover { border-color: #0d6efd !important; }
+    .btn-primary { background-color: #0d6efd; border: none; }
+    .btn-primary:hover { background-color: #0b5ed7; transform: translateY(-2px); }
+</style>
 {% endblock %}

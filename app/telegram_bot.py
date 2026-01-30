@@ -78,11 +78,13 @@ def convert_voice_to_text(file_id):
         file_path = file_info['result']['file_path']
         voice_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
         voice_data = requests.get(voice_url, verify=False).content
+        
         ogg_io = io.BytesIO(voice_data)
         audio = AudioSegment.from_ogg(ogg_io)
         wav_io = io.BytesIO()
         audio.export(wav_io, format="wav")
         wav_io.seek(0)
+        
         recognizer = sr.Recognizer()
         with sr.AudioFile(wav_io) as source:
             audio_data = recognizer.record(source)
@@ -107,6 +109,7 @@ def handle_telegram_webhook(data):
     if "message" in data:
         message = data["message"]
         chat_id = message["chat"]["id"]
+        
         if "voice" in message:
             send_message(chat_id, "⏳ <i>جاري معالجة صوتك...</i>")
             voice_text = convert_voice_to_text(message["voice"]["file_id"])
@@ -115,13 +118,14 @@ def handle_telegram_webhook(data):
             else:
                 send_message(chat_id, voice_text)
             return
+            
         if "text" in message:
             process_logic(chat_id, message["text"])
 
 def start_interview(chat_id, lang):
     from app.models import User
     user = User.query.filter_by(telegram_id=str(chat_id)).first()
-
+    
     if user and user.role == 'scholarship_seeker':
         job = user.agent_query or "Academic Scholarship Candidate"
         context = "Academic Admission Interview"
@@ -137,10 +141,10 @@ def start_interview(chat_id, lang):
         "lang": lang,
         "role": user.role if user else 'jobseeker'
     }
-
+    
     prompt = f"Start a {context} for {job}. Ask question #1 (Level: Easy). Conduct entirely in {lang}."
     ai_q = openrouter_ai.get_ai_response(prompt)
-
+    
     msg = f"🎙️ <b>Started: {job}</b>\n🌐 Language: {lang}\n━━━━━━━━━━━━━━\nQ [1/5]"
     if lang == "العربية":
         type_label = "مقابلة منحة" if (user and user.role == 'scholarship_seeker') else "مقابلة وظيفة"
@@ -176,7 +180,7 @@ def process_logic(chat_id, text):
             send_message(chat_id, f"مرحباً بك مجدداً يا {user.username}!\nأنت مسجل كـ: {role_text}\n\nاستخدم /interview للمقابلة أو /qrcode للرمز.")
         else:
             send_message(chat_id, "🤖 مرحباً بك في جوبيني! يرجى الضغط على زر 'ربط الآن' من بروفايلك في الموقع لربط حسابك، أو استخدم /qrcode.")
-        return
+            return
 
     user = User.query.filter(User.telegram_id == str(chat_id)).first()
 
@@ -201,7 +205,7 @@ def process_logic(chat_id, text):
         else:
             link = "https://jobeni-sd.vercel.app"
             caption = "🌐 رمز الوصول السريع لمنصة جوبيني السودان 2026.\nسجل الآن لتوثيق مهاراتك!"
-        
+
         qr_img = JobeniAgent.create_qr_code(link)
         if qr_img:
             send_photo(chat_id, qr_img, caption=caption)
@@ -235,7 +239,7 @@ def process_logic(chat_id, text):
         lang = session['lang']
         if any(x in text.lower() for x in ["خلاص", "إنهاء", "done", "finish"]):
             session['question_count'] = 6
-
+        
         if session['question_count'] >= 5:
             send_message(chat_id, "🏁 جاري تحليل الأداء وإصدار التقييم...")
             cert_prompt = f"Analyze this interview for {session['job']}: {session['history']}. Provide a professional assessment."
@@ -266,10 +270,9 @@ def telegram_webhook():
     try:
         data = request.get_json()
         if data:
-            # تغليف المعالجة داخل سياق التطبيق لضمان عمل SQLAlchemy في Vercel
             with current_app.app_context():
                 handle_telegram_webhook(data)
-        return jsonify({"status": "ok"}), 200
+            return jsonify({"status": "ok"}), 200
     except Exception as e:
         print(f"Webhook Error: {e}")
         return jsonify({"status": "error"}), 500

@@ -69,7 +69,7 @@ def create_app(config_name='default'):
         app.register_blueprint(telegram_bp, url_prefix='/telegram')
         app.register_blueprint(notifications_bp, url_prefix='/notifications')
 
-        # 3. تسجيل الإضافات المتقدمة (الـ AI والبحث والإدارة) مع معالجة الأخطاء
+        # 3. تسجيل الإضافات المتقدمة مع معالجة الأخطاء
         try:
             from app.api import api_bp
             app.register_blueprint(api_bp)
@@ -98,13 +98,13 @@ def create_app(config_name='default'):
         if not is_vercel:
             try:
                 from app.tasks import run_ai_agent_discovery, send_weekly_agent_summary
-
-                # مهمة الرادار اليومي (كل 24 ساعة)
+                
+                # مهمة الرادار اليومي (كل 24 ساعة) للبحث عن منح ووظائف
                 if not scheduler.get_job('ai_agent_job'):
                     scheduler.add_job(id='ai_agent_job', func=run_ai_agent_discovery, trigger='interval', hours=24)
                     app.logger.info("✅ رادار الأيجنت اليومي نشط")
 
-                # مهمة التقرير الأسبوعي
+                # مهمة التقرير الأسبوعي الذكي
                 if not scheduler.get_job('weekly_summary_job'):
                     scheduler.add_job(id='weekly_summary_job', func=send_weekly_agent_summary, trigger='interval', weeks=1)
                     app.logger.info("✅ التقرير الأسبوعي مبرمج بنجاح")
@@ -117,24 +117,21 @@ def create_app(config_name='default'):
 
     @app.context_processor
     def inject_vars():
-        """حقن متغيرات عالمية مع معالجة ذكية لأخطاء قاعدة البيانات"""
+        """حقن متغيرات عالمية (مثل الإعلانات) في جميع القوالب"""
         from app.models import Notification, SystemConfig
         from datetime import datetime, timedelta
-
+        
         announcement = None
         announcement_color = 'danger'
 
         try:
-            # محاولة جلب الإعلان من قاعدة البيانات
             config_entry = SystemConfig.query.filter_by(key='announcement').first()
             if config_entry:
                 announcement = config_entry.value
                 announcement_color = config_entry.extra_value or 'danger'
         except Exception as e:
-            # الحل الحاسم: عمل rollback لمنع تسمم الـ Transaction
             db.session.rollback()
             app.logger.error(f"Database error in inject_vars: {e}")
-            announcement = None
 
         return dict(
             Notification=Notification,

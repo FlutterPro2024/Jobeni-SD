@@ -55,7 +55,7 @@ class User(db.Model, UserMixin):
     posts = db.relationship('Post', backref='author', lazy='dynamic')
     agent_memories = db.relationship('AgentMemory', backref='user', lazy=True, cascade="all, delete-orphan")
 
-    # علاقة الإشعارات
+    # علاقة الإشعارات والنتائج
     notifications = db.relationship('Notification', backref='recipient', lazy='dynamic', foreign_keys='Notification.user_id')
     quiz_results = db.relationship('QuizResult', backref='user', lazy=True)
 
@@ -86,16 +86,18 @@ class User(db.Model, UserMixin):
         self.last_seen = datetime.utcnow()
         db.session.commit()
 
+# --- موديلات المنح والوكيل الذكي ---
+
 class Scholarship(db.Model):
     """موديل المنح الدراسية المكتشفة بواسطة الرادار"""
     __tablename__ = 'scholarship'
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(500), nullable=False) # تم الرفع لـ 500
-    university = db.Column(db.String(500))            # تم الرفع لـ 500
+    title = db.Column(db.String(500), nullable=False)
+    university = db.Column(db.String(500))
     country = db.Column(db.String(200))
     field_of_study = db.Column(db.String(500))
-    level = db.Column(db.String(100)) 
-    funding_type = db.Column(db.String(100)) 
+    level = db.Column(db.String(100))
+    funding_type = db.Column(db.String(100))
     deadline = db.Column(db.DateTime)
     official_link = db.Column(db.String(700))
     is_active = db.Column(db.Boolean, default=True)
@@ -105,31 +107,16 @@ class AgentMemory(db.Model):
     """ذاكرة الوكيل الذكي: لتذكر التفضيلات والقرارات السابقة"""
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    # تعديل: نصوص لاستيعاب معرفات المواقع الخارجية
     job_id = db.Column(db.String(500), nullable=True)
-    scholarship_id = db.Column(db.String(500), nullable=True)
+    scholarship_id = db.Column(db.Integer, db.ForeignKey('scholarship.id'), nullable=True)
     job_title = db.Column(db.String(500))
-    action = db.Column(db.String(100)) 
+    action = db.Column(db.String(100)) # e.g., 'sent', 'scholarship_found', 'applied'
     score = db.Column(db.Integer)
     feedback_notes = db.Column(db.Text)
     action_url = db.Column(db.String(700))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-class SystemConfig(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    key = db.Column(db.String(100), unique=True)
-    value = db.Column(db.Text)
-    extra_value = db.Column(db.String(100))
-
-class Message(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    recipient_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    body = db.Column(db.Text, nullable=True)
-    file_path = db.Column(db.String(500), nullable=True)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    is_read = db.Column(db.Boolean, default=False)
-    job_id = db.Column(db.Integer, db.ForeignKey('job.id'), nullable=True)
+# --- المكونات الأساسية للنظام ---
 
 class Job(db.Model):
     __tablename__ = 'job'
@@ -172,14 +159,15 @@ class QuizResult(db.Model):
 
 class CV(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    filename = db.Column(db.String(500))      # تم الرفع لـ 500
+    filename = db.Column(db.String(500))
     extracted_text = db.Column(db.Text)
-    profession = db.Column(db.String(500))    # تم الرفع لـ 500 لحل مشكلة التحليل الذكي
+    profession = db.Column(db.String(500))
     score = db.Column(db.Float, default=0.0)
     skills = db.Column(db.JSON)
     radar_labels = db.Column(db.JSON)
     radar_scores = db.Column(db.JSON)
     course_recommendations = db.Column(db.Text)
+    optimized_text = db.Column(db.Text) # النص المحسن بواسطة AI
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
@@ -193,20 +181,7 @@ class Application(db.Model):
     applied_at = db.Column(db.DateTime, default=datetime.utcnow)
     quiz_score = db.Column(db.Integer, nullable=True)
 
-class InterviewSession(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    skill_name = db.Column(db.String(200))
-    questions_content = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-class InterviewReport(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    job_title = db.Column(db.String(200))
-    score = db.Column(db.String(50))
-    full_report = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+# --- التفاعل الاجتماعي والرسائل ---
 
 class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -230,21 +205,41 @@ class Comment(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     post_id = db.Column(db.Integer, db.ForeignKey('post.id'))
     parent_id = db.Column(db.Integer, db.ForeignKey('comment.id'))
-    replies = db.relationship(
-        'Comment', backref=db.backref('parent', remote_side=[id]),
-        lazy='dynamic', cascade="all, delete-orphan"
-    )
+    replies = db.relationship('Comment', backref=db.backref('parent', remote_side=[id]), lazy='dynamic', cascade="all, delete-orphan")
     user = db.relationship('User', backref='comments_ref')
+
+class Message(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    recipient_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    body = db.Column(db.Text, nullable=True)
+    file_path = db.Column(db.String(500), nullable=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    is_read = db.Column(db.Boolean, default=False)
+    job_id = db.Column(db.Integer, db.ForeignKey('job.id'), nullable=True)
 
 class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False) # المستلم
-    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # من أحدث الفعل
-    post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=True) # المنشور المرتبط
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=True)
     title = db.Column(db.String(200))
     message = db.Column(db.Text)
     link = db.Column(db.String(500))
-    category = db.Column(db.String(50), default='info') # like, comment, follow, info
+    category = db.Column(db.String(50), default='info')
     is_read = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     sender = db.relationship('User', foreign_keys=[sender_id], backref='notifications_sent')
+
+class InterviewSession(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    skill_name = db.Column(db.String(200))
+    questions_content = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class SystemConfig(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(100), unique=True)
+    value = db.Column(db.Text)
+    extra_value = db.Column(db.String(100))

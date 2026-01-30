@@ -10,7 +10,7 @@ class OpenRouterAI:
         self.api_key = os.getenv("OPENROUTER_API_KEY")
         self.url = "https://openrouter.ai/api/v1/chat/completions"
 
-        # --- ترسانة المحركات المحدثة 2026 (أكثر من 100 محرك بديل) ---
+        # --- ترسانة المحركات المحدثة 2026 (لضمان الـ Uptime) ---
         self.free_models = [
             "google/gemini-2.0-flash-exp:free", "google/gemini-2.0-flash-001",
             "meta-llama/llama-3.3-70b-instruct:free", "meta-llama/llama-3.2-3b-instruct:free",
@@ -29,16 +29,16 @@ class OpenRouterAI:
         ]
 
         self.elite_models = [
-            "openai/gpt-4o", "anthropic/claude-3-5-sonnet",
+            "openai/gpt-4o", "anthropic/claude-3-5-sonnet", 
             "google/gemini-1.5-pro", "meta-llama/llama-3.1-405b-instruct"
         ]
 
-        # الدمج الهرمي لضمان استمرارية الخدمة في حال تعطل أحد المحركات
+        # الدمج الهرمي لضمان استمرارية الخدمة
         self.ordered_models = self.free_models + self.mid_models + self.elite_models
 
     def _call_ai(self, prompt, temperature=0.3):
         if not self.api_key:
-            return "❌ خطأ: مفتاح API (OPENROUTER_API_KEY) غير موجود في إعدادات النظام."
+            return "❌ خطأ: مفتاح API (OPENROUTER_API_KEY) غير موجود."
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -47,7 +47,7 @@ class OpenRouterAI:
             "X-Title": "Jobeni Professional AI Engine"
         }
 
-        # محاولة ذكية للمرور عبر المحركات في حالة الفشل (Auto-Failover)
+        # محاولة ذكية للمرور عبر المحركات (Failover Logic)
         for model in self.ordered_models:
             try:
                 print(f"🤖 جاري التحليل عبر المحرك التقني: {model}...")
@@ -58,7 +58,7 @@ class OpenRouterAI:
                     "max_tokens": 2000
                 }
 
-                # مهلة انتظار متكيفة حسب نوع المحرك لضمان سرعة الاستجابة في Vercel
+                # مهلة انتظار متكيفة حسب نوع المحرك
                 timeout_val = 15 if ":free" in model else 30
                 res = requests.post(self.url, headers=headers, json=payload, timeout=timeout_val)
 
@@ -82,10 +82,10 @@ class OpenRouterAI:
     def find_scholarships(self, query, context_text):
         """رادار المنح الدراسية المبرمج لجلب أفضل الفرص العالمية 2026"""
         prompt = f"""
-        أنت "Scholarship AI Agent" مبرمج لجلب أفضل المنح الدراسية عالمياً لكل مستويات التعليم.
+        أنت "Scholarship AI Agent" مبرمج لجلب أفضل المنح الدراسية عالمياً.
         المهام:
         1. ابحث عن منح تناسب: {query}
-        2. حلل مطابقتها لخلفية المستخدم: {context_text[:1500]}
+        2. حلل مطابقتها لخلفية المستخدم الأكاديمية: {context_text[:1500]}
         3. التنسيق: JSON Array فقط.
         """
         res = self._call_ai(prompt, temperature=0.2)
@@ -95,15 +95,15 @@ class OpenRouterAI:
         except:
             return []
 
-    def analyze_cv_complete(self, cv_text):
-        """تحليل سيرة ذاتية صارم بمعايير التوظيف العالمية"""
+    def analyze_cv_complete(self, cv_text, is_academic=False):
+        """تحليل سيرة ذاتية صارم بمعايير التوظيف العالمية أو المنح"""
+        role_type = "Admission Officer" if is_academic else "HR Manager"
         prompt = f"""
-        أنت مدقق موارد بشرية عالمي. قم بتحليل النص التالي بصرامة.
-        حول البيانات إلى JSON:
+        Act as a {role_type}. Analyze this text and return ONLY JSON.
         {{
             "skills": [], "profession": "", "overall_score": 0, "feedback": "", "missing_skills": []
         }}
-        النص: {cv_text[:4000]}
+        Text: {cv_text[:4000]}
         """
         res = self._call_ai(prompt, 0.1)
         try:
@@ -133,9 +133,12 @@ class OpenRouterAI:
         prompt = f"اقترح مسارات تعليمية لسد فجوات: {gaps}. التنسيق: HTML <ul>."
         return self._call_ai(prompt, temperature=0.6)
 
-    def build_global_cv(self, cv_text):
-        """تطوير السيرة الذاتية لتصبح نسخة عالمية (ATS-Optimized)"""
-        prompt = f"Rewrite this CV to be world-class and ATS-optimized: {cv_text[:4000]}"
+    def build_global_cv(self, cv_text, mode='job'):
+        """تطوير السيرة الذاتية (ATS or Academic Optimized)"""
+        if mode == 'scholarship':
+            prompt = f"Rewrite this CV as a world-class ACADEMIC CV for scholarship applications. Focus on research and GPA: {cv_text[:4000]}"
+        else:
+            prompt = f"Rewrite this CV to be world-class and ATS-optimized: {cv_text[:4000]}"
         return self._call_ai(prompt, temperature=0.3)
 
     def generate_interview_simulation(self, job_title, cv_text):
@@ -143,14 +146,14 @@ class OpenRouterAI:
         prompt = f"Generate 3 tough interview questions for {job_title} based on CV: {cv_text[:1000]}"
         return self._call_ai(prompt, temperature=0.7)
 
-# تصدير نسخة موحدة من الفئة للاستخدام العام
+# تصدير نسخة موحدة
 openrouter_ai = OpenRouterAI()
 
-# دالات التوافق (Global Functions)
+# دالات التوافق
 def get_ai_response(prompt, temperature=0.5):
     return openrouter_ai.get_ai_response(prompt, temperature)
 
 def get_expert_omni_response(user_query, user_context=None, job_context=None):
     context_str = f"User Context: {user_context} | Job Context: {job_context}"
-    prompt = f"Context: {context_str}\nأجب كخبير مهني بلهجة عربية احترافية: {user_query}"
+    prompt = f"Context: {context_str}\nأجب كخبير مهني أو أكاديمي بلهجة عربية احترافية: {user_query}"
     return openrouter_ai.get_ai_response(prompt, temperature=0.6)
