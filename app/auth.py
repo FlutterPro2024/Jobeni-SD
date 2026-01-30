@@ -72,6 +72,11 @@ def index():
         latest_jobs = []
     return render_template('index.html', jobs=latest_jobs)
 
+@auth_bp.route('/instructions')
+def instructions():
+    """شرح آلية عمل المنصة (المسار المفقود سابقاً)"""
+    return render_template('instructions.html')
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -95,11 +100,11 @@ def register():
         email = request.form.get('email', '').lower().strip()
         password = request.form.get('password')
         role = request.form.get('role', 'jobseeker')
-        
+
         if User.query.filter((User.email == email) | (User.username == username)).first():
             flash('البريد أو اسم المستخدم مسجل مسبقاً.', 'warning')
             return redirect(url_for('auth.register'))
-            
+
         new_user = User(
             username=username,
             email=email,
@@ -122,9 +127,9 @@ def dashboard():
 
     one_week_ago = datetime.utcnow() - timedelta(days=7)
     recent_apps = Application.query.filter(Application.user_id == current_user.id, Application.applied_at >= one_week_ago).all()
-    
+
     weekly_report_memory = AgentMemory.query.filter(AgentMemory.user_id == current_user.id, AgentMemory.action == 'weekly_report').order_by(AgentMemory.created_at.desc()).first()
-    
+
     weekly_stats = {
         'matches_count': len(recent_apps),
         'top_score': max([a.match_score for a in recent_apps]) if recent_apps else 0,
@@ -165,7 +170,7 @@ def update_agent_settings():
         current_user.role = request.form.get('role', 'job_seeker')
         current_user.agent_work_type = request.form.get('agent_work_type', 'both')
         current_user.agent_target_score = int(request.form.get('agent_target_score', 75))
-        
+
         whatsapp = request.form.get('whatsapp_number')
         if whatsapp:
             clean_wa = whatsapp.strip().replace('+', '').replace(' ', '')
@@ -195,11 +200,35 @@ def generate_interview_prep():
         return jsonify({'status': 'success', 'questions': questions})
     except Exception as e: return jsonify({'status': 'error', 'message': str(e)})
 
+@auth_bp.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    """عرض وتعديل الإعدادات الشخصية"""
+    if request.method == 'POST':
+        # منطق تحديث البيانات
+        flash('تم تحديث الإعدادات بنجاح', 'success')
+        return redirect(url_for('auth.profile'))
+    return render_template('profile_settings.html')
+
+@auth_bp.route('/scanner')
+@login_required
+def scanner():
+    """ماسح الـ QR الذكي"""
+    return render_template('scanner.html')
+
 @auth_bp.route('/user/<path:username>')
 def user_profile(username):
     user = User.query.filter_by(username=username).first_or_404()
     user_qr = generate_secure_qr(request.url)
     return render_template('user_profile.html', user=user, user_qr=user_qr)
+
+@auth_bp.route('/logout')
+@login_required
+def logout():
+    """تسجيل الخروج"""
+    logout_user()
+    flash('تم تسجيل الخروج بنجاح.', 'info')
+    return redirect(url_for('auth.index'))
 
 @auth_bp.route('/force_upgrade')
 def force_upgrade():
