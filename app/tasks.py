@@ -68,7 +68,7 @@ def run_ai_agent_discovery():
             # 2. فحص الأهداف (Work Type): ريموت أم حضوري؟
             job_text = (job.description + job.title).lower()
             job_is_remote = any(word in job_text for word in ['remote', 'عن بعد', 'home', 'من المنزل'])
-            
+
             if user.agent_work_type == 'remote' and not job_is_remote:
                 continue
             if user.agent_work_type == 'onsite' and job_is_remote:
@@ -102,7 +102,7 @@ def run_ai_agent_discovery():
                         f"🔗 *التفاصيل:* https://jobeni-sd.com/jobs/{job.id}\n\n"
                         f"🤖 _تم الفحص بواسطة وكيلك الذكي بناءً على هدفك ({user.agent_work_type})_"
                     )
-                    
+
                     if send_whatsapp_ai_agent(user.whatsapp_number, wa_message):
                         # تسجيل في الذاكرة لمنع التكرار
                         memory = AgentMemory(
@@ -113,7 +113,7 @@ def run_ai_agent_discovery():
                             score=user.agent_target_score
                         )
                         db.session.add(memory)
-                        
+
                         # إضافة تطبيق مقترح في قاعدة البيانات
                         new_app = Application(
                             user_id=user.id, job_id=job.id, status='suggested',
