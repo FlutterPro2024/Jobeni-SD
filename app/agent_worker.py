@@ -348,10 +348,10 @@ def weekly_summary_cron():
 
             if user.whatsapp_number: send_whatsapp_via_whapi(user.whatsapp_number, report_msg)
             if user.telegram_id: send_message(user.telegram_id, report_msg)
-
+            
             db.session.add(AgentMemory(user_id=user.id, action='weekly_report', feedback_notes=f"Sent summary"))
             processed_count += 1
-
+            
         db.session.commit()
         return f"Weekly reports sent to {processed_count} users.", 200
     except Exception as e:
