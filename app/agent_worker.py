@@ -303,7 +303,7 @@ def run_agent():
                         send_whatsapp_via_whapi(user.whatsapp_number, wa_msg)
 
                     matches_found += 1
-        
+
         user.last_agent_run = datetime.utcnow()
         db.session.commit()
         return f"Processed for {user.username}. Found: {matches_found}", 200

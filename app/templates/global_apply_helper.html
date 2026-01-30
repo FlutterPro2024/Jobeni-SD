@@ -5,7 +5,7 @@
 <div class="container py-5 text-end" dir="rtl">
     <div class="row justify-content-center">
         <div class="col-lg-8">
-            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden animate__animated animate__zoomIn">
                 <div class="card-header bg-primary text-white p-4 border-0">
                     <div class="d-flex align-items-center">
                         <div class="icon-box bg-white text-primary rounded-circle me-3 shadow-sm" style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
@@ -19,7 +19,7 @@
                 </div>
 
                 <div class="card-body p-4 bg-light">
-                    <div class="alert alert-info border-0 rounded-3 mb-4">
+                    <div class="alert alert-info border-0 rounded-3 mb-4 shadow-sm">
                         <i class="fas fa-robot me-2"></i>
                         لقد قام الذكاء الاصطناعي بتحليل الوظيفة ومقارنتها بمهاراتك. إليك <strong>خطاب التقديم والتحليل</strong> المقترح:
                     </div>
@@ -29,36 +29,38 @@
                             <i class="fas fa-file-alt me-2 text-primary"></i> تحليل الملاءمة وخطاب التقديم:
                         </label>
                         <div class="position-relative">
-                            <textarea id="coverLetterText" class="form-control rounded-3 shadow-sm border-0 p-3" rows="12" readonly style="background: white; line-height: 1.6; resize: none;">{{ analysis }}</textarea>
-                            <button onclick="copyCoverLetter()" class="btn btn-dark btn-sm position-absolute top-0 end-0 m-2 rounded-pill px-3">
+                            <textarea id="coverLetterText" class="form-control rounded-3 shadow-sm border-0 p-3" rows="12" readonly style="background: white; line-height: 1.6; resize: none; font-size: 1.05rem;">{{ analysis }}</textarea>
+                            <button onclick="copyCoverLetter()" class="btn btn-dark btn-sm position-absolute top-0 end-0 m-2 rounded-pill px-3 shadow">
                                 <i class="fas fa-copy me-1"></i> نسخ النص
                             </button>
                         </div>
                     </div>
 
-                    <div class="job-info-card bg-white p-3 rounded-3 border mb-4">
-                        <h6 class="fw-bold text-secondary mb-2">تفاصيل الوظيفة المستهدفة:</h6>
+                    <div class="job-info-card bg-white p-3 rounded-3 border mb-4 shadow-sm">
+                        <h6 class="fw-bold text-secondary mb-2 small">تفاصيل الوظيفة المستهدفة:</h6>
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <h5 class="fw-bold text-primary mb-1">{{ job_title }}</h5>
                                 <p class="text-muted mb-0"><i class="far fa-building me-1"></i> {{ company }}</p>
                             </div>
-                            <i class="fas fa-globe-americas fa-2x text-light"></i>
+                            <div class="bg-soft-primary p-3 rounded-circle">
+                                <i class="fas fa-globe-americas fa-2x text-primary opacity-25"></i>
+                            </div>
                         </div>
                     </div>
 
                     <div class="d-grid gap-3 d-md-flex justify-content-md-center">
-                        <a href="{{ job_link }}" target="_blank" class="btn btn-primary btn-lg rounded-pill px-5 fw-bold shadow">
+                        <a href="{{ job_link }}" target="_blank" class="btn btn-primary btn-lg rounded-pill px-5 fw-bold shadow-lg transition-base">
                             الذهاب لموقع التقديم <i class="fas fa-external-link-alt ms-2"></i>
                         </a>
-                        <a href="{{ url_for('jobs.jobs_list') }}" class="btn btn-outline-secondary btn-lg rounded-pill px-4">
+                        <a href="{{ url_for('jobs.jobs_list') }}" class="btn btn-outline-secondary btn-lg rounded-pill px-4 transition-base">
                             العودة للبحث
                         </a>
                     </div>
                 </div>
 
                 <div class="card-footer bg-white text-center py-3 border-0">
-                    <small class="text-muted">نصيحة: استخدام تحليل الذكاء الاصطناعي يزيد من احترافية تقديمك</small>
+                    <small class="text-muted"><i class="fas fa-lightbulb text-warning me-1"></i> نصيحة: استخدام تحليل الذكاء الاصطناعي يزيد من احترافية تقديمك بنسبة 40%</small>
                 </div>
             </div>
         </div>
@@ -66,26 +68,42 @@
 </div>
 
 <script>
+// دالة نسخ النص للحافظة مع دعم كافة المتصفحات
 function copyCoverLetter() {
     var copyText = document.getElementById("coverLetterText");
     copyText.select();
-    copyText.setSelectionRange(0, 99999); // للهواتف
-    navigator.clipboard.writeText(copyText.value).then(() => {
-        alert("تم نسخ التحليل بنجاح! يمكنك الآن لصقه في موقع التقديم.");
-    }).catch(err => {
-        // للطرق القديمة في حال فشل الكليب بورد
-        document.execCommand("copy");
-        alert("تم نسخ النص!");
-    });
+    copyText.setSelectionRange(0, 99999); // لدعم أجهزة الموبايل
+    
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(copyText.value).then(() => {
+            showSuccessAlert();
+        }).catch(err => {
+            fallbackCopy();
+        });
+    } else {
+        fallbackCopy();
+    }
+}
+
+function fallbackCopy() {
+    document.execCommand("copy");
+    showSuccessAlert();
+}
+
+function showSuccessAlert() {
+    // يمكنك استبدال هذا بـ Toast لطيف
+    alert("✅ تم نسخ التحليل بنجاح! يمكنك الآن لصقه في موقع التقديم لزيادة فرص قبولك.");
 }
 </script>
 
 <style>
     .icon-box { min-width: 50px; }
-    #coverLetterText:focus { outline: none; box-shadow: none; }
-    .job-info-card { transition: all 0.3s ease; }
-    .job-info-card:hover { border-color: #0d6efd !important; }
+    #coverLetterText:focus { outline: none; box-shadow: none; border: 1px solid #0d6efd; }
+    .job-info-card { transition: all 0.3s ease; border-right: 4px solid #0d6efd !important; }
+    .job-info-card:hover { transform: scale(1.02); background-color: #f8f9ff !important; }
     .btn-primary { background-color: #0d6efd; border: none; }
-    .btn-primary:hover { background-color: #0b5ed7; transform: translateY(-2px); }
+    .btn-primary:hover { background-color: #0b5ed7; transform: translateY(-3px); }
+    .transition-base { transition: all 0.3s ease; }
+    .bg-soft-primary { background-color: rgba(13, 110, 253, 0.1); }
 </style>
 {% endblock %}

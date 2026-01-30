@@ -24,13 +24,13 @@ def jobs_list():
     """عرض قائمة الفرص مع تمييز المنح الدراسية عن الوظائف"""
     query = request.args.get('q', '').strip()
     location_query = request.args.get('location', '').strip()
-    
+
     # تحديد "النية" من البحث (أكاديمي أم مهني)
     academic_keywords = ['منحة', 'scholarship', 'جامعة', 'university', 'دراسة', 'phd', 'masters']
     is_academic_intent = any(k in query.lower() for k in academic_keywords)
 
     global_results = []
-    
+
     # 1. البحث في قاعدة البيانات المحلية
     if is_academic_intent:
         local_results = Scholarship.query.filter(
@@ -59,6 +59,20 @@ def jobs_list():
                            query=query,
                            is_academic=is_academic_intent)
 
+# --- جديد: مسار تفاصيل الوظيفة (لإصلاح BuildError) ---
+
+@jobs_bp.route('/job/<int:job_id>')
+def job_detail(job_id):
+    """عرض تفاصيل الوظيفة الكاملة مع الخريطة وحالة التقديم"""
+    job = Job.query.get_or_404(job_id)
+    
+    # فحص إذا كان المستخدم قد قدم مسبقاً لعرض الحالة
+    application = None
+    if current_user.is_authenticated:
+        application = Application.query.filter_by(user_id=current_user.id, job_id=job.id).first()
+        
+    return render_template('job_detail.html', job=job, application=application)
+
 # --- ثانياً: نظام التقديم الذكي (Smart Apply) ---
 
 @jobs_bp.route('/job/apply/<int:job_id>', methods=['POST'])
@@ -81,14 +95,14 @@ def apply_to_job(job_id):
 
     cv_id = request.form.get('cv_id')
     user_cv = CV.query.get(cv_id)
-    
+
     if not user_cv:
         flash('يرجى رفع سيرة ذاتية أولاً.', 'warning')
         return redirect(url_for('cv.upload_cv'))
 
     # تحليل AI مخصص بناءً على نوع الفرصة
     is_scholarship = 'scholarship' in (job.category or '').lower() or 'منحة' in job.title
-    
+
     prompt_type = "خبير قبول منح دراسية" if is_scholarship else "مدير توظيف تقني"
     criteria = "المؤهلات الأكاديمية والشغف البحثي" if is_scholarship else "الخبرة العملية والمهارات التقنية"
 
@@ -111,7 +125,7 @@ def apply_to_job(job_id):
         status='pending'
     )
     db.session.add(new_app)
-    
+
     # تنبيه صاحب العمل/الجهة المانحة
     if match_score >= 80:
         add_notification(job.user_id, f"🌟 مرشح ذهبي لـ {job.title}", f"المتقدم {current_user.username} حصل على {match_score}%", "warning")
@@ -136,7 +150,7 @@ def update_application_status(app_id):
     application = Application.query.get_or_404(app_id)
     job = Job.query.get(application.job_id)
     if job.user_id != current_user.id: abort(403)
-    
+
     new_status = request.form.get('status')
     application.status = new_status
 
@@ -144,7 +158,7 @@ def update_application_status(app_id):
         details = request.form.get('interview_details', 'سيتم التواصل معك لتحديد الموعد.')
         add_notification(application.user_id, f"📅 تحديث طلب {job.title}", f"تم تحديد مقابلة/معاينة. التفاصيل: {details}", "primary")
         send_automated_interview_message(sender_id=current_user.id, recipient_id=application.user_id, job_id=job.id, details=details)
-    
+
     db.session.commit()
     flash('تم تحديث حالة الطلب وإرسال التنبيه.', 'success')
     return redirect(url_for('jobs.view_candidates', job_id=job.id))

@@ -1,132 +1,178 @@
-# ~/jobeni-sD/app/applications.py
-from flask import Blueprint, request, redirect, url_for, flash, render_template
-from flask_login import login_required, current_user
-from app.models import Application, Job, CV, db, User
-from app.notifications import send_application_status_email
-from app.telegram_bot import send_message
-from app.openrouter_ai import openrouter_ai
+# ~/jobeni-sD/app/openrouter_ai.py
+import requests, json, re, os, time, random
+from dotenv import load_dotenv
 
-apps_bp = Blueprint('applications', __name__)
+load_dotenv()
 
-# --- أولاً: مسارات الباحث عن عمل (Job Seeker) ---
+class OpenRouterAI:
+    def __init__(self):
+        # استجلاب المفتاح من متغيرات البيئة
+        self.api_key = os.getenv("OPENROUTER_API_KEY")
+        self.url = "https://openrouter.ai/api/v1/chat/completions"
 
-@apps_bp.route('/my-applications')
-@login_required
-def my_applications():
-    """عرض قائمة بجميع الطلبات التي قدمها المستخدم لمتابعة حالتها"""
-    if current_user.role not in ['jobseeker', 'seeker']:
-        flash("هذه الصفحة مخصصة للباحثين عن عمل فقط.", "info")
-        return redirect(url_for('auth.dashboard'))
-    
-    apps = Application.query.filter_by(user_id=current_user.id).order_by(Application.applied_at.desc()).all()
-    return render_template('my_applications.html', applications=apps)
+        # --- ترسانة المحركات المحدثة 2026 (لضمان الـ Uptime) ---
+        self.free_models = [
+            "google/gemini-2.0-flash-exp:free", "google/gemini-2.0-flash-001",
+            "meta-llama/llama-3.3-70b-instruct:free", "meta-llama/llama-3.2-3b-instruct:free",
+            "qwen/qwen-2.5-72b-instruct:free", "qwen/qwen-2.5-7b-instruct:free",
+            "google/gemini-flash-1.5-8b:free", "mistralai/mistral-7b-instruct:free",
+            "microsoft/phi-3-mini-128k-instruct:free", "microsoft/phi-3-medium-128k-instruct:free",
+            "huggingfaceh4/zephyr-7b-beta:free", "liquid/lfm-40b:free",
+            "anthropic/claude-3-haiku:free", "nvidia/llama-3.1-nemotron-70b-instruct:free"
+        ]
 
-@apps_bp.route('/apply-local/<int:job_id>', methods=['POST'])
-@login_required
-def apply_local(job_id):
-    """التقديم لوظيفة محلية مع تحليل فوري للمطابقة بالذكاء الاصطناعي"""
-    job = db.session.get(Job, job_id)
-    if not job:
-        flash("الوظيفة غير موجودة.", "danger")
-        return redirect(url_for('search.jobs_list'))
+        self.mid_models = [
+            "openai/gpt-4o-mini", "anthropic/claude-3-5-haiku",
+            "google/gemini-flash-1.5", "meta-llama/llama-3.1-70b-instruct",
+            "deepseek/deepseek-chat", "cohere/command-r-plus",
+            "mistralai/mixtral-8x22b-instruct"
+        ]
 
-    # منع التقديم المكرر
-    existing = Application.query.filter_by(user_id=current_user.id, job_id=job_id).first()
-    if existing:
-        flash("لقد قمت بالتقديم مسبقاً على هذه الوظيفة.", "warning")
-        return redirect(url_for('jobs.job_detail', job_id=job_id))
+        self.elite_models = [
+            "openai/gpt-4o", "anthropic/claude-3-5-sonnet",
+            "google/gemini-1.5-pro", "meta-llama/llama-3.1-405b-instruct"
+        ]
 
-    # التأكد من وجود سيرة ذاتية
-    user_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
-    if not user_cv:
-        flash("يرجى رفع الـ CV أولاً ليتمكن النظام من تحليل مطابقتك.", "danger")
-        return redirect(url_for('cv.upload_cv'))
+        # الدمج الهرمي لضمان استمرارية الخدمة
+        self.ordered_models = self.free_models + self.mid_models + self.elite_models
 
-    # استدعاء الـ AI لتحليل السيرة الذاتية مقابل وصف الوظيفة
-    score, reason = openrouter_ai.get_match_score(user_cv.extracted_text or "", f"{job.title} {job.description}")
-    
-    new_app = Application(
-        user_id=current_user.id, 
-        job_id=job_id, 
-        status='pending', 
-        match_score=score, 
-        match_explanation=reason
-    )
-    db.session.add(new_app)
-    db.session.commit()
+    def _call_ai(self, prompt, temperature=0.3):
+        if not self.api_key:
+            return "❌ خطأ: مفتاح API (OPENROUTER_API_KEY) غير موجود."
 
-    # إشعار صاحب العمل عبر تلغرام إذا كان مفعلاً
-    if job.employer_ref and job.employer_ref.telegram_id:
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://jobeni-sd.com",
+            "X-Title": "Jobeni Professional AI Engine"
+        }
+
+        # محاولة ذكية للمرور عبر المحركات (Failover Logic)
+        for model in self.ordered_models:
+            try:
+                print(f"🤖 جاري التحليل عبر المحرك التقني: {model}...")
+                payload = {
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": temperature,
+                    "max_tokens": 2000
+                }
+
+                # مهلة انتظار متكيفة حسب نوع المحرك
+                timeout_val = 15 if ":free" in model else 30
+                res = requests.post(self.url, headers=headers, json=payload, timeout=timeout_val)
+
+                if res.status_code == 200:
+                    data = res.json()
+                    if 'choices' in data and len(data['choices']) > 0:
+                        content = data['choices'][0]['message']['content']
+                        if content and len(content.strip()) > 5:
+                            return content
+                continue
+            except Exception as e:
+                print(f"🔄 تبديل المحرك بسبب: {str(e)[:40]}")
+                continue
+
+        return "النظام يواجه ضغطاً تقنياً عالياً حالياً. يرجى إعادة المحاولة خلال لحظات."
+
+    def get_ai_response(self, prompt, temperature=0.5):
+        return self._call_ai(prompt, temperature)
+
+    # --- ميزة مطابقة السيرة الذاتية (للمسار المحلي) ---
+    def get_match_score(self, cv_text, job_desc):
+        """تحليل المطابقة وإعطاء نسبة مئوية وسبب منطقي"""
+        prompt = f"""
+        Analyze the match between this CV and Job Description.
+        CV: {cv_text[:2000]}
+        Job: {job_desc[:1000]}
+        Return ONLY a score (0-100) followed by a short Sudanese Arabic explanation.
+        Example: 85 | مكنة، خبرتك في بايثون مطابقة جداً للمطلوب.
+        """
+        res = self._call_ai(prompt, temperature=0.2)
         try:
-            msg = f"🔔 متقدم جديد لـ: {job.title}\n👤 الاسم: {current_user.full_name}\n🎯 نسبة المطابقة: {score}%\n💡 السبب: {reason[:100]}..."
-            send_message(job.employer_ref.telegram_id, msg)
-        except Exception as e:
-            print(f"Telegram Notify Error: {e}")
+            parts = res.split('|')
+            score = int(re.search(r'\d+', parts[0]).group())
+            reason = parts[1].strip() if len(parts) > 1 else res
+            return score, reason
+        except:
+            return 60, "مطابقة جيدة، تحتاج لتوضيح بعض المهارات التقنية."
 
-    flash(f"✅ تم التقديم بنجاح! نسبة مطابقتك هي: {score}%", "success")
-    return redirect(url_for('applications.my_applications'))
-
-# --- ثانياً: مسارات صاحب العمل (Employer - Candidate Management) ---
-
-
-
-@apps_bp.route('/manage-candidates')
-@login_required
-def manage_candidates():
-    """لوحة تحكم صاحب العمل لمراجعة المتقدمين وفرزهم حسب نسبة المطابقة"""
-    if current_user.role != 'employer':
-        flash("هذه الصفحة مخصصة لأصحاب العمل فقط.", "danger")
-        return redirect(url_for('auth.dashboard'))
-
-    # جلب التقديمات الخاصة بالوظائف التي نشرها صاحب العمل الحالي فقط باستخدام JOIN
-    candidates = Application.query.join(Job).filter(Job.user_id == current_user.id).order_by(Application.applied_at.desc()).all()
-    return render_template('employer_applications.html', applications=candidates)
-
-@apps_bp.route('/status-update/<int:app_id>', methods=['POST'])
-@login_required
-def update_status(app_id):
-    """تحديث حالة الطلب وإرسال إيميل تلقائي للمتقدم بالنتيجة"""
-    app = db.session.get(Application, app_id)
-    if not app or app.job.user_id != current_user.id:
-        flash("غير مسموح لك بتعديل هذا الطلب.", "danger")
-        return redirect(url_for('applications.manage_candidates'))
-
-    new_status = request.form.get('status')
-    if new_status in ['accepted', 'rejected', 'pending']:
-        app.status = new_status
-        db.session.commit()
-
-        # إخطار الباحث عن عمل عبر البريد الإلكتروني
+    # --- محرك البحث عن المنح الدراسية (Scholarship AI Agent) ---
+    def find_scholarships(self, query, context_text):
+        """رادار المنح الدراسية المبرمج لجلب أفضل الفرص العالمية 2026"""
+        prompt = f"""
+        أنت "Scholarship AI Agent" مبرمج لجلب أفضل المنح الدراسية عالمياً.
+        المهام:
+        1. ابحث عن منح تناسب: {query}
+        2. حلل مطابقتها لخلفية المستخدم الأكاديمية: {context_text[:1500]}
+        3. التنسيق: JSON Array فقط.
+        """
+        res = self._call_ai(prompt, temperature=0.2)
         try:
-            send_application_status_email(app.user.email, app.job.title, new_status)
-        except Exception as e:
-            print(f"Email Notify Error: {e}")
+            clean = re.search(r'\[.*\]', res, re.DOTALL).group()
+            return json.loads(clean)
+        except:
+            return []
 
-        flash(f"تم تحديث حالة الطلب إلى: {new_status} وإرسال إشعار للمتقدم.", "success")
+    def analyze_cv_complete(self, cv_text, is_academic=False):
+        """تحليل سيرة ذاتية صارم بمعايير التوظيف العالمية أو المنح"""
+        role_type = "Admission Officer" if is_academic else "HR Manager"
+        prompt = f"""
+        Act as a {role_type}. Analyze this text and return ONLY JSON.
+        {{
+            "skills": [], "profession": "", "overall_score": 0, "feedback": "", "missing_skills": []
+        }}
+        Text: {cv_text[:4000]}
+        """
+        res = self._call_ai(prompt, 0.1)
+        try:
+            clean = re.search(r'\{.*\}', res, re.DOTALL).group()
+            return json.loads(clean)
+        except:
+            return {"skills": [], "profession": "متخصص", "overall_score": 50, "feedback": "خطأ في التحليل", "missing_skills": []}
 
-    return redirect(url_for('applications.manage_candidates'))
+    def generate_skills_radar_data(self, cv_text):
+        """توليد مصفوفة المهارات للرادار الرقمي"""
+        prompt = f"""
+        Analyze CV and provide numerical scores (0-100) for 5 categories.
+        Return ONLY JSON: {{"labels": ["Technical", "Soft Skills", "Experience", "Education", "Projects"], "scores": [0,0,0,0,0]}}
+        CV: {cv_text[:2500]}
+        """
+        res = self._call_ai(prompt, temperature=0.1)
+        try:
+            clean = re.search(r'\{.*\}', res, re.DOTALL).group()
+            return json.loads(clean)
+        except:
+            return {"labels": ["تقني", "تواصل", "خبرة", "تعليم", "مشاريع"], "scores": [50, 50, 50, 50, 50]}
 
-# --- ثالثاً: التقديم العالمي (Global Auto-Apply Helper) ---
+    def suggest_courses_for_gaps(self, radar_data):
+        """توصيات أكاديمية لسد الفجوات المهنية"""
+        gaps = [label for label, score in zip(radar_data['labels'], radar_data['scores']) if score < 80]
+        if not gaps: return "🚀 ملفك المهني مثالي!"
+        prompt = f"اقترح مسارات تعليمية لسد فجوات: {gaps}. التنسيق: HTML <ul>."
+        return self._call_ai(prompt, temperature=0.6)
 
-@apps_bp.route('/auto-apply-global', methods=['POST'])
-@login_required
-def auto_apply_global():
-    """مساعد التقديم التلقائي للوظائف العالمية عبر تحليل السيرة الذاتية"""
-    job_title = request.form.get('job_title')
-    job_link = request.form.get('job_link')
-    company = request.form.get('company')
-    
-    user_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
-    
-    if user_cv:
-        # برومبت مخصص لتحليل الجاهزية للوظيفة العالمية
-        prompt = f"Analyze my CV for the role of {job_title} at {company}. Give me 3 tips to get accepted and a short Sudanese encouragement."
-        analysis = openrouter_ai.get_ai_response(prompt)
-    else:
-        analysis = "يا مكنة، لازم ترفع الـ CV أول عشان نقدر نحلل ليك الفرصة دي!"
+    def build_global_cv(self, cv_text, mode='job'):
+        """تطوير السيرة الذاتية (ATS or Academic Optimized)"""
+        if mode == 'scholarship':
+            prompt = f"Rewrite this CV as a world-class ACADEMIC CV for scholarship applications. Focus on research and GPA: {cv_text[:4000]}"
+        else:
+            prompt = f"Rewrite this CV to be world-class and ATS-optimized: {cv_text[:4000]}"
+        return self._call_ai(prompt, temperature=0.3)
 
-    return render_template('global_apply_helper.html', 
-                           job_title=job_title, 
-                           job_link=job_link, 
-                           company=company, 
-                           analysis=analysis)
+    def generate_interview_simulation(self, job_title, cv_text):
+        """توليد أسئلة مقابلة ذكية"""
+        prompt = f"Generate 3 tough interview questions for {job_title} based on CV: {cv_text[:1000]}"
+        return self._call_ai(prompt, temperature=0.7)
+
+# تصدير نسخة موحدة
+openrouter_ai = OpenRouterAI()
+
+# دالات التوافق
+def get_ai_response(prompt, temperature=0.5):
+    return openrouter_ai.get_ai_response(prompt, temperature)   
+
+def get_expert_omni_response(user_query, user_context=None, job_context=None):
+    context_str = f"User Context: {user_context} | Job Context: {job_context}"
+    prompt = f"Context: {context_str}\nأجب كخبير مهني أو أكاديمي بلهجة عربية احترافية: {user_query}"
+    return openrouter_ai.get_ai_response(prompt, temperature=0.6)
