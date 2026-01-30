@@ -90,14 +90,14 @@ class Scholarship(db.Model):
     """موديل المنح الدراسية المكتشفة بواسطة الرادار"""
     __tablename__ = 'scholarship'
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)
-    university = db.Column(db.String(200))
-    country = db.Column(db.String(100))
-    field_of_study = db.Column(db.String(200))
-    level = db.Column(db.String(50)) # Bachelors, Masters, PhD
-    funding_type = db.Column(db.String(50)) # Full, Partial
+    title = db.Column(db.String(500), nullable=False) # تم الرفع لـ 500
+    university = db.Column(db.String(500))            # تم الرفع لـ 500
+    country = db.Column(db.String(200))
+    field_of_study = db.Column(db.String(500))
+    level = db.Column(db.String(100)) 
+    funding_type = db.Column(db.String(100)) 
     deadline = db.Column(db.DateTime)
-    official_link = db.Column(db.String(500))
+    official_link = db.Column(db.String(700))
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -105,29 +105,28 @@ class AgentMemory(db.Model):
     """ذاكرة الوكيل الذكي: لتذكر التفضيلات والقرارات السابقة"""
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    # تعديل: تحويل job_id و scholarship_id لـ String لاستيعاب معرفات المواقع الخارجية
-    job_id = db.Column(db.String(500), nullable=True) 
+    # تعديل: نصوص لاستيعاب معرفات المواقع الخارجية
+    job_id = db.Column(db.String(500), nullable=True)
     scholarship_id = db.Column(db.String(500), nullable=True)
-    job_title = db.Column(db.String(200))
-    action = db.Column(db.String(50)) # 'sent', 'ignored', 'scholarship_found', 'clicked'
-    score = db.Column(db.Integer) 
+    job_title = db.Column(db.String(500))
+    action = db.Column(db.String(100)) 
+    score = db.Column(db.Integer)
     feedback_notes = db.Column(db.Text)
-    action_url = db.Column(db.String(500)) 
+    action_url = db.Column(db.String(700))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class SystemConfig(db.Model):
-    """إعدادات النظام (حل مشكلة الملفات في Vercel)"""
     id = db.Column(db.Integer, primary_key=True)
-    key = db.Column(db.String(50), unique=True)
+    key = db.Column(db.String(100), unique=True)
     value = db.Column(db.Text)
-    extra_value = db.Column(db.String(50))
+    extra_value = db.Column(db.String(100))
 
 class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     sender_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     recipient_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     body = db.Column(db.Text, nullable=True)
-    file_path = db.Column(db.String(300), nullable=True)
+    file_path = db.Column(db.String(500), nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     is_read = db.Column(db.Boolean, default=False)
     job_id = db.Column(db.Integer, db.ForeignKey('job.id'), nullable=True)
@@ -135,15 +134,15 @@ class Message(db.Model):
 class Job(db.Model):
     __tablename__ = 'job'
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(100), nullable=False)
-    company_name = db.Column(db.String(100))
+    title = db.Column(db.String(300), nullable=False)
+    company_name = db.Column(db.String(300))
     description = db.Column(db.Text, nullable=False)
-    location = db.Column(db.String(100))
+    location = db.Column(db.String(200))
     latitude = db.Column(db.Float)
     longitude = db.Column(db.Float)
-    salary = db.Column(db.String(50))
-    job_type = db.Column(db.String(50))
-    category = db.Column(db.String(50), default='عام')
+    salary = db.Column(db.String(100))
+    job_type = db.Column(db.String(100))
+    category = db.Column(db.String(100), default='عام')
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
@@ -156,11 +155,11 @@ class JobQuestion(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     job_id = db.Column(db.Integer, db.ForeignKey('job.id'), nullable=False)
     question_text = db.Column(db.Text, nullable=False)
-    option_a = db.Column(db.String(200), nullable=False)
-    option_b = db.Column(db.String(200), nullable=False)
-    option_c = db.Column(db.String(200), nullable=True)
-    option_d = db.Column(db.String(200), nullable=True)
-    correct_answer = db.Column(db.String(10), nullable=False)
+    option_a = db.Column(db.String(300), nullable=False)
+    option_b = db.Column(db.String(300), nullable=False)
+    option_c = db.Column(db.String(300), nullable=True)
+    option_d = db.Column(db.String(300), nullable=True)
+    correct_answer = db.Column(db.String(20), nullable=False)
     points = db.Column(db.Integer, default=10)
 
 class QuizResult(db.Model):
@@ -173,10 +172,10 @@ class QuizResult(db.Model):
 
 class CV(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    filename = db.Column(db.String(200))
+    filename = db.Column(db.String(500))      # تم الرفع لـ 500
     extracted_text = db.Column(db.Text)
-    profession = db.Column(db.String(100))
-    score = db.Column(db.Integer, default=0)
+    profession = db.Column(db.String(500))    # تم الرفع لـ 500 لحل مشكلة التحليل الذكي
+    score = db.Column(db.Float, default=0.0)
     skills = db.Column(db.JSON)
     radar_labels = db.Column(db.JSON)
     radar_scores = db.Column(db.JSON)
@@ -188,7 +187,7 @@ class Application(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     job_id = db.Column(db.Integer, db.ForeignKey('job.id'))
-    status = db.Column(db.String(20), default='pending')
+    status = db.Column(db.String(50), default='pending')
     match_score = db.Column(db.Integer)
     match_explanation = db.Column(db.Text)
     applied_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -197,15 +196,15 @@ class Application(db.Model):
 class InterviewSession(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    skill_name = db.Column(db.String(100))
+    skill_name = db.Column(db.String(200))
     questions_content = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class InterviewReport(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    job_title = db.Column(db.String(100))
-    score = db.Column(db.String(20))
+    job_title = db.Column(db.String(200))
+    score = db.Column(db.String(50))
     full_report = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -214,8 +213,8 @@ class Post(db.Model):
     body = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    image_file = db.Column(db.String(100), nullable=True)
-    video_file = db.Column(db.String(100), nullable=True)
+    image_file = db.Column(db.String(200), nullable=True)
+    video_file = db.Column(db.String(200), nullable=True)
     likes = db.relationship('PostLike', backref='post', lazy='dynamic', cascade="all, delete-orphan")
     comments = db.relationship('Comment', backref='post', lazy='dynamic', cascade="all, delete-orphan")
 
@@ -242,10 +241,10 @@ class Notification(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False) # المستلم
     sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # من أحدث الفعل
     post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=True) # المنشور المرتبط
-    title = db.Column(db.String(100))
+    title = db.Column(db.String(200))
     message = db.Column(db.Text)
-    link = db.Column(db.String(200))
-    category = db.Column(db.String(20), default='info') # like, comment, follow, info
+    link = db.Column(db.String(500))
+    category = db.Column(db.String(50), default='info') # like, comment, follow, info
     is_read = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     sender = db.relationship('User', foreign_keys=[sender_id], backref='notifications_sent')
