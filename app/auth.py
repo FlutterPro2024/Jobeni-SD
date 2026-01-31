@@ -138,7 +138,6 @@ def dashboard():
             jobs = Job.query.filter_by(user_id=current_user.id).all()
             return render_template('dashboard_employer.html', jobs=jobs)
 
-        # 1. جلب إحصائيات الأسبوع بحذر
         one_week_ago = datetime.utcnow() - timedelta(days=7)
         recent_apps = Application.query.filter(Application.user_id == current_user.id, Application.applied_at >= one_week_ago).all()
 
@@ -150,19 +149,16 @@ def dashboard():
             'ai_advice': weekly_report_memory.feedback_notes if weekly_report_memory else "أكمل بياناتك ليبدأ 'الجلاد' في تقديم نصائح مخصصة لك."
         }
 
-        # 2. جلب آخر سيرة ذاتية وإدارة الرادار
         last_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
         radar_labels = ["تقني", "تواصل", "خبرة", "قيادة", "إبداع"]
-        radar_scores = [20, 20, 20, 20, 20] # قيم افتراضية منخفضة
+        radar_scores = [20, 20, 20, 20, 20]
         course_suggestions = "ارفع سيرتك الذاتية للحصول على توصيات AI عالمية."
 
         if last_cv:
-            # استخدام البيانات الكاش إذا وجدت
             if last_cv.radar_labels and last_cv.radar_scores:
                 radar_labels, radar_scores = last_cv.radar_labels, last_cv.radar_scores
             elif last_cv.extracted_text:
                 try:
-                    # محاولة توليد بيانات الرادار من AI
                     radar_data = openrouter_ai.generate_skills_radar_data(last_cv.extracted_text[:4000])
                     if radar_data and 'labels' in radar_data:
                         radar_labels, radar_scores = radar_data.get('labels'), radar_data.get('scores')
@@ -171,15 +167,12 @@ def dashboard():
                 except Exception as ai_err:
                     logger.error(f"AI Radar Error: {ai_err}")
                     db.session.rollback()
-            
-            # جلب الاقتراحات
+
             try:
                 course_suggestions = openrouter_ai.suggest_courses_for_gaps({"labels": radar_labels, "scores": radar_scores})
             except: pass
 
-        # 3. جلب الذاكرة والـ QR
         agent_memories = AgentMemory.query.filter_by(user_id=current_user.id).order_by(AgentMemory.created_at.desc()).limit(10).all()
-        
         user_profile_url = url_for('auth.user_profile', username=current_user.username, _external=True)
         user_qr_base64 = generate_secure_qr(user_profile_url)
 
@@ -195,7 +188,6 @@ def dashboard():
     except Exception as e:
         db.session.rollback()
         logger.critical(f"🔥 Dashboard Crash: {e}")
-        # عرض صفحة الخطأ بكرامة بدل الانهيار التام
         return render_template('errors/500.html', error=str(e)), 500
 
 @auth_bp.route('/update_agent_settings', methods=['POST'])
@@ -215,7 +207,7 @@ def update_agent_settings():
             current_user.whatsapp_number = clean_wa
             try:
                 from app.agent_worker import send_whatsapp_via_whapi
-                send_whatsapp_via_whapi(clean_wa, f"تم تفعيل رادار جوبيني الصارم بنجاح لـ {current_user.username} 🤖\nسنرسل لك الفرص التي تتجاوز {current_user.agent_target_score}% فقط.")
+                send_whatsapp_via_whapi(clean_wa, f"تم تفعيل رادار جوبيني الصارم بنجاح لـ {current_user.username} 🤖")
             except: pass
 
         db.session.add(AgentMemory(user_id=current_user.id, action='settings_updated', feedback_notes="تحديث إعدادات الرادار الصارم"))
@@ -275,21 +267,25 @@ def logout():
 
 @auth_bp.route('/force_upgrade')
 def force_upgrade():
-    """إصلاح قاعدة البيانات وإضافة الأعمدة الأكاديمية الصارمة 2026"""
+    """إصلاح شامل لقاعدة البيانات يطابق هيكل 2026"""
     try:
         from sqlalchemy import text
         # تحديثات المستخدم
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT \'jobseeker\''))
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)'))
-        # تحديثات السيرة الذاتية (GPA والدرجات)
+        
+        # تحديثات السيرة الذاتية (الحقول الأكاديمية الصارمة)
         db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS optimized_text TEXT'))
         db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS gpa VARCHAR(50)'))
+        db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS graduation_year INTEGER')) # تم التعديل لـ INTEGER ليطابق الموديل
         db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS academic_level VARCHAR(100)'))
         db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS university_name VARCHAR(500)'))
-        # تحديثات الذاكرة
-        db.session.execute(text('ALTER TABLE "agent_memory" ADD COLUMN IF NOT EXISTS scholarship_id VARCHAR(500)'))
+        
+        # تحديثات الذاكرة والمنح
+        db.session.execute(text('ALTER TABLE "agent_memory" ADD COLUMN IF NOT EXISTS scholarship_id INTEGER'))
+        
         db.session.commit()
-        return "✅ تم تحديث هيكل قاعدة البيانات بنظام 'الجلاد' الصارم!"
+        return "✅ تم ترويض قاعدة البيانات بنظام 'الجلاد' الصارم! كل الأعمدة الآن جاهزة."
     except Exception as e:
         db.session.rollback()
         return f"❌ فشل التحديث: {str(e)}"
