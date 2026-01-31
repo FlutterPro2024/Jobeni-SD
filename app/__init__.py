@@ -38,7 +38,7 @@ def create_app(config_name='default'):
         if not scheduler.running:
             scheduler.init_app(app)
             scheduler.start()
-            app.logger.info("✅ المجدول المحلي نشط")
+            app.logger.info("✅ المجدول المحلي نشط (نظام جوبيني الراداري)")
     else:
         app.logger.info("⚠️ تم تعطيل المجدول الداخلي في Vercel (سيتم الاعتماد على Vercel Crons)")
 
@@ -94,22 +94,37 @@ def create_app(config_name='default'):
         except Exception as e:
             app.logger.error(f"⚠️ فشل في تحميل بعض الوحدات المتقدمة: {e}")
 
-        # 4. إعداد مهام الأيجنت الدورية (الرادار الذكي) - فقط في البيئة المحلية
+        # 4. إعداد مهام الرادار والمنح العالمية (Scraper Engine) - فقط في البيئة المحلية
         if not is_vercel:
             try:
+                # استيراد محرك الكشط والمهام
+                from app.scraper_engine import scholarship_scraper
                 from app.tasks import run_ai_agent_discovery, send_weekly_agent_summary
-                
-                # مهمة الرادار اليومي (كل 24 ساعة) للبحث عن منح ووظائف
+
+                # تعريف دالة المهمة للرادار العالمي (الـ 30 موقع)
+                def run_global_scholarship_radar():
+                    with app.app_context():
+                        app.logger.info("🌍 رادار المنح الـ 30 يبدأ المسح الآن...")
+                        result = scholarship_scraper.run_radar()
+                        app.logger.info(result)
+
+                # مهمة رادار المنح (كل 6 ساعات لمسح عينات من الـ 30 موقع)
+                if not scheduler.get_job('scholarship_radar_job'):
+                    scheduler.add_job(id='scholarship_radar_job', func=run_global_scholarship_radar, trigger='interval', hours=6)
+                    app.logger.info("✅ رادار المنح العالمية (30 موقع) مبرمج بنجاح")
+
+                # مهمة الأيجنت الذكي (كل 24 ساعة)
                 if not scheduler.get_job('ai_agent_job'):
                     scheduler.add_job(id='ai_agent_job', func=run_ai_agent_discovery, trigger='interval', hours=24)
                     app.logger.info("✅ رادار الأيجنت اليومي نشط")
 
-                # مهمة التقرير الأسبوعي الذكي
+                # مهمة التقرير الأسبوعي
                 if not scheduler.get_job('weekly_summary_job'):
                     scheduler.add_job(id='weekly_summary_job', func=send_weekly_agent_summary, trigger='interval', weeks=1)
                     app.logger.info("✅ التقرير الأسبوعي مبرمج بنجاح")
-            except ImportError:
-                app.logger.warning("⚠️ لم يتم تفعيل المهام الدورية (tasks.py غير موجود)")
+
+            except Exception as e:
+                app.logger.warning(f"⚠️ لم يتم تفعيل بعض المهام الدورية: {e}")
 
     @login_manager.user_loader
     def load_user(user_id):
@@ -120,7 +135,7 @@ def create_app(config_name='default'):
         """حقن متغيرات عالمية (مثل الإعلانات) في جميع القوالب"""
         from app.models import Notification, SystemConfig
         from datetime import datetime, timedelta
-        
+
         announcement = None
         announcement_color = 'danger'
 
