@@ -16,6 +16,11 @@ pyTelegramBotAPI==4.14.0
 requests==2.31.0
 google-generativeai==0.3.1
 openai
+tenacity==8.2.3
+
+# كشط البيانات ومعالجة الويب (Scraping)
+beautifulsoup4==4.12.2
+lxml==4.9.3
 
 # ميزات الصوت الجديدة (Voice AI Features)
 gTTS==2.5.1
@@ -31,7 +36,6 @@ arabic-reshaper==3.0.0
 python-bidi==0.4.2
 Pillow==10.1.0
 qrcode==7.4.2
-tenacity==8.2.3
+
 # أدوات الأمان
 cryptography==41.0.5
-tenacity==8.2.3
