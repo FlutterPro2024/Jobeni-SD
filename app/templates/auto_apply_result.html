@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}التقديم الذكي للمنحة{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 text-center">
+            <div class="mb-4 animate__animated animate__bounceIn">
+                <div class="display-1 text-success">
+                    <i class="fas fa-check-circle shadow-sm rounded-circle"></i>
+                </div>
+            </div>
+
+            <h2 class="text-white fw-bold mb-3">تم التقديم الذكي بنجاح! 🚀</h2>
+            <p class="text-light opacity-75 mb-5">يا مكنة، جوبيني حلل المنحة دي وربطها بخبراتك وكتب ليك "خطاب غرض" (SOP) احترافي.</p>
+
+            <div class="card border-0 shadow-lg rounded-4 bg-white text-dark text-end mb-4 overflow-hidden">
+                <div class="card-header bg-primary text-white p-3 border-0">
+                    <h5 class="mb-0 fw-bold"><i class="fas fa-graduation-cap ms-2"></i> تفاصيل الفرصة</h5>
+                </div>
+                <div class="card-body p-4">
+                    <h4 class="fw-bold text-primary">{{ scholarship.title }}</h4>
+                    <p class="text-muted"><i class="fas fa-university ms-1"></i> {{ scholarship.university or 'جهة عالمية' }}</p>
+                    <hr>
+                    
+                    <div class="sop-section bg-light p-4 rounded-4 border-start border-4 border-primary position-relative">
+                        <div class="badge bg-warning text-dark position-absolute top-0 start-0 m-3 shadow-sm">
+                            <i class="fas fa-robot"></i> كُتب بواسطة AI
+                        </div>
+                        <h6 class="fw-bold text-dark mt-3 mb-3">📄 خطاب الغرض من التقديم (SOP):</h6>
+                        <div class="sop-text text-muted lh-base" dir="rtl" style="white-space: pre-line; font-size: 1.05rem;">
+                            {{ sop }}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-0 p-4">
+                    <div class="d-grid gap-3 d-md-flex justify-content-md-center">
+                        <a href="{{ scholarship.official_link }}" target="_blank" class="btn btn-outline-primary rounded-pill px-4 fw-bold">
+                            <i class="fas fa-external-link-alt me-1"></i> المصدر الرسمي
+                        </a>
+                        <button onclick="copySOP()" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">
+                            <i class="fas fa-copy me-1"></i> نسخ الخطاب
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center">
+                <a href="{{ url_for('auth.dashboard') }}" class="text-white-50 text-decoration-none small">
+                    <i class="fas fa-arrow-right me-1"></i> العودة للوحة التحكم
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function copySOP() {
+        const text = document.querySelector('.sop-text').innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            alert('تم نسخ الخطاب بنجاح! يمكنك الآن استخدامه في موقع المنحة الرسمي.');
+        });
+    }
+</script>
+
+<style>
+    body {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+        min-height: 100vh;
+    }
+    .card {
+        transition: transform 0.3s ease;
+    }
+    .sop-section {
+        box-shadow: inset 0 2px 10px rgba(0,0,0,0.05);
+    }
+    .sop-text {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+</style>
+{% endblock %}

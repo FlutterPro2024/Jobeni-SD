@@ -54,8 +54,7 @@ def send_whatsapp_via_whapi(to_number, message):
 
     clean_number = str(to_number).replace('+', '').replace(' ', '').strip()
     if not clean_number.startswith('249') and len(clean_number) == 9:
-        clean_number = '249' + clean_number
-
+        clean_number = '249' + clean_number                     
     payload = {
         "to": f"{clean_number}@s.whatsapp.net",
         "body": message,
@@ -77,7 +76,7 @@ def send_whatsapp_via_whapi(to_number, message):
 
 class JobeniAgent:
     """المحرك المركزي للوكيل الذكي والشهادات المعتمدة ورادار المنح"""
-
+    
     @staticmethod
     def create_qr_code(link="https://jobeni-sd.vercel.app"):
         """توليد QR عالي الجودة مشفر بالهوية الشخصية"""
@@ -128,8 +127,7 @@ class JobeniAgent:
                     if offset > 900: break
                     draw.text((margin, offset), w_line, fill=(40, 40, 40))
                     offset += 28
-                offset += 8
-
+                offset += 8                                     
             draw.text((90, 960), "Issued by Jobeni AI Engine v2.0", fill=(150, 150, 150))
             draw.text((90, 985), f"Verification Date: {datetime.now().strftime('%d %B %Y')}", fill=(150, 150, 150))
 
@@ -173,7 +171,6 @@ class JobeniAgent:
         1. Evaluate based on GPA, Field, and Eligibility for Sudanese.
         2. Assign Match Score (0-100%).
         3. Output exactly as JSON array of objects.
-
         Required JSON Format:
         [{{
           "title": "Scholarship Name",
@@ -213,21 +210,18 @@ def run_agent():
 
         matches_found = 0
 
-        # --- حالة باحث عن منحة (مع الحفظ في جدول Scholarship الجديد) ---
+        # --- حالة باحث عن منحة ---
         if user.role == 'scholarship_seeker':
             query = user.agent_query or "Global"
             scholarships = JobeniAgent.find_scholarships_strictly(context_text, query)
             for sch in scholarships:
-                # تجنب التكرار بناءً على الرابط في جدول Scholarship
                 existing = Scholarship.query.filter_by(official_link=sch['link']).first()
                 if existing:
-                    # إذا كانت المنحة موجودة، نتحقق هل تم إرسالها لهذا المستخدم مسبقاً في الذاكرة؟
                     if AgentMemory.query.filter_by(user_id=user.id, scholarship_id=existing.id).first():
                         continue
 
-                score = sch.get('match_score', 0)
-                if score >= 60:
-                    # 1. حفظ المنحة في جدول Scholarship إذا كانت جديدة
+                match_score = sch.get('match_score', 0)
+                if match_score >= 60:
                     if not existing:
                         new_sch_entry = Scholarship(
                             title=sch['title'],
@@ -244,38 +238,50 @@ def run_agent():
                         except:
                             pass
                         db.session.add(new_sch_entry)
-                        db.session.flush() # للحصول على ID المنحة
+                        db.session.flush()
                         scholar_id = new_sch_entry.id
                     else:
                         scholar_id = existing.id
+                        new_sch_entry = existing # لضمان توفر المتغير للرابط
 
-                    # 2. حفظ في ذاكرة الوكيل بربط الحقل الجديد scholarship_id
                     memory = AgentMemory(
                         user_id=user.id,
                         action='scholarship_found',
-                        scholarship_id=scholar_id, # ربط الجدول الجديد
+                        scholarship_id=scholar_id,
                         action_url=sch['link'],
-                        feedback_notes=f"Match: {score}%",
-                        score=score
+                        feedback_notes=f"Match: {match_score}%",
+                        score=match_score
                     )
                     db.session.add(memory)
 
-                    msg = (
-                        f"🎓 *بشارة منحة دراسية!* \n\n"
-                        f"📌 {sch['title']}\n"
-                        f"📊 المطابقة: {score}%\n"
-                        f"🌍 البلد: {sch.get('country')}\n"
-                        f"💰 التمويل: {sch.get('funding')}\n"
-                        f"📅 التقديم: {sch.get('deadline')}\n\n"
-                        f"🔗 {sch['link']}"
-                    )
+                    # --- إعداد رابط التقديم التلقائي المكنة ---
+                    apply_link = f"https://jobeni-sd.com/scholarship/auto-apply/{scholar_id}"
 
+                    message_text = f"""
+🎓 *بشارة منحة دراسية جديدة!*
+
+📌 {sch['title']}
+📊 نسبة المطابقة: {match_score}%
+🌍 البلد: {sch.get('country', 'Global')}
+💰 التمويل: {sch.get('funding', 'Full')}
+📅 التقديم: {sch.get('deadline', 'N/A')}
+
+🤖 *أنا جهزت ليك خطاب الغرض من التقديم (SOP) بناءً على الـ CV بتاعك!*
+
+🔗 *للتقديم التلقائي بذكاء جوبيني:*
+{apply_link}
+
+🔗 *رابط المنحة الأصلي:*
+{sch['link']}
+"""
                     if user.telegram_id:
-                        send_message(user.telegram_id, msg)
-                    if user.whatsapp_number and score >= 85:
-                        send_whatsapp_via_whapi(user.whatsapp_number, msg)
-
+                        send_message(user.telegram_id, message_text)
+                    
+                    if user.whatsapp_number and match_score >= 85:
+                        send_whatsapp_via_whapi(user.whatsapp_number, message_text)
+                    
                     matches_found += 1
+
         # --- حالة باحث عن وظيفة ---
         else:
             query = user.agent_query or (cv.profession if cv else "Professional")
@@ -285,7 +291,7 @@ def run_agent():
             for j in jobs_pool:
                 if AgentMemory.query.filter_by(user_id=user.id, job_id=str(j.get('title'))).first():
                     continue
-
+                                                                                
                 analysis = JobeniAgent.calculate_match_strictly(context_text, j['title'], j.get('snippet', ''))
                 score = analysis.get('score', 0)
 
@@ -319,7 +325,7 @@ def weekly_summary_cron():
         users = User.query.filter_by(agent_enabled=True).all()
         processed_count = 0
         one_week_ago = datetime.utcnow() - timedelta(days=7)
-
+                                                                        
         for user in users:
             memories = AgentMemory.query.filter(
                 AgentMemory.user_id == user.id,
@@ -333,7 +339,7 @@ def weekly_summary_cron():
             role_text = "المنح" if user.role == "scholarship_seeker" else "الوظائف"
             prompt = f"بصفتك مستشار مهني ذكي، اكتب ملخصاً أسبوعياً لمستخدم سوداني يبحث عن {role_text}. الفرص المكتشفة {matches_count}، أعلى مطابقة {top_score}%. استخدم لهجة سودانية دارجة مهذبة."
             ai_advice = openrouter_ai.get_ai_response(prompt, temperature=0.7)
-
+                                                                            
             report_msg = (
                 f"📊 *تقرير جوبيني الأسبوعي يا {user.username}* \n"
                 f"━━━━━━━━━━━━━━━\n"
@@ -342,13 +348,12 @@ def weekly_summary_cron():
                 f"💡 *نصيحة الأسبوع:* {ai_advice}\n\n"
                 f"🇸🇩 _معاً نصنع مستقبلك بذكاء_"
             )
-
+                                                                
             if user.whatsapp_number: send_whatsapp_via_whapi(user.whatsapp_number, report_msg)
             if user.telegram_id: send_message(user.telegram_id, report_msg)
 
             db.session.add(AgentMemory(user_id=user.id, action='weekly_report', feedback_notes=f"Sent summary"))
-            processed_count += 1
-
+            processed_count += 1                                
         db.session.commit()
         return f"Weekly reports sent to {processed_count} users.", 200
     except Exception as e:
@@ -366,7 +371,6 @@ def get_certificate():
 
     cert_img = JobeniAgent.create_certificate_image(current_user.full_name or current_user.username, current_user.last_evaluation)
     if cert_img:
-        # تأكد من وجود TELEGRAM_BOT_TOKEN في .env
         BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
         files = {'photo': ('jobeni_cert.png', cert_img, 'image/png')}
         caption = "📜 *شهادة اعتماد جوبيني AI*\nتم توثيق مهاراتك رقمياً لعام 2026."
@@ -374,7 +378,7 @@ def get_certificate():
         flash("أبشر! الشهادة الموثقة أصبحت في جيبك (تليجرام).", "success")
     else:
         flash("حدث خطأ في توليد الشهادة.", "danger")
-    return redirect(url_for('auth.dashboard'))
+    return redirect(url_for('auth.dashboard'))                  
 
 @agent_bp.route('/toggle-agent', methods=['POST', 'GET'])
 @login_required
@@ -386,5 +390,5 @@ def toggle_agent():
     add_notification(current_user.id, "تحديث الرادار", f"حالة الوكيل الذكي: {status}", "info")
     flash(f"تم {status} رادار الفرص بنجاح.", "success")
     return redirect(url_for('auth.dashboard'))
-# Final Update 2026
-# Final Update 2026
+
+# Final Update 2026 - Smart Apply Integration
