@@ -24,13 +24,17 @@ auth_bp = Blueprint('auth', __name__)
 
 def generate_secure_qr(data):
     """توليد كود QR مع تنسيق عالي الدقة للهوية الرقمية 2026"""
-    qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=10, border=2)
-    qr.add_data(data)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="#0f172a", back_color="white")
-    buffered = io.BytesIO()
-    img.save(buffered, format="PNG")
-    return base64.b64encode(buffered.getvalue()).decode()
+    try:
+        qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=10, border=2)
+        qr.add_data(data)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="#0f172a", back_color="white")
+        buffered = io.BytesIO()
+        img.save(buffered, format="PNG")
+        return base64.b64encode(buffered.getvalue()).decode()
+    except Exception as e:
+        logger.error(f"QR Generation Error: {e}")
+        return ""
 
 def upload_to_imgbb(file):
     """دالة مساعدة لرفع الصور لـ ImgBB لضمان استقرار السيرفر"""
@@ -84,10 +88,14 @@ def login():
     if request.method == 'POST':
         email = request.form.get('email', '').lower().strip()
         password = request.form.get('password')
-        user = User.query.filter_by(email=email).first()
-        if user and check_password_hash(user.password, password):
-            login_user(user, remember=True)
-            return redirect(url_for('auth.dashboard'))
+        try:
+            user = User.query.filter_by(email=email).first()
+            if user and check_password_hash(user.password, password):
+                login_user(user, remember=True)
+                return redirect(url_for('auth.dashboard'))
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Login Error: {e}")
         flash('بيانات الدخول غير صحيحة يا مكنة، تأكد من كلمة المرور.', 'danger')
     return render_template('login.html')
 
@@ -101,71 +109,94 @@ def register():
         password = request.form.get('password')
         role = request.form.get('role', 'jobseeker')
 
-        if User.query.filter((User.email == email) | (User.username == username)).first():
-            flash('البريد أو اسم المستخدم مسجل مسبقاً.', 'warning')
-            return redirect(url_for('auth.register'))
-            
-        new_user = User(
-            username=username,
-            email=email,
-            password=generate_password_hash(password, method='pbkdf2:sha256'),
-            role=role
-        )
-        db.session.add(new_user)
-        db.session.commit()
-        login_user(new_user)
-        return redirect(url_for('auth.dashboard'))
+        try:
+            if User.query.filter((User.email == email) | (User.username == username)).first():
+                flash('البريد أو اسم المستخدم مسجل مسبقاً.', 'warning')
+                return redirect(url_for('auth.register'))
+
+            new_user = User(
+                username=username,
+                email=email,
+                password=generate_password_hash(password, method='pbkdf2:sha256'),
+                role=role
+            )
+            db.session.add(new_user)
+            db.session.commit()
+            login_user(new_user)
+            return redirect(url_for('auth.dashboard'))
+        except Exception as e:
+            db.session.rollback()
+            flash('حدث خطأ أثناء التسجيل، حاول مرة أخرى.', 'danger')
     return render_template('register.html')
 
 @auth_bp.route('/dashboard')
 @login_required
 def dashboard():
-    """لوحة التحكم الذكية: تشمل رادار المهارات الصارم وتوصيات AI 2026"""
-    if current_user.role == 'employer':
-        jobs = Job.query.filter_by(user_id=current_user.id).all()
-        return render_template('dashboard_employer.html', jobs=jobs)
+    """لوحة التحكم الذكية: نسخة سيادية مضادة للانهيار 2026"""
+    try:
+        if current_user.role == 'employer':
+            jobs = Job.query.filter_by(user_id=current_user.id).all()
+            return render_template('dashboard_employer.html', jobs=jobs)
 
-    one_week_ago = datetime.utcnow() - timedelta(days=7)
-    recent_apps = Application.query.filter(Application.user_id == current_user.id, Application.applied_at >= one_week_ago).all()
+        # 1. جلب إحصائيات الأسبوع بحذر
+        one_week_ago = datetime.utcnow() - timedelta(days=7)
+        recent_apps = Application.query.filter(Application.user_id == current_user.id, Application.applied_at >= one_week_ago).all()
 
-    weekly_report_memory = AgentMemory.query.filter(AgentMemory.user_id == current_user.id, AgentMemory.action == 'weekly_report').order_by(AgentMemory.created_at.desc()).first()
+        weekly_report_memory = AgentMemory.query.filter(AgentMemory.user_id == current_user.id, AgentMemory.action == 'weekly_report').order_by(AgentMemory.created_at.desc()).first()
 
-    weekly_stats = {
-        'matches_count': len(recent_apps),
-        'top_score': max([a.match_score for a in recent_apps]) if recent_apps else 0,
-        'ai_advice': weekly_report_memory.feedback_notes if weekly_report_memory else "أكمل بياناتك ليبدأ 'الجلاد' في تقديم نصائح مخصصة لك بناءً على معايير 2026."
-    }
+        weekly_stats = {
+            'matches_count': len(recent_apps),
+            'top_score': max([a.match_score for a in recent_apps]) if recent_apps else 0,
+            'ai_advice': weekly_report_memory.feedback_notes if weekly_report_memory else "أكمل بياناتك ليبدأ 'الجلاد' في تقديم نصائح مخصصة لك."
+        }
 
-    last_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
-    radar_labels = ["تقني", "تواصل", "خبرة", "قيادة", "إبداع"]
-    radar_scores = [50, 50, 50, 50, 50]
-    course_suggestions = "ارفع سيرتك الذاتية للحصول على توصيات AI عالمية."
+        # 2. جلب آخر سيرة ذاتية وإدارة الرادار
+        last_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
+        radar_labels = ["تقني", "تواصل", "خبرة", "قيادة", "إبداع"]
+        radar_scores = [20, 20, 20, 20, 20] # قيم افتراضية منخفضة
+        course_suggestions = "ارفع سيرتك الذاتية للحصول على توصيات AI عالمية."
 
-    if last_cv and last_cv.extracted_text:
-        try:
+        if last_cv:
+            # استخدام البيانات الكاش إذا وجدت
             if last_cv.radar_labels and last_cv.radar_scores:
                 radar_labels, radar_scores = last_cv.radar_labels, last_cv.radar_scores
-            else:
-                # توليد بيانات الرادار باستخدام نظام الجلاد (صرامة عالية)
-                radar_data = openrouter_ai.generate_skills_radar_data(last_cv.extracted_text[:4000])
-                radar_labels, radar_scores = radar_data.get('labels'), radar_data.get('scores')
-                last_cv.radar_labels, last_cv.radar_scores = radar_labels, radar_scores
-                db.session.commit()
-            course_suggestions = openrouter_ai.suggest_courses_for_gaps({"labels": radar_labels, "scores": radar_scores})
-        except Exception as e: 
-            logger.error(f"Radar Error: {e}")
+            elif last_cv.extracted_text:
+                try:
+                    # محاولة توليد بيانات الرادار من AI
+                    radar_data = openrouter_ai.generate_skills_radar_data(last_cv.extracted_text[:4000])
+                    if radar_data and 'labels' in radar_data:
+                        radar_labels, radar_scores = radar_data.get('labels'), radar_data.get('scores')
+                        last_cv.radar_labels, last_cv.radar_scores = radar_labels, radar_scores
+                        db.session.commit()
+                except Exception as ai_err:
+                    logger.error(f"AI Radar Error: {ai_err}")
+                    db.session.rollback()
+            
+            # جلب الاقتراحات
+            try:
+                course_suggestions = openrouter_ai.suggest_courses_for_gaps({"labels": radar_labels, "scores": radar_scores})
+            except: pass
 
-    agent_memories = AgentMemory.query.filter_by(user_id=current_user.id).order_by(AgentMemory.created_at.desc()).limit(10).all()
-    user_qr_base64 = generate_secure_qr(url_for('auth.user_profile', username=current_user.username, _external=True))
+        # 3. جلب الذاكرة والـ QR
+        agent_memories = AgentMemory.query.filter_by(user_id=current_user.id).order_by(AgentMemory.created_at.desc()).limit(10).all()
+        
+        user_profile_url = url_for('auth.user_profile', username=current_user.username, _external=True)
+        user_qr_base64 = generate_secure_qr(user_profile_url)
 
-    return render_template('dashboard.html', 
-                           radar_labels=radar_labels, 
-                           radar_scores=radar_scores, 
-                           course_suggestions=course_suggestions, 
-                           user_qr=user_qr_base64,
-                           agent_memories=agent_memories, 
-                           weekly_stats=weekly_stats,
-                           cv=last_cv) # تمرير الـ CV لعرض الـ GPA في اللوحة
+        return render_template('dashboard.html',
+                               radar_labels=radar_labels,
+                               radar_scores=radar_scores,
+                               course_suggestions=course_suggestions,
+                               user_qr=user_qr_base64,
+                               agent_memories=agent_memories,
+                               weekly_stats=weekly_stats,
+                               cv=last_cv)
+
+    except Exception as e:
+        db.session.rollback()
+        logger.critical(f"🔥 Dashboard Crash: {e}")
+        # عرض صفحة الخطأ بكرامة بدل الانهيار التام
+        return render_template('errors/500.html', error=str(e)), 500
 
 @auth_bp.route('/update_agent_settings', methods=['POST'])
 @login_required
@@ -186,7 +217,7 @@ def update_agent_settings():
                 from app.agent_worker import send_whatsapp_via_whapi
                 send_whatsapp_via_whapi(clean_wa, f"تم تفعيل رادار جوبيني الصارم بنجاح لـ {current_user.username} 🤖\nسنرسل لك الفرص التي تتجاوز {current_user.agent_target_score}% فقط.")
             except: pass
-        
+
         db.session.add(AgentMemory(user_id=current_user.id, action='settings_updated', feedback_notes="تحديث إعدادات الرادار الصارم"))
         db.session.commit()
         flash('تم تحديث الرادار بنجاح ✅', 'success')
@@ -204,7 +235,7 @@ def generate_interview_prep():
     try:
         questions = openrouter_ai.generate_interview_simulation(last_cv.profession, last_cv.extracted_text[:4000])
         return jsonify({'status': 'success', 'questions': questions})
-    except Exception as e: 
+    except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
 
 @auth_bp.route('/profile', methods=['GET', 'POST'])
@@ -212,10 +243,14 @@ def generate_interview_prep():
 def profile():
     """عرض وتعديل الإعدادات الشخصية"""
     if request.method == 'POST':
-        current_user.full_name = request.form.get('full_name')
-        current_user.phone = request.form.get('phone')
-        db.session.commit()
-        flash('تم تحديث بيانات البروفايل بنجاح ✅', 'success')
+        try:
+            current_user.full_name = request.form.get('full_name')
+            current_user.phone = request.form.get('phone')
+            db.session.commit()
+            flash('تم تحديث بيانات البروفايل بنجاح ✅', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash('فشل التحديث، حاول لاحقاً.', 'danger')
         return redirect(url_for('auth.profile'))
     return render_template('profile_settings.html')
 
