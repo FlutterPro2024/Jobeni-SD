@@ -24,12 +24,13 @@ def jobs_list():
     """عرض قائمة الفرص مع تمييز المنح الدراسية عن الوظائف"""
     query = request.args.get('q', '').strip()
     location_query = request.args.get('location', '').strip()
-
+    
     # تحديد "النية" من البحث (أكاديمي أم مهني)
     academic_keywords = ['منحة', 'scholarship', 'جامعة', 'university', 'دراسة', 'phd', 'masters']
     is_academic_intent = any(k in query.lower() for k in academic_keywords)
 
     global_results = []
+    local_results = []
 
     # 1. البحث في قاعدة البيانات المحلية
     if is_academic_intent:
@@ -54,8 +55,8 @@ def jobs_list():
             print(f"Global Search Error: {e}")
 
     return render_template('search_results.html',
-                           results=local_results,
-                           global_results=global_results,
+                           jobs=local_results,
+                           global_jobs=global_results,
                            query=query,
                            is_academic=is_academic_intent)
 
@@ -66,22 +67,22 @@ def jobs_list():
 def smart_match_jobs():
     """المحرك الذكي: مطابقة السيرة الذاتية مع الوظائف المتاحة حالياً"""
     cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
-    
+
     if not cv:
         flash('يا مكنة، ارفع سيرتك الذاتية أول عشان الرادار يشتغل!', 'warning')
         return redirect(url_for('cv.upload_cv'))
 
     # استخدام التخصص من الـ CV ككلمة بحث أساسية
     search_query = cv.profession or "Professional"
-    
+
     # البحث عن وظائف تطابق تخصص المستخدم
     matched_jobs = Job.query.filter(
         or_(Job.title.ilike(f'%{search_query}%'), Job.description.ilike(f'%{search_query}%'))
     ).filter_by(is_active=True).limit(10).all()
-
-    return render_template('search_results.html', 
-                           results=matched_jobs, 
-                           query=search_query, 
+    
+    return render_template('search_results.html',
+                           jobs=matched_jobs,
+                           query=search_query,
                            is_smart=True)
 
 # --- ثالثاً: تفاصيل الوظيفة ---
@@ -93,7 +94,7 @@ def job_detail(job_id):
     application = None
     if current_user.is_authenticated:
         application = Application.query.filter_by(user_id=current_user.id, job_id=job.id).first()
-
+    
     return render_template('job_detail.html', job=job, application=application)
 
 # --- رابعاً: نظام التقديم الذكي (Smart Apply) ---
@@ -148,7 +149,44 @@ def apply_to_job(job_id):
     flash('أبشر! طلبك وصل وقيد المراجعة.', 'success')
     return redirect(url_for('auth.dashboard'))
 
-# --- خامساً: إدارة المتقدمين والعمليات ---
+# --- خامساً: التقديم التلقائي للمنح (الربط مع الواتساب) ---
+
+@jobs_bp.route('/scholarship/auto-apply/<int:sch_id>')
+@login_required
+def auto_apply_scholarship(sch_id):
+    """التقديم الذكي للمنحة بضغطة واحدة من الواتساب"""
+    scholarship = Scholarship.query.get_or_404(sch_id)
+    user_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
+
+    if not user_cv:
+        flash('يا مكنة، لازم ترفع الـ CV الأول عشان أقدر أقدم ليك!', 'warning')
+        return redirect(url_for('cv.upload_cv'))
+
+    # توليد خطاب تقديم احترافي (SOP) باستخدام AI
+    prompt = (f"اكتب خطاب غرض من التقديم (SOP) قصير ومقنع للسوداني المتقدم للمنحة: ({scholarship.title}). "
+              f"استخدم بيانات الـ CV: ({user_cv.extracted_text[:600]}). "
+              f"اجعل الأسلوب أكاديمياً واحترافياً.")
+    
+    try:
+        sop_text = openrouter_ai.get_ai_response(prompt)
+    except:
+        sop_text = "أنا مهتم جداً بهذه المنحة وأطمح للمساهمة في مجالي الأكاديمي."
+
+    # تسجيل التقديم في قاعدة البيانات
+    new_app = Application(
+        user_id=current_user.id,
+        job_id=None,
+        scholarship_id=sch_id,
+        match_score=85,
+        match_explanation=sop_text,
+        status='applied_auto'
+    )
+    db.session.add(new_app)
+    db.session.commit()
+
+    return render_template('auto_apply_result.html', scholarship=scholarship, sop=sop_text)
+
+# --- سادساً: إدارة المتقدمين والعمليات ---
 
 @jobs_bp.route('/job/<int:job_id>/candidates')
 @login_required
@@ -172,7 +210,7 @@ def update_application_status(app_id):
         details = request.form.get('interview_details', 'سيتم التواصل معك قريباً.')
         add_notification(application.user_id, f"📅 مبروك! تحديث لطلب {job.title}", f"تم اختيارك للمقابلة. {details}", "primary")
         send_automated_interview_message(sender_id=current_user.id, recipient_id=application.user_id, job_id=job.id, details=details)
-
+    
     db.session.commit()
     flash('تم تحديث الحالة بنجاح.', 'success')
     return redirect(url_for('jobs.view_candidates', job_id=job.id))
@@ -186,4 +224,3 @@ def delete_job(job_id):
     db.session.commit()
     flash('تم حذف الإعلان.', 'info')
     return redirect(url_for('auth.dashboard'))
-
