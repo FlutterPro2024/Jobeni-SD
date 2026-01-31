@@ -387,3 +387,4 @@ def toggle_agent():
     flash(f"تم {status} رادار الفرص بنجاح.", "success")
     return redirect(url_for('auth.dashboard'))
 # Final Update 2026
+# Final Update 2026
