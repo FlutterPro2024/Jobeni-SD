@@ -51,10 +51,10 @@ def send_whatsapp_via_whapi(to_number, message):
     if not token:
         logger.error("❌ WHAPI_TOKEN مفقود في متغيرات البيئة")
         return None
-
+    
     clean_number = str(to_number).replace('+', '').replace(' ', '').strip()
     if not clean_number.startswith('249') and len(clean_number) == 9:
-        clean_number = '249' + clean_number                     
+        clean_number = '249' + clean_number
     payload = {
         "to": f"{clean_number}@s.whatsapp.net",
         "body": message,
@@ -76,7 +76,7 @@ def send_whatsapp_via_whapi(to_number, message):
 
 class JobeniAgent:
     """المحرك المركزي للوكيل الذكي والشهادات المعتمدة ورادار المنح"""
-    
+
     @staticmethod
     def create_qr_code(link="https://jobeni-sd.vercel.app"):
         """توليد QR عالي الجودة مشفر بالهوية الشخصية"""
@@ -127,7 +127,7 @@ class JobeniAgent:
                     if offset > 900: break
                     draw.text((margin, offset), w_line, fill=(40, 40, 40))
                     offset += 28
-                offset += 8                                     
+                offset += 8
             draw.text((90, 960), "Issued by Jobeni AI Engine v2.0", fill=(150, 150, 150))
             draw.text((90, 985), f"Verification Date: {datetime.now().strftime('%d %B %Y')}", fill=(150, 150, 150))
 
@@ -144,52 +144,78 @@ class JobeniAgent:
             return None
 
     @staticmethod
-    def calculate_match_strictly(cv_text, job_title, job_desc):
-        """المحلل الصارم (ATS Matcher) للوظائف"""
+    def calculate_match_strictly(cv_obj, job_title, job_desc):
+        """المحلل الصارم (The Executioner) للوظائف - صرامة مطلقة بدون مجاملة"""
         prompt = f"""
-        Act as a HARSH Recruiter. Analyze match for: {job_title}.
-        CV: {cv_text[:1500]}
-        Job: {job_desc[:800]}
-        Rules: - Penalize missing hard skills (-20%).
-        Output JSON ONLY: {{"score": 0-100, "verdict": "Match/Reject", "missing": [], "notes": "concise feedback"}}
+        Act as a Cynical Corporate Headhunter. Your goal is to DISQUALIFY the candidate unless they are a perfect fit.
+        
+        Candidate Profile:
+        - Profession: {cv_obj.profession}
+        - Level: {cv_obj.academic_level}
+        - GPA: {cv_obj.gpa}
+        - Skills: {cv_obj.skills}
+        
+        Job Details:
+        - Title: {job_title}
+        - Description: {job_desc[:1000]}
+        
+        STRICT RULES:
+        1. Over-evaluation is a failure. If they don't have a specific tech skill required, score is 0 for that skill.
+        2. If GPA is provided and < 3.0 or 'Pass', penalize by -30 points.
+        3. 'Familiar with' or 'Basics' does NOT count as a skill.
+        4. Match Score must be purely data-driven.
+        
+        Output ONLY JSON:
+        {{
+            "score": 0-100,
+            "verdict": "Reject/Consider/Match",
+            "missing": [],
+            "notes": "Brutally honest feedback"
+        }}
         """
         try:
-            res = openrouter_ai.get_ai_response(prompt, temperature=0.1)
+            # Temperature 0.0 لضمان الصرامة ومنع الهلوسة
+            res = openrouter_ai.get_ai_response(prompt, temperature=0.0)
             match = re.search(r'\{.*\}', res, re.DOTALL)
             if match: return json.loads(match.group())
         except:
             pass
-        return {"score": 0, "verdict": "Reject", "notes": "AI Analysis Failed"}
+        return {"score": 0, "verdict": "Reject", "notes": "AI Disqualified due to data mismatch"}
 
     @staticmethod
-    def find_scholarships_strictly(user_context, query):
-        """الوكيل الذكي للبحث عن المنح (Scholarship AI Agent)"""
+    def find_scholarships_strictly(cv_obj, query):
+        """رادار المنح الصارم (Scholarship Auditor)"""
+        academic_context = f"""
+        Degree: {cv_obj.academic_level}, GPA: {cv_obj.gpa}, 
+        University: {cv_obj.university_name}, Skills: {cv_obj.skills}
+        """
         prompt = f"""
-        Act as a Global Scholarship AI Agent. Find opportunities for: {query}
-        User Academic Context: {user_context[:1500]}
-        Tasks:
-        1. Evaluate based on GPA, Field, and Eligibility for Sudanese.
-        2. Assign Match Score (0-100%).
-        3. Output exactly as JSON array of objects.
-        Required JSON Format:
+        Act as a Senior Scholarship Auditor. Find opportunities for: {query}
+        User Context: {academic_context}
+        
+        STRICT CRITERIA:
+        1. Match must be > 70% to be reported.
+        2. Penalize if user degree level doesn't match scholarship requirements.
+        3. Penalize heavily for low GPA.
+        
+        Output exactly as JSON array:
         [{{
           "title": "Scholarship Name",
           "university": "University Name",
-          "level": "Undergraduate/Masters/PhD",
-          "field": "Specialization",
+          "level": "Degree level",
           "country": "Host Country",
           "funding": "Full/Partial",
           "deadline": "YYYY-MM-DD",
           "match_score": 0-100,
-          "notes": "Brief AI advice",
-          "link": "Official URL"
+          "notes": "Critical evaluation",
+          "link": "URL"
         }}]
         """
         try:
             search_results = serper_searcher.search_jobs(f"{query} scholarship 2026 fully funded")
             web_context = str(search_results.get('jobs', []))
             full_prompt = f"{prompt}\n\nSearch Data: {web_context[:2000]}"
-            res = openrouter_ai.get_ai_response(full_prompt, temperature=0.3)
+            res = openrouter_ai.get_ai_response(full_prompt, temperature=0.0)
             match = re.search(r'\[.*\]', res, re.DOTALL)
             if match: return json.loads(match.group())
         except Exception as e:
@@ -204,16 +230,16 @@ def run_agent():
     try:
         user = User.query.filter_by(agent_enabled=True).order_by(db.func.random()).first()
         if not user: return "No active agents.", 200
-
+        
         cv = CV.query.filter_by(user_id=user.id).order_by(CV.created_at.desc()).first()
-        context_text = cv.extracted_text if cv else "Generic student"
+        if not cv: return f"No CV for {user.username}", 200
 
         matches_found = 0
 
         # --- حالة باحث عن منحة ---
         if user.role == 'scholarship_seeker':
-            query = user.agent_query or "Global"
-            scholarships = JobeniAgent.find_scholarships_strictly(context_text, query)
+            query = user.agent_query or "Global Fully Funded"
+            scholarships = JobeniAgent.find_scholarships_strictly(cv, query)
             for sch in scholarships:
                 existing = Scholarship.query.filter_by(official_link=sch['link']).first()
                 if existing:
@@ -221,91 +247,63 @@ def run_agent():
                         continue
 
                 match_score = sch.get('match_score', 0)
-                if match_score >= 60:
+                if match_score >= 65: # رفع العتبة لزيادة الصرامة
                     if not existing:
                         new_sch_entry = Scholarship(
-                            title=sch['title'],
-                            university=sch.get('university'),
-                            country=sch.get('country'),
-                            field_of_study=sch.get('field'),
-                            level=sch.get('level'),
-                            funding_type=sch.get('funding'),
+                            title=sch['title'], university=sch.get('university'),
+                            country=sch.get('country'), field_of_study=sch.get('field'),
+                            level=sch.get('level'), funding_type=sch.get('funding'),
                             official_link=sch['link']
                         )
                         try:
                             if sch.get('deadline'):
                                 new_sch_entry.deadline = datetime.strptime(sch['deadline'], '%Y-%m-%d')
-                        except:
-                            pass
+                        except: pass
                         db.session.add(new_sch_entry)
                         db.session.flush()
                         scholar_id = new_sch_entry.id
                     else:
                         scholar_id = existing.id
-                        new_sch_entry = existing # لضمان توفر المتغير للرابط
 
-                    memory = AgentMemory(
-                        user_id=user.id,
-                        action='scholarship_found',
-                        scholarship_id=scholar_id,
-                        action_url=sch['link'],
-                        feedback_notes=f"Match: {match_score}%",
-                        score=match_score
-                    )
-                    db.session.add(memory)
+                    db.session.add(AgentMemory(
+                        user_id=user.id, action='scholarship_found',
+                        scholarship_id=scholar_id, action_url=sch['link'],
+                        feedback_notes=f"Match: {match_score}%", score=match_score
+                    ))
 
-                    # --- إعداد رابط التقديم التلقائي المكنة ---
                     apply_link = f"https://jobeni-sd.com/scholarship/auto-apply/{scholar_id}"
-
-                    message_text = f"""
-🎓 *بشارة منحة دراسية جديدة!*
-
-📌 {sch['title']}
-📊 نسبة المطابقة: {match_score}%
-🌍 البلد: {sch.get('country', 'Global')}
-💰 التمويل: {sch.get('funding', 'Full')}
-📅 التقديم: {sch.get('deadline', 'N/A')}
-
-🤖 *أنا جهزت ليك خطاب الغرض من التقديم (SOP) بناءً على الـ CV بتاعك!*
-
-🔗 *للتقديم التلقائي بذكاء جوبيني:*
-{apply_link}
-
-🔗 *رابط المنحة الأصلي:*
-{sch['link']}
-"""
-                    if user.telegram_id:
-                        send_message(user.telegram_id, message_text)
+                    message_text = f"🎓 *بشارة منحة موثقة!*\n📌 {sch['title']}\n📊 المطابقة الصارمة: {match_score}%\n💰 التمويل: {sch.get('funding')}\n\n🔗 للتقديم التلقائي الذكي:\n{apply_link}\n\n🔗 الرابط الأصلي:\n{sch['link']}"
                     
-                    if user.whatsapp_number and match_score >= 85:
-                        send_whatsapp_via_whapi(user.whatsapp_number, message_text)
-                    
+                    if user.telegram_id: send_message(user.telegram_id, message_text)
+                    if user.whatsapp_number and match_score >= 85: send_whatsapp_via_whapi(user.whatsapp_number, message_text)
                     matches_found += 1
 
         # --- حالة باحث عن وظيفة ---
         else:
-            query = user.agent_query or (cv.profession if cv else "Professional")
+            query = user.agent_query or cv.profession
             search_results = serper_searcher.search_jobs(f"{query} jobs {user.agent_work_type}")
             jobs_pool = search_results.get('jobs', [])[:10]
 
             for j in jobs_pool:
                 if AgentMemory.query.filter_by(user_id=user.id, job_id=str(j.get('title'))).first():
                     continue
-                                                                                
-                analysis = JobeniAgent.calculate_match_strictly(context_text, j['title'], j.get('snippet', ''))
+                                                                
+                analysis = JobeniAgent.calculate_match_strictly(cv, j['title'], j.get('snippet', ''))
                 score = analysis.get('score', 0)
 
                 if score >= user.agent_target_score:
-                    memory = AgentMemory(user_id=user.id, action='sent', job_id=j['title'], feedback_notes=f"Score: {score}%", score=score)
-                    db.session.add(memory)
+                    db.session.add(AgentMemory(
+                        user_id=user.id, action='sent', job_id=j['title'],
+                        feedback_notes=f"Strict Score: {score}%", score=score
+                    ))
 
                     if user.telegram_id:
-                        msg = f"🎯 *فرصة مكنة:* {j['title']}\n🏢 {j['company']}\n📊 المطابقة: {score}%\n💡 {analysis.get('notes')}"
+                        msg = f"🎯 *فرصة مكنة (تقييم صارم):*\n📌 {j['title']}\n🏢 {j['company']}\n📊 المطابقة: {score}%\n💡 {analysis.get('notes')}"
                         kb = {"inline_keyboard": [[{"text": "🔗 التقديم الآن", "url": j['link']}]]}
                         send_message(user.telegram_id, msg, reply_markup=kb)
-
+                                                                                    
                     if user.whatsapp_number and score >= 85:
-                        wa_msg = f"🎯 *يا {user.username}، وظيفة لقطة!*\n\n📌 {j['title']}\n🏢 {j['company']}\n🔥 درجة المطابقة: {score}%\n\n🔗 {j['link']}"
+                        wa_msg = f"🎯 *يا {user.username}، وظيفة حقيقية!*\n📌 {j['title']}\n🔥 درجة المطابقة الصارمة: {score}%\n🔗 {j['link']}"
                         send_whatsapp_via_whapi(user.whatsapp_number, wa_msg)
 
                     matches_found += 1
@@ -325,35 +323,37 @@ def weekly_summary_cron():
         users = User.query.filter_by(agent_enabled=True).all()
         processed_count = 0
         one_week_ago = datetime.utcnow() - timedelta(days=7)
-                                                                        
+                                                                
         for user in users:
             memories = AgentMemory.query.filter(
                 AgentMemory.user_id == user.id,
                 AgentMemory.created_at >= one_week_ago,
                 AgentMemory.action.in_(['sent', 'scholarship_found'])
             ).all()
+            
+            if not memories: continue
 
             matches_count = len(memories)
-            top_score = max([m.score for m in memories]) if memories else 0
+            top_score = max([m.score for m in memories])
 
             role_text = "المنح" if user.role == "scholarship_seeker" else "الوظائف"
-            prompt = f"بصفتك مستشار مهني ذكي، اكتب ملخصاً أسبوعياً لمستخدم سوداني يبحث عن {role_text}. الفرص المكتشفة {matches_count}، أعلى مطابقة {top_score}%. استخدم لهجة سودانية دارجة مهذبة."
+            prompt = f"بصفتك مستشار مهني حازم، اكتب ملخصاً أسبوعياً لمستخدم سوداني. الفرص المكتشفة {matches_count}، أعلى مطابقة {top_score}%. لا تجامل، كن واقعياً."
             ai_advice = openrouter_ai.get_ai_response(prompt, temperature=0.7)
-                                                                            
-            report_msg = (
-                f"📊 *تقرير جوبيني الأسبوعي يا {user.username}* \n"
-                f"━━━━━━━━━━━━━━━\n"
-                f"🕵️‍♂️ *فرص {role_text} المكتشفة:* {matches_count}\n"
-                f"🚀 *أعلى مطابقة:* {top_score}%\n"
-                f"💡 *نصيحة الأسبوع:* {ai_advice}\n\n"
-                f"🇸🇩 _معاً نصنع مستقبلك بذكاء_"
-            )
                                                                 
+            report_msg = (
+                f"📊 *تقرير جوبيني الأسبوعي الصارم يا {user.username}* \n"
+                f"━━━━━━━━━━━━━━━\n"
+                f"🕵️‍♂️ *فرص {role_text} الحقيقية:* {matches_count}\n"
+                f"🚀 *أعلى مطابقة موثقة:* {top_score}%\n"
+                f"💡 *الخلاصة:* {ai_advice}\n\n"
+                f"🇸🇩 _جوبيني: دقة، صرامة، فرص حقيقية_"
+            )
+
             if user.whatsapp_number: send_whatsapp_via_whapi(user.whatsapp_number, report_msg)
             if user.telegram_id: send_message(user.telegram_id, report_msg)
 
             db.session.add(AgentMemory(user_id=user.id, action='weekly_report', feedback_notes=f"Sent summary"))
-            processed_count += 1                                
+            processed_count += 1
         db.session.commit()
         return f"Weekly reports sent to {processed_count} users.", 200
     except Exception as e:
@@ -378,7 +378,7 @@ def get_certificate():
         flash("أبشر! الشهادة الموثقة أصبحت في جيبك (تليجرام).", "success")
     else:
         flash("حدث خطأ في توليد الشهادة.", "danger")
-    return redirect(url_for('auth.dashboard'))                  
+    return redirect(url_for('auth.dashboard'))
 
 @agent_bp.route('/toggle-agent', methods=['POST', 'GET'])
 @login_required
@@ -391,4 +391,4 @@ def toggle_agent():
     flash(f"تم {status} رادار الفرص بنجاح.", "success")
     return redirect(url_for('auth.dashboard'))
 
-# Final Update 2026 - Smart Apply Integration
+# Final Update 2026 - The Executioner Mode Integrated

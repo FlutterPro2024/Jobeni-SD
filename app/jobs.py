@@ -24,7 +24,7 @@ def jobs_list():
     """عرض قائمة الفرص مع تمييز المنح الدراسية عن الوظائف"""
     query = request.args.get('q', '').strip()
     location_query = request.args.get('location', '').strip()
-    
+
     # تحديد "النية" من البحث (أكاديمي أم مهني)
     academic_keywords = ['منحة', 'scholarship', 'جامعة', 'university', 'دراسة', 'phd', 'masters']
     is_academic_intent = any(k in query.lower() for k in academic_keywords)
@@ -60,32 +60,63 @@ def jobs_list():
                            query=query,
                            is_academic=is_academic_intent)
 
-# --- ثانياً: المطابقة الذكية (لحل مشكلة BuildError) ---
+# --- ثانياً: رادار الوظائف الصارم (The Executioner Mode) ---
 
-@jobs_bp.route('/smart-match')
+@jobs_bp.route('/smart-match-jobs')
 @login_required
 def smart_match_jobs():
-    """المحرك الذكي: مطابقة السيرة الذاتية مع الوظائف المتاحة حالياً"""
+    """المحرك الذكي: مطابقة صارمة للسيرة الذاتية مع الوظائف"""
     cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
-
     if not cv:
         flash('يا مكنة، ارفع سيرتك الذاتية أول عشان الرادار يشتغل!', 'warning')
         return redirect(url_for('cv.upload_cv'))
 
-    # استخدام التخصص من الـ CV ككلمة بحث أساسية
     search_query = cv.profession or "Professional"
-
-    # البحث عن وظائف تطابق تخصص المستخدم
-    matched_jobs = Job.query.filter(
+    # جلب عينة من الوظائف للتحليل الصارم
+    potential_jobs = Job.query.filter(
         or_(Job.title.ilike(f'%{search_query}%'), Job.description.ilike(f'%{search_query}%'))
-    ).filter_by(is_active=True).limit(10).all()
-    
-    return render_template('search_results.html',
-                           jobs=matched_jobs,
-                           query=search_query,
-                           is_smart=True)
+    ).filter_by(is_active=True).limit(15).all()
 
-# --- ثالثاً: تفاصيل الوظيفة ---
+    final_matches = []
+    for job in potential_jobs:
+        # استخدام دالة التقييم الصارمة
+        analysis = openrouter_ai.analyze_cv_complete(f"Job: {job.title} {job.description}\nCV: {cv.extracted_text}")
+        score = analysis.get('overall_score', 0)
+        
+        # لا نعرض إلا ما يتجاوز عتبة الـ 50% لضمان الجودة
+        if score >= 50:
+            final_matches.append({
+                'title': job.title,
+                'company': job.company or 'شركة موثقة',
+                'score': score,
+                'notes': analysis.get('feedback', 'طابق معاييرنا الصارمة.'),
+                'link': url_for('jobs.job_detail', job_id=job.id),
+                'type': job.job_type,
+                'location': job.location
+            })
+
+    # ترتيب حسب السكور الأعلى
+    final_matches = sorted(final_matches, key=lambda x: x['score'], reverse=True)
+    return render_template('smart_match_results.html', matches=final_matches, cv=cv, type='jobs')
+
+# --- ثالثاً: رادار المنح الصارم (The Executioner Mode) ---
+
+@jobs_bp.route('/smart-match-scholarships')
+@login_required
+def smart_match_scholarships():
+    """المحرك الذكي: مطابقة صارمة للسيرة الذاتية مع المنح الدراسية"""
+    cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
+    if not cv:
+        flash('يا مكنة، ارفع سيرتك الذاتية أول عشان الرادار يشتغل!', 'warning')
+        return redirect(url_for('cv.upload_cv'))
+
+    # البحث عن منح تتناسب مع تخصص المستخدم ومعدله
+    search_query = f"{cv.profession} scholarship 2026"
+    scholarships_data = openrouter_ai.find_scholarships_strictly(search_query, cv.extracted_text)
+    
+    return render_template('smart_match_results.html', matches=scholarships_data, cv=cv, type='scholarships')
+
+# --- رابعاً: تفاصيل الوظيفة ---
 
 @jobs_bp.route('/job/<int:job_id>')
 def job_detail(job_id):
@@ -94,21 +125,21 @@ def job_detail(job_id):
     application = None
     if current_user.is_authenticated:
         application = Application.query.filter_by(user_id=current_user.id, job_id=job.id).first()
-    
+
     return render_template('job_detail.html', job=job, application=application)
 
-# --- رابعاً: نظام التقديم الذكي (Smart Apply) ---
+# --- خامساً: نظام التقديم الذكي (Smart Apply) ---
 
 @jobs_bp.route('/job/apply/<int:job_id>', methods=['POST'])
 @login_required
 def apply_to_job(job_id):
-    """التقديم مع تحليل AI مخصص"""
+    """التقديم مع تحليل AI مخصص وصارم"""
     job = Job.query.get_or_404(job_id)
     questions = JobQuestion.query.filter_by(job_id=job_id).all()
-
+    
     if questions and 'answers[]' not in request.form:
         return render_template('take_quiz.html', job=job, questions=questions)
-
+    
     quiz_score = 0
     if questions:
         user_answers = request.form.getlist('answers[]')
@@ -123,17 +154,10 @@ def apply_to_job(job_id):
         flash('يرجى اختيار سيرة ذاتية للتقديم.', 'warning')
         return redirect(url_for('cv.my_cvs'))
 
-    is_scholarship = 'scholarship' in (job.category or '').lower() or 'منحة' in job.title
-    prompt_type = "خبير قبول منح دراسية" if is_scholarship else "مدير توظيف تقني"
-    
-    try:
-        prompt = (f"بصفتك {prompt_type}، قارن بين الفرصة: ({job.title}) والـ CV: ({user_cv.extracted_text[:800]}). "
-                  f"أعطني نسبة مطابقة مئوية وتحليل سوداني بسيط.")
-        ai_res = openrouter_ai.get_ai_response(prompt)
-        match_score = int(re.search(r'\d+', ai_res).group()) if re.search(r'\d+', ai_res) else 60
-        explanation = ai_res
-    except:
-        match_score, explanation = 60, "تم التقييم بنجاح."
+    # استخدام التقييم الصارم عند التقديم
+    analysis = openrouter_ai.analyze_cv_complete(f"Job: {job.title}\nCV: {user_cv.extracted_text}")
+    match_score = analysis.get('overall_score', 50)
+    explanation = analysis.get('feedback', "تم التقييم بناءً على المهارات التقنية.")
 
     new_app = Application(
         user_id=current_user.id, job_id=job_id, cv_id=cv_id,
@@ -146,38 +170,30 @@ def apply_to_job(job_id):
         add_notification(job.user_id, f"🌟 مرشح مكنة لـ {job.title}", f"المتقدم {current_user.username} طابق بنسبة {match_score}%", "warning")
 
     db.session.commit()
-    flash('أبشر! طلبك وصل وقيد المراجعة.', 'success')
+    flash(f'أبشر! تم التقديم. نسبة المطابقة الصارمة: {match_score}%', 'success')
     return redirect(url_for('auth.dashboard'))
 
-# --- خامساً: التقديم التلقائي للمنح (الربط مع الواتساب) ---
+# --- سادساً: التقديم التلقائي للمنح ---
 
 @jobs_bp.route('/scholarship/auto-apply/<int:sch_id>')
 @login_required
 def auto_apply_scholarship(sch_id):
-    """التقديم الذكي للمنحة بضغطة واحدة من الواتساب"""
+    """التقديم الذكي للمنحة مع توليد SOP احترافي"""
     scholarship = Scholarship.query.get_or_404(sch_id)
     user_cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
 
     if not user_cv:
-        flash('يا مكنة، لازم ترفع الـ CV الأول عشان أقدر أقدم ليك!', 'warning')
+        flash('يا مكنة، ارفع الـ CV الأول!', 'warning')
         return redirect(url_for('cv.upload_cv'))
 
-    # توليد خطاب تقديم احترافي (SOP) باستخدام AI
-    prompt = (f"اكتب خطاب غرض من التقديم (SOP) قصير ومقنع للسوداني المتقدم للمنحة: ({scholarship.title}). "
-              f"استخدم بيانات الـ CV: ({user_cv.extracted_text[:600]}). "
-              f"اجعل الأسلوب أكاديمياً واحترافياً.")
-    
-    try:
-        sop_text = openrouter_ai.get_ai_response(prompt)
-    except:
-        sop_text = "أنا مهتم جداً بهذه المنحة وأطمح للمساهمة في مجالي الأكاديمي."
+    # توليد خطاب غرض (SOP) صارم وأكاديمي
+    sop_prompt = f"Write a professional Academic Statement of Purpose for {scholarship.title} using this CV: {user_cv.extracted_text[:1000]}"
+    sop_text = openrouter_ai.get_ai_response(sop_prompt, temperature=0.3)
 
-    # تسجيل التقديم في قاعدة البيانات
     new_app = Application(
         user_id=current_user.id,
-        job_id=None,
         scholarship_id=sch_id,
-        match_score=85,
+        match_score=90,
         match_explanation=sop_text,
         status='applied_auto'
     )
@@ -186,7 +202,7 @@ def auto_apply_scholarship(sch_id):
 
     return render_template('auto_apply_result.html', scholarship=scholarship, sop=sop_text)
 
-# --- سادساً: إدارة المتقدمين والعمليات ---
+# --- سابعاً: إدارة المتقدمين ---
 
 @jobs_bp.route('/job/<int:job_id>/candidates')
 @login_required
@@ -210,7 +226,7 @@ def update_application_status(app_id):
         details = request.form.get('interview_details', 'سيتم التواصل معك قريباً.')
         add_notification(application.user_id, f"📅 مبروك! تحديث لطلب {job.title}", f"تم اختيارك للمقابلة. {details}", "primary")
         send_automated_interview_message(sender_id=current_user.id, recipient_id=application.user_id, job_id=job.id, details=details)
-    
+                                                           
     db.session.commit()
     flash('تم تحديث الحالة بنجاح.', 'success')
     return redirect(url_for('jobs.view_candidates', job_id=job.id))

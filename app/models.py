@@ -168,6 +168,12 @@ class CV(db.Model):
     radar_scores = db.Column(db.JSON)
     course_recommendations = db.Column(db.Text)
     optimized_text = db.Column(db.Text) # النص المحسن بواسطة AI
+
+    # --- حقول الدقة الأكاديمية (New Smart Fields) ---
+    gpa = db.Column(db.String(50))           # المعدل الأكاديمي
+    graduation_year = db.Column(db.Integer)   # سنة التخرج
+    academic_level = db.Column(db.String(100)) # (بكالوريوس، ماجستير، دكتوراه)
+    university_name = db.Column(db.String(500))# اسم الجامعة
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 

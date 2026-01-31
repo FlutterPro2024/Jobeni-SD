@@ -1,8 +1,7 @@
 {% extends 'base.html' %}
-{% block title %}لوحة التحكم الذكية - Jobeni SD{% endblock %}
-
+{% block title %}لوحة التحكم الذكية - Jobeni SD{% endblock %}   
 {% block content %}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>                        
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
 
 <div class="container py-4 text-end" dir="rtl">
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -87,7 +86,7 @@
                             <div class="p-4 rounded-5 bg-light border-start border-4 border-primary">
                                 <h6 class="fw-bold text-dark mb-3"><i class="fas fa-lightbulb text-warning ms-2"></i> نصيحة الوكيل:</h6>
                                 <div class="small text-secondary leading-relaxed">
-                                    {{ weekly_stats.ai_advice if weekly_stats and weekly_stats.ai_advice else 'ارفع سيرتك الذاتية لبدء التحليل الفني العميق وتلقي نصائح الوكيل.' }}
+                                    {{ weekly_stats.ai_advice if weekly_stats and weekly_stats.ai_advice else 'ارفع سيرتك الذاتية لبدء التحليل الفني العميق وتلقي نصائح الوكيل الشخصية.' }}
                                 </div>
                             </div>
                         </div>
@@ -101,7 +100,7 @@
                         <input class="form-check-input" type="checkbox" id="masterSwitch" {% if current_user.agent_enabled %}checked{% endif %}
                                onchange="document.getElementById('agentSettingsForm').submit()">
                     </div>
-                    <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-satellite-dish text-success ms-2"></i> إعدادات رادار جوبيني (WhatsApp & Telegram)</h5>
+                    <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-satellite-dish text-success ms-2"></i> إعدادات رادار جوبيني الذكي</h5>
                 </div>
                 <div class="card-body p-4">
                     <form id="agentSettingsForm" action="{{ url_for('auth.update_agent_settings') }}" method="POST">
@@ -110,7 +109,7 @@
                             <div class="col-md-4">
                                 <label class="form-label small fw-bold">هدفي الحالي:</label>
                                 <select name="role" class="form-select rounded-4 bg-light border-0 p-3 shadow-sm">
-                                    <option value="job_seeker" {% if current_user.role == 'job_seeker' %}selected{% endif %}>البحث عن وظائف</option>
+                                    <option value="job_seeker" {% if current_user.role != 'scholarship_seeker' %}selected{% endif %}>البحث عن وظائف</option>
                                     <option value="scholarship_seeker" {% if current_user.role == 'scholarship_seeker' %}selected{% endif %}>البحث عن منح دراسية</option>
                                 </select>
                             </div>
@@ -168,7 +167,7 @@
                                     {% for memory in agent_memories if memory.action in ['sent', 'scholarship_found'] %}
                                     <tr>
                                         <td class="px-4 fw-bold small">
-                                            <div class="text-truncate" style="max-width: 250px;">{{ memory.job_id or memory.feedback_notes.split('|')[0] }}</div>
+                                            <div class="text-truncate" style="max-width: 250px;">{{ memory.job_id or (memory.feedback_notes.split('|')[0] if memory.feedback_notes else 'فرصة مكتشفة') }}</div>
                                             <div class="x-small text-muted fw-normal">{{ memory.created_at.strftime('%Y-%m-%d') }}</div>
                                         </td>
                                         <td class="small">
@@ -213,7 +212,7 @@
                         </div>
                         <h6 class="fw-bold mb-0">مُدرب المقابلات / المنح</h6>
                     </div>
-                    <p class="x-small text-muted mb-3">تدرب على أسئلة تقنية صعبة تم تصميمها خصيصاً بناءً على سياقك المهني أو الأكاديمي.</p>
+                    <p class="x-small text-muted mb-3">تدرب على أسئلة تقنية صعبة تم تصميمها خصيصاً بناءً على سياقك المهني أو الأكاديمي الحالي.</p>
                     <button onclick="loadInterviewPrep()" class="btn btn-warning w-100 rounded-pill fw-bold text-white shadow-sm">
                         <i class="fas fa-play-circle ms-1"></i> ابدأ جلسة محاكاة
                     </button>
@@ -229,7 +228,7 @@
                     <div class="qr-container bg-white p-3 rounded-5 d-inline-block shadow-lg mb-3 border border-4 border-primary">
                         <img src="data:image/png;base64,{{ user_qr }}" alt="QR Code" class="img-fluid" style="width: 160px;">
                     </div>
-                    <p class="x-small opacity-75 mb-4">بطاقة هوية جوبيني الموثقة عالمياً. امسح الكود لعرض التوثيق.</p>
+                    <p class="x-small opacity-75 mb-4">بطاقة هوية جوبيني الموثقة عالمياً. امسح الكود لعرض التوثيق الفوري.</p>
                     <div class="d-grid gap-2">
                         <a href="{{ url_for('agent.get_certificate') }}" class="btn btn-primary rounded-pill py-3 fw-bold shadow-sm">
                             <i class="fas fa-certificate ms-2"></i> تحميل الشهادة المعتمدة
@@ -240,7 +239,7 @@
 
             <div class="card border-0 shadow-sm rounded-5 bg-white mb-4">
                 <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
-                    <a href="{{ url_for('cv.my_cvs') }}" class="small text-primary text-decoration-none">الكل</a>
+                    <a href="{{ url_for('cv.my_cvs') }}" class="small text-primary text-decoration-none">عرض الكل</a>
                     <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-file-pdf text-danger ms-2"></i> ملفاتك ({{ current_user.cvs|length }})</h6>
                 </div>
                 <div class="card-body p-4">
@@ -257,7 +256,7 @@
                         </div>
                         {% endfor %}
                     {% else %}
-                        <div class="text-center py-4 text-muted small border-2 border-dashed rounded-4 mb-3">لا توجد ملفات مرفوعة</div>
+                        <div class="text-center py-4 text-muted small border-2 border-dashed rounded-4 mb-3">لا توجد ملفات مرفوعة حتى الآن</div>
                     {% endif %}
                     <a href="{{ url_for('cv.upload_cv') }}" class="btn btn-outline-primary w-100 rounded-pill py-3 fw-bold border-2">
                         <i class="fas fa-plus-circle ms-1"></i> رفع ملف جديد
@@ -272,20 +271,20 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content rounded-5 border-0 shadow-lg text-end" dir="rtl">
             <div class="modal-header border-0 pt-4 px-4">
-                <h5 class="fw-bold text-dark mb-0"><i class="fas fa-robot text-primary ms-2"></i> أسئلة المحاكاة الذكية</h5>
+                <h5 class="fw-bold text-dark mb-0"><i class="fas fa-robot text-primary ms-2"></i> محاكاة أسئلة المقابلة الذكية</h5>
                 <button type="button" class="btn-close ms-0 me-auto" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
                 <div id="interviewQuestionsContent" class="small leading-relaxed text-secondary">
                     <div class="text-center py-4">
                         <div class="spinner-border text-primary" role="status"></div>
-                        <p class="mt-2">جاري تحليل ملفك وتجهيز الأسئلة...</p>
+                        <p class="mt-2">جاري تحليل ملفك وتجهيز الأسئلة المخصصة...</p>
                     </div>
                 </div>
             </div>
             <div class="modal-footer border-0 pb-4 justify-content-start px-4">
                 <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">إغلاق</button>
-                <button onclick="loadInterviewPrep()" class="btn btn-primary rounded-pill px-4">توليد جديد</button>
+                <button onclick="loadInterviewPrep()" class="btn btn-primary rounded-pill px-4">توليد مجموعة جديدة</button>
             </div>
         </div>
     </div>
@@ -301,7 +300,7 @@
                 data: {
                     labels: {{ radar_labels|tojson if radar_labels else ['تقني', 'تواصل', 'خبرة', 'قيادة', 'إبداع'] }},
                     datasets: [{
-                        label: 'تحليل المهارات المهنية',
+                        label: 'تحليل المهارات الذكي',
                         data: {{ radar_scores|tojson if radar_scores else [50, 50, 50, 50, 50] }},
                         backgroundColor: 'rgba(37, 99, 235, 0.2)',
                         borderColor: '#2563eb',
@@ -323,23 +322,27 @@
         const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('interviewModal'));
         const content = document.getElementById('interviewQuestionsContent');
         modal.show();
-        content.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div><p class="mt-2">جاري التحليل...</p></div>';
+        content.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div><p class="mt-2">جاري تحليل البيانات...</p></div>';
         
         fetch("{{ url_for('auth.generate_interview_prep') }}")
             .then(r => r.json())
             .then(data => {
-                content.innerHTML = data.status === 'success' ? `<div class="animate__animated animate__fadeIn">${data.questions.replace(/\n/g, '<br>')}</div>` : `<div class="alert alert-danger">${data.message}</div>`;
+                content.innerHTML = data.status === 'success' ? 
+                    `<div class="animate__animated animate__fadeIn">${data.questions.replace(/\n/g, '<br>')}</div>` : 
+                    `<div class="alert alert-danger">${data.message}</div>`;
             });
     }
 </script>
 
 <style>
     body { background-color: #f8fafc; font-family: 'Tajawal', sans-serif; }
-    .card { transition: all 0.3s ease; }
+    .card { transition: all 0.3s ease; border: none; }
     .shadow-hover:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1) !important; }
     .rounded-5 { border-radius: 1.5rem !important; }
+    .rounded-4 { border-radius: 1rem !important; }
     .x-small { font-size: 0.75rem; }
-    .leading-relaxed { line-height: 1.7; }
+    .leading-relaxed { line-height: 1.8; }
     .badge { font-weight: 600; }
+    .glass-box { border: 1px solid rgba(255,255,255,0.2); }
 </style>
 {% endblock %}

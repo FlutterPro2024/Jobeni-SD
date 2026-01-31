@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Jobeni SD - منصة التوظيف الذكية{% endblock %}</title>
+    <title>{% block title %}Jobeni SD - منصة التوظيف والمنح الذكية{% endblock %}</title>
 
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <meta name="theme-color" content="#0d6efd">
@@ -22,12 +22,12 @@
 
         body {
             padding-top: 85px;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Tajawal', 'Segoe UI', sans-serif;
             background-color: #f8f9fa;
             transition: padding 0.3s;
         }
 
-        /* تنسيق التعميم السيادي الملون المترابط مع قاعدة البيانات */
+        /* شريط التعميم السيادي */
         .global-announcement-bar {
             padding: 10px;
             font-size: 0.95rem;
@@ -42,7 +42,7 @@
         body.has-announcement { padding-top: 130px; }
         .nav-with-announcement { top: 45px !important; }
 
-        /* تنسيقات الـ Navbar الحديثة */
+        /* Navbar الحديث */
         .navbar {
             background-color: rgba(33, 37, 41, 0.97) !important;
             backdrop-filter: blur(10px);
@@ -52,28 +52,21 @@
         .logo-icon {
             background: var(--gradient-blue);
             color: white;
-            width: 40px;
-            height: 40px;
+            width: 40px; height: 40px;
             border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
+            display: flex; align-items: center;
+            justify-content: center; font-weight: bold;
             margin-left: 10px;
         }
         .logo-text {
-            font-size: 22px;
-            font-weight: 800;
+            font-size: 22px; font-weight: 800;
             background: var(--gradient-blue);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
-        .nav-link { color: rgba(255,255,255,0.85) !important; transition: 0.3s; font-weight: 500; }
+        .nav-link { color: rgba(255,255,255,0.85) !important; transition: 0.3s; }
         .nav-link:hover { color: #0dcaf0 !important; }
-
-        .dropdown-menu { border-radius: 15px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.1); margin-top: 10px; }
-        .alert { border-radius: 12px; border: none; }
-        .nav-avatar { width: 30px; height: 30px; object-fit: cover; border: 1.5px solid #0dcaf0; }
+        .nav-avatar { width: 32px; height: 32px; object-fit: cover; border: 1.5px solid #0dcaf0; }
 
         /* شارة التنبيهات */
         .notification-badge {
@@ -84,18 +77,16 @@
             border: 2px solid #212529;
         }
 
-        /* بنر تثبيت التطبيق PWA */
+        /* بنر PWA */
         #pwa-install-banner {
             position: fixed; bottom: 20px; left: 20px; right: 20px;
             background: #ffffff; color: #212529; padding: 18px;
             border-radius: 20px; z-index: 9999;
             box-shadow: 0 15px 40px rgba(0,0,0,0.2);
-            display: none; animation: slideUp 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: none; animation: slideUp 0.6s ease-out;
             border-right: 6px solid #0d6efd;
         }
-
         @keyframes slideUp { from { transform: translateY(150px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        footer { border-top: 1px solid #dee2e6; background: #fff; }
     </style>
 </head>
 <body class="{% if global_announcement %}has-announcement{% endif %}">
@@ -120,7 +111,7 @@
                 <div class="logo-icon me-2" style="width: 38px; height: 38px; font-size: 16px;">J</div>
                 <div>
                     <h6 class="mb-0 fw-bold">تطبيق جوبيني السودان</h6>
-                    <small class="text-muted small">ثبت التطبيق لتصل للوظائف أسرع ⚡</small>
+                    <small class="text-muted">ثبت التطبيق لتصل للفرص أسرع ⚡</small>
                 </div>
             </div>
             <div class="d-flex gap-2">
@@ -152,22 +143,21 @@
 
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto align-items-center">
-                    <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('auth.instructions') }}">كيف تعمل؟</a></li>
                     <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('jobs.jobs_list') }}">الوظائف</a></li>
                     <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('community.index') }}">المجتمع</a></li>
-
+                    
                     {% if current_user.is_authenticated %}
                         <li class="nav-item">
-                            <a class="nav-link px-2 text-info" href="{{ url_for('auth.scanner') }}" title="المسح الذكي للـ QR">
+                            <a class="nav-link px-2 text-info" href="{{ url_for('auth.scanner') }}" title="QR Scanner">
                                 <i class="fas fa-qrcode fa-lg"></i>
                             </a>
                         </li>
-                        <li class="nav-item position-relative">
+                        <li class="nav-item">
                             <a class="nav-link px-2" href="{{ url_for('chat.my_messages') }}" title="الرسائل">
                                 <i class="fas fa-comment-alt fa-lg"></i>
                             </a>
                         </li>
-                        <li class="nav-item dropdown position-relative">
+                        <li class="nav-item dropdown">
                             <a class="nav-link px-2" href="#" id="notifDropdown" data-bs-toggle="dropdown" onclick="markAllRead()">
                                 <i class="fas fa-bell fa-lg"></i>
                                 <span id="notif-count" class="notification-badge">0</span>
@@ -187,11 +177,10 @@
                                     <span class="fw-bold text-dark">{{ current_user.username }}</span>
                                 </li>
                                 <li><a class="dropdown-item small py-2" href="{{ url_for('auth.user_profile', username=current_user.username) }}"><i class="fas fa-user-circle ms-2 text-primary"></i> ملفي الشخصي</a></li>
-                                <li><a class="dropdown-item small py-2" href="{{ url_for('auth.profile') }}"><i class="fas fa-cog ms-2 text-secondary"></i> الإعدادات</a></li>
+                                <li><a class="dropdown-item small py-2" href="{{ url_for('auth.dashboard') }}"><i class="fas fa-tachometer-alt ms-2 text-success"></i> لوحة التحكم</a></li>
                                 {% if current_user.role == 'admin' %}
                                     <li><a class="dropdown-item small py-2 text-danger fw-bold" href="{{ url_for('admin.global_dashboard') }}"><i class="fas fa-shield-alt ms-2"></i> لوحة السيادة</a></li>
                                 {% endif %}
-                                <li><a class="dropdown-item small py-2 text-success" href="{{ url_for('auth.dashboard') }}"><i class="fas fa-tachometer-alt ms-2"></i> لوحة التحكم</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item small py-2 text-danger" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt ms-2"></i> خروج</a></li>
                             </ul>
@@ -205,28 +194,15 @@
         </div>
     </nav>
 
-    <div class="container mt-3 text-end">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show shadow-sm small">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-    </div>
-
-    <main>
+    <main class="animate__animated animate__fadeIn">
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="py-5 text-center mt-5">
+    <footer class="py-5 text-center mt-5 bg-white border-top">
         <div class="container">
             <div class="mb-3">
-                <h6 class="fw-bold mb-1">مطور المنصة: Jobeni Sudan Company</h6>
-                <p class="small text-muted mb-0">jobenisd7@gmail.com</p>
+                <h6 class="fw-bold mb-1">مطور المنصة: Jobeni Sudan AI Team</h6>
+                <p class="small text-muted mb-0">contact@jobeni-sd.com</p>
             </div>
             <p class="text-muted small mb-1">© 2026 Jobeni SD. جميع الحقوق محفوظة</p>
             <p class="small fw-bold" style="color: #0d6efd;">صنع بكل فخر في السودان 🇸🇩</p>
@@ -249,13 +225,7 @@
             }
         }
 
-        // --- نظام الإشعارات اللحظي (Real-time Notifications) ---
-        function updateAppBadge(count) {
-            if ('setAppBadge' in navigator) {
-                count > 0 ? navigator.setAppBadge(count) : navigator.clearAppBadge();
-            }
-        }
-
+        // نظام الإشعارات اللحظي
         let lastCount = 0;
         function fetchNotifications() {
             fetch("{{ url_for('notifications.unread_count') }}")
@@ -265,11 +235,11 @@
                 if (data.count > 0) {
                     badge.innerText = data.count;
                     badge.style.display = 'block';
-                    updateAppBadge(data.count);
-                    if (data.count > lastCount) playNotify();
+                    if (data.count > lastCount) {
+                        document.getElementById('notification-sound').play().catch(() => {});
+                    }
                 } else {
                     badge.style.display = 'none';
-                    updateAppBadge(0);
                 }
                 lastCount = data.count;
             });
@@ -293,54 +263,32 @@
         }
 
         function markAllRead() {
-            fetch("{{ url_for('notifications.mark_read') }}", { method: 'POST' })
-            .then(() => {
-                document.getElementById('notif-count').style.display = 'none';
-                updateAppBadge(0);
-                lastCount = 0;
-            });
+            fetch("{{ url_for('notifications.mark_read') }}", { method: 'POST' });
         }
 
         {% if current_user.is_authenticated %}
-            setInterval(fetchNotifications, 30000); // تحديث كل 30 ثانية
+            setInterval(fetchNotifications, 30000);
             fetchNotifications();
         {% endif %}
 
-        function playNotify() {
-            const sound = document.getElementById('notification-sound');
-            if (sound) sound.play().catch(e => console.log("Sound muted by browser policy"));
-        }
-    </script>
-
-    <script>
-        // --- إعدادات تثبيت التطبيق (PWA) ---
+        // إعدادات PWA
         let deferredPrompt;
-        const installBanner = document.getElementById('pwa-install-banner');
-
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}");
-            });
-        }
-
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            setTimeout(() => {
-                if (!window.matchMedia('(display-mode: standalone)').matches) {
-                    installBanner.style.display = 'block';
-                }
-            }, 3000);
+            document.getElementById('pwa-install-banner').style.display = 'block';
         });
 
         document.getElementById('pwa-install-btn').addEventListener('click', () => {
-            installBanner.style.display = 'none';
+            document.getElementById('pwa-install-banner').style.display = 'none';
             if (deferredPrompt) {
                 deferredPrompt.prompt();
                 deferredPrompt = null;
             }
         });
-        document.getElementById('pwa-close').addEventListener('click', () => installBanner.style.display = 'none');
+        document.getElementById('pwa-close').addEventListener('click', () => {
+            document.getElementById('pwa-install-banner').style.display = 'none';
+        });
     </script>
 </body>
 </html>
