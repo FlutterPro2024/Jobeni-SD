@@ -386,3 +386,4 @@ def toggle_agent():
     add_notification(current_user.id, "تحديث الرادار", f"حالة الوكيل الذكي: {status}", "info")
     flash(f"تم {status} رادار الفرص بنجاح.", "success")
     return redirect(url_for('auth.dashboard'))
+# Final Update 2026
