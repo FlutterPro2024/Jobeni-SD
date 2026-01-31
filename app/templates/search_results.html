@@ -171,7 +171,6 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // تهيئة الخارطة - مركز السودان
         var map = L.map('searchMap').setView([15.5, 32.5], 6);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap'
@@ -185,7 +184,6 @@
             popupAnchor: [0, -32]
         });
 
-        // إضافة دبابيس الوظائف للخريطة
         document.querySelectorAll('.job-item').forEach(function(item) {
             var lat = item.getAttribute('data-lat');
             var lng = item.getAttribute('data-lng');
@@ -198,12 +196,10 @@
             }
         });
 
-        // ضبط زووم الخريطة ليشمل كل الوظائف
         if (bounds.length > 0) {
             map.fitBounds(bounds, {padding: [50, 50]});
         }
 
-        // تأثير اللودر عند التقديم التلقائي
         document.querySelectorAll('.apply-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> جاري التقديم...';

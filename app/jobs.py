@@ -59,30 +59,52 @@ def jobs_list():
                            query=query,
                            is_academic=is_academic_intent)
 
-# --- جديد: مسار تفاصيل الوظيفة (لإصلاح BuildError) ---
+# --- ثانياً: المطابقة الذكية (لحل مشكلة BuildError) ---
+
+@jobs_bp.route('/smart-match')
+@login_required
+def smart_match_jobs():
+    """المحرك الذكي: مطابقة السيرة الذاتية مع الوظائف المتاحة حالياً"""
+    cv = CV.query.filter_by(user_id=current_user.id).order_by(CV.created_at.desc()).first()
+    
+    if not cv:
+        flash('يا مكنة، ارفع سيرتك الذاتية أول عشان الرادار يشتغل!', 'warning')
+        return redirect(url_for('cv.upload_cv'))
+
+    # استخدام التخصص من الـ CV ككلمة بحث أساسية
+    search_query = cv.profession or "Professional"
+    
+    # البحث عن وظائف تطابق تخصص المستخدم
+    matched_jobs = Job.query.filter(
+        or_(Job.title.ilike(f'%{search_query}%'), Job.description.ilike(f'%{search_query}%'))
+    ).filter_by(is_active=True).limit(10).all()
+
+    return render_template('search_results.html', 
+                           results=matched_jobs, 
+                           query=search_query, 
+                           is_smart=True)
+
+# --- ثالثاً: تفاصيل الوظيفة ---
 
 @jobs_bp.route('/job/<int:job_id>')
 def job_detail(job_id):
-    """عرض تفاصيل الوظيفة الكاملة مع الخريطة وحالة التقديم"""
+    """عرض تفاصيل الوظيفة الكاملة مع حالة التقديم"""
     job = Job.query.get_or_404(job_id)
-    
-    # فحص إذا كان المستخدم قد قدم مسبقاً لعرض الحالة
     application = None
     if current_user.is_authenticated:
         application = Application.query.filter_by(user_id=current_user.id, job_id=job.id).first()
-        
+
     return render_template('job_detail.html', job=job, application=application)
 
-# --- ثانياً: نظام التقديم الذكي (Smart Apply) ---
+# --- رابعاً: نظام التقديم الذكي (Smart Apply) ---
 
 @jobs_bp.route('/job/apply/<int:job_id>', methods=['POST'])
 @login_required
 def apply_to_job(job_id):
-    """التقديم مع تحليل AI مخصص (أكاديمي للمنح / مهني للوظائف)"""
+    """التقديم مع تحليل AI مخصص"""
     job = Job.query.get_or_404(job_id)
     questions = JobQuestion.query.filter_by(job_id=job_id).all()
 
-    # فحص الاختبار التقييمي
     if questions and 'answers[]' not in request.form:
         return render_template('take_quiz.html', job=job, questions=questions)
 
@@ -97,44 +119,36 @@ def apply_to_job(job_id):
     user_cv = CV.query.get(cv_id)
 
     if not user_cv:
-        flash('يرجى رفع سيرة ذاتية أولاً.', 'warning')
-        return redirect(url_for('cv.upload_cv'))
+        flash('يرجى اختيار سيرة ذاتية للتقديم.', 'warning')
+        return redirect(url_for('cv.my_cvs'))
 
-    # تحليل AI مخصص بناءً على نوع الفرصة
     is_scholarship = 'scholarship' in (job.category or '').lower() or 'منحة' in job.title
-
     prompt_type = "خبير قبول منح دراسية" if is_scholarship else "مدير توظيف تقني"
-    criteria = "المؤهلات الأكاديمية والشغف البحثي" if is_scholarship else "الخبرة العملية والمهارات التقنية"
-
+    
     try:
         prompt = (f"بصفتك {prompt_type}، قارن بين الفرصة: ({job.title}) والـ CV: ({user_cv.extracted_text[:800]}). "
-                  f"ركز على {criteria}. أعطني نسبة مطابقة مئوية وتحليل سوداني بسيط.")
+                  f"أعطني نسبة مطابقة مئوية وتحليل سوداني بسيط.")
         ai_res = openrouter_ai.get_ai_response(prompt)
         match_score = int(re.search(r'\d+', ai_res).group()) if re.search(r'\d+', ai_res) else 60
         explanation = ai_res
     except:
-        match_score, explanation = 60, "تم التقييم بناءً على معايير جوبيني العامة."
+        match_score, explanation = 60, "تم التقييم بنجاح."
 
     new_app = Application(
-        user_id=current_user.id,
-        job_id=job_id,
-        cv_id=cv_id,
-        match_score=match_score,
-        match_explanation=explanation,
-        quiz_score=quiz_score,
-        status='pending'
+        user_id=current_user.id, job_id=job_id, cv_id=cv_id,
+        match_score=match_score, match_explanation=explanation,
+        quiz_score=quiz_score, status='pending'
     )
     db.session.add(new_app)
 
-    # تنبيه صاحب العمل/الجهة المانحة
     if match_score >= 80:
-        add_notification(job.user_id, f"🌟 مرشح ذهبي لـ {job.title}", f"المتقدم {current_user.username} حصل على {match_score}%", "warning")
+        add_notification(job.user_id, f"🌟 مرشح مكنة لـ {job.title}", f"المتقدم {current_user.username} طابق بنسبة {match_score}%", "warning")
 
     db.session.commit()
-    flash('تم إرسال طلبك بنجاح! تابع التحديثات في لوحة التحكم.', 'success')
+    flash('أبشر! طلبك وصل وقيد المراجعة.', 'success')
     return redirect(url_for('auth.dashboard'))
 
-# --- ثالثاً: إدارة المتقدمين والتحليلات ---
+# --- خامساً: إدارة المتقدمين والعمليات ---
 
 @jobs_bp.route('/job/<int:job_id>/candidates')
 @login_required
@@ -155,12 +169,12 @@ def update_application_status(app_id):
     application.status = new_status
 
     if new_status == 'interview':
-        details = request.form.get('interview_details', 'سيتم التواصل معك لتحديد الموعد.')
-        add_notification(application.user_id, f"📅 تحديث طلب {job.title}", f"تم تحديد مقابلة/معاينة. التفاصيل: {details}", "primary")
+        details = request.form.get('interview_details', 'سيتم التواصل معك قريباً.')
+        add_notification(application.user_id, f"📅 مبروك! تحديث لطلب {job.title}", f"تم اختيارك للمقابلة. {details}", "primary")
         send_automated_interview_message(sender_id=current_user.id, recipient_id=application.user_id, job_id=job.id, details=details)
 
     db.session.commit()
-    flash('تم تحديث حالة الطلب وإرسال التنبيه.', 'success')
+    flash('تم تحديث الحالة بنجاح.', 'success')
     return redirect(url_for('jobs.view_candidates', job_id=job.id))
 
 @jobs_bp.route('/job/delete/<int:job_id>', methods=['POST'])
@@ -170,5 +184,6 @@ def delete_job(job_id):
     if job.user_id != current_user.id: abort(403)
     db.session.delete(job)
     db.session.commit()
-    flash('تم حذف الإعلان بنجاح.', 'info')
+    flash('تم حذف الإعلان.', 'info')
     return redirect(url_for('auth.dashboard'))
+
