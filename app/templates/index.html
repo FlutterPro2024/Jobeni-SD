@@ -1,263 +1,336 @@
 {% extends "base.html" %}
-{% block title %}Jobeni AI - مستقبل التوظيف الذكي والمجتمع المهني{% endblock %}
+{% block title %}Jobeni AI - مستقبل التوظيف الذكي والمنح والمجتمع المهني{% endblock %}
 
 {% block content %}
 <style>
     /* التنسيقات العالمية الجديدة واجهة 2026 */
     .hero-custom {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        min-height: 85vh;
+        background: radial-gradient(circle at top right, #1e293b, #0f172a);
+        min-height: 90vh;
         display: flex;
         align-items: center;
         position: relative;
         overflow: hidden;
     }
-    .hero-custom::after {
+    
+    /* تأثيرات ضوئية متحركة في الخلفية */
+    .hero-custom::before {
         content: "";
         position: absolute;
-        top: -10%;
-        right: -10%;
-        width: 400px;
-        height: 400px;
-        background: rgba(13, 110, 253, 0.2);
-        filter: blur(120px);
-        border-radius: 50%;
+        width: 500px; height: 500px;
+        background: rgba(13, 202, 240, 0.15);
+        filter: blur(150px);
+        top: -100px; left: -100px;
+        z-index: 1;
+        animation: pulse 8s infinite alternate;
     }
+
+    @keyframes pulse {
+        from { transform: scale(1); opacity: 0.5; }
+        to { transform: scale(1.3); opacity: 0.8; }
+    }
+
     .text-gradient {
-        background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%);
+        background: linear-gradient(135deg, #60a5fa 0%, #0d6efd 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         font-weight: 800;
     }
+
     .feature-card {
         transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         border: 1px solid rgba(0,0,0,0.05);
+        background: #ffffff;
+        z-index: 5;
     }
+
     .feature-card:hover {
-        transform: translateY(-12px);
-        box-shadow: 0 25px 50px rgba(0,0,0,0.1) !important;
+        transform: translateY(-15px);
+        box-shadow: 0 30px 60px rgba(0,0,0,0.12) !important;
     }
+
     .ai-badge {
         background: rgba(13, 202, 240, 0.1);
         color: #0dcaf0;
-        border: 1px solid rgba(13, 202, 240, 0.2);
+        border: 1px solid rgba(13, 202, 240, 0.3);
+        backdrop-filter: blur(5px);
     }
+
+    .scholarship-badge {
+        background: rgba(25, 135, 84, 0.1);
+        color: #198754;
+        border: 1px solid rgba(25, 135, 84, 0.2);
+        backdrop-filter: blur(5px);
+    }
+
     .community-preview-card {
-        border-right: 4px solid #0d6efd;
-        background: #f8fafc;
+        border-right: 5px solid #0d6efd;
+        background: #ffffff;
+        transition: 0.3s;
     }
+    
+    .community-preview-card:hover { background: #f1f5f9; }
+
     .qr-card {
-        transition: all 0.4s ease;
-        border: 2px solid #f1f5f9;
+        transition: all 0.5s ease;
+        border: 3px solid #f1f5f9;
+        padding: 20px;
+        background: white;
     }
+
     .qr-card:hover {
-        transform: scale(1.05) rotate(2deg);
-        border-color: #0dcaf0;
-        box-shadow: 0 15px 30px rgba(13, 202, 240, 0.2) !important;
+        transform: scale(1.08) rotate(-2deg);
+        border-color: #0d6efd;
+        box-shadow: 0 20px 40px rgba(13, 110, 253, 0.15) !important;
     }
+
     .bg-glass {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(15px);
         border: 1px solid rgba(255, 255, 255, 0.1);
     }
+
     .icon-circle {
-        width: 60px; height: 60px;
+        width: 70px; height: 70px;
         display: flex; align-items: center; justify-content: center;
-        border-radius: 18px;
-        margin-bottom: 20px;
+        border-radius: 22px;
+        margin-bottom: 25px;
+        font-size: 1.8rem;
     }
-    /* ألوان إضافية ناعمة للأيقونات */
-    .bg-primary-soft { background: rgba(13, 110, 253, 0.1); }
-    .bg-info-soft { background: rgba(13, 202, 240, 0.1); }
-    .bg-success-soft { background: rgba(25, 135, 84, 0.1); }
-    .bg-warning-soft { background: rgba(255, 193, 7, 0.1); }
+
+    .bg-primary-soft { background: #eef2ff; color: #4338ca; }
+    .bg-info-soft { background: #ecfeff; color: #0891b2; }
+    .bg-success-soft { background: #f0fdf4; color: #16a34a; }
+    .bg-warning-soft { background: #fffbeb; color: #d97706; }
+
+    .btn-massive {
+        padding: 18px 45px;
+        font-weight: 700;
+        border-radius: 50px;
+        transition: 0.3s;
+    }
 </style>
 
 <div class="hero-custom position-relative" dir="rtl">
     <div class="container position-relative" style="z-index: 2;">
         <div class="row align-items-center py-5">
-            <div class="col-lg-7 text-center text-lg-end">
-                <span class="badge ai-badge rounded-pill mb-3 px-3 py-2 fw-bold">
-                    <i class="fas fa-robot ms-1"></i> أول وكيل توظيف ذكي في المنطقة 🤖
+            <div class="col-lg-7 text-center text-lg-end animate__animated animate__fadeInRight">
+                <span class="badge ai-badge rounded-pill mb-2 px-4 py-2 fw-bold">
+                    <i class="fas fa-sparkles ms-1"></i> وكيل التوظيف الذكي 🤖
                 </span>
-                <h1 class="display-3 fw-bold mb-3 lh-sm text-white">
-                    وظف ذكاءك مع <br>
-                    <span class="text-gradient">جوبيني AI - Jobeni</span>
+                <span class="badge scholarship-badge rounded-pill mb-3 px-4 py-2 fw-bold">
+                    <i class="fas fa-graduation-cap ms-1"></i> رادار المنح العالمية 🌍
+                </span>
+                <h1 class="display-2 fw-bold mb-3 lh-sm text-white">
+                    اكتشف مستقبلك مع <br>
+                    <span class="text-gradient">ذكاء جوبيني الاصطناعي</span>
                 </h1>
                 <p class="lead mb-4 text-white-50 fs-4">
-                    لسنا مجرد موقع وظائف، نحن <span class="text-info fw-bold">محرك نمو مهني</span>. نطور سيرتك بالذكاء الاصطناعي، نحلل مهاراتك، ونربطك بأفضل الفرص العالمية والمحلية.
+                    بوابتك الوحيدة لاقتناص <span class="text-info fw-bold">أرقى الوظائف</span> و <span class="text-success fw-bold">أحدث المنح الدراسية</span>. نطور سيرتك، نحلل مهاراتك، ونصلك بالعالم.
                 </p>
                 <div class="d-flex flex-wrap gap-3 justify-content-center justify-content-lg-start mt-4">
                     {% if not current_user.is_authenticated %}
-                        <a href="{{ url_for('auth.register') }}" class="btn btn-info btn-lg px-5 fw-bold rounded-pill text-white shadow-lg">ابدأ رحلتك مجاناً</a>
-                        <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light btn-lg px-5 rounded-pill">تسجيل الدخول</a>
+                        <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-massive shadow-lg animate__animated animate__pulse animate__infinite">ابدأ رحلتك مجاناً</a>
+                        <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light btn-massive">دخول الأعضاء</a>
                     {% else %}
-                        <a href="{{ url_for('auth.dashboard') }}" class="btn btn-info btn-lg px-5 fw-bold rounded-pill text-white shadow-lg">لوحة التحكم الذكية</a>
-                        <a href="{{ url_for('community.index') }}" class="btn btn-outline-light btn-lg px-5 rounded-pill">ساحة المجتمع المهني</a>
+                        <a href="{{ url_for('auth.dashboard') }}" class="btn btn-info btn-massive text-white shadow-lg">لوحة التحكم والمنح</a>
+                        <a href="{{ url_for('community.index') }}" class="btn btn-outline-light btn-massive">المجتمع المهني</a>
                     {% endif %}
                 </div>
             </div>
-            <div class="col-lg-5 d-none d-lg-block">
-                <div class="card bg-glass p-4 rounded-5 text-white shadow-lg">
+            <div class="col-lg-5 d-none d-lg-block animate__animated animate__fadeInLeft">
+                <div class="card bg-glass p-4 rounded-5 text-white shadow-lg border-0">
                     <div class="d-flex align-items-center mb-4">
-                        <div class="bg-info rounded-circle p-2 me-3">
-                            <i class="fas fa-chart-line text-dark"></i>
+                        <div class="bg-primary rounded-circle p-3 me-3">
+                            <i class="fas fa-university fa-lg"></i>
                         </div>
-                        <h6 class="mb-0 fw-bold">تحليل السوق اللحظي</h6>
-                    </div>
-                    <div class="mb-3">
-                        <small class="opacity-75">دقة مطابقة الوظائف بالـ AI</small>
-                        <div class="progress mt-1" style="height: 6px; background: rgba(255,255,255,0.1);">
-                            <div class="progress-bar bg-info" style="width: 94%"></div>
+                        <div>
+                            <h6 class="mb-0 fw-bold">رادار المنح والفرص</h6>
+                            <small class="text-info">نظام الجلاد المستقل 2026</small>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <small class="opacity-75">نسبة قبول الـ CVs المطورة</small>
-                        <div class="progress mt-1" style="height: 6px; background: rgba(255,255,255,0.1);">
-                            <div class="progress-bar bg-success" style="width: 82%"></div>
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between mb-1">
+                            <small class="opacity-75">دقة مطابقة المنح والوظائف</small>
+                            <small class="fw-bold text-info">98%</small>
+                        </div>
+                        <div class="progress mt-1" style="height: 8px; background: rgba(255,255,255,0.1);">
+                            <div class="progress-bar bg-info shadow-sm" style="width: 98%"></div>
                         </div>
                     </div>
-                    <p class="small text-white-50 mt-4 mb-0">
-                        <i class="fas fa-info-circle me-1"></i> انضم لـ 5,000+ مهني سوداني يستخدمون التكنولوجيا للوصول للعالمية.
-                    </p>
+                    <div class="p-3 bg-white bg-opacity-10 rounded-4">
+                        <ul class="list-unstyled mb-0 small">
+                            <li class="mb-2"><i class="fas fa-check-circle text-success me-2 ms-2"></i> تم تحديث 150 منحة دراسية جديدة اليوم.</li>
+                            <li><i class="fas fa-check-circle text-success me-2 ms-2"></i> 45 وظيفة شاغرة بانتظار مهاراتك.</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<div class="container py-5 mt-n5 position-relative" style="z-index: 3;" dir="rtl">
+<div class="container py-5 mt-n5 position-relative" style="z-index: 10;" dir="rtl">
     <div class="row g-4 justify-content-center">
         <div class="col-md-3">
-            <div class="card feature-card h-100 p-4 shadow-sm border-0 rounded-4 bg-white text-center">
-                <div class="icon-circle bg-primary-soft text-primary mx-auto">
-                    <i class="fas fa-bullseye fa-2x"></i>
+            <div class="card feature-card h-100 p-4 shadow-sm border-0 rounded-4 text-center">
+                <div class="icon-circle bg-success-soft mx-auto">
+                    <i class="fas fa-graduation-cap"></i>
                 </div>
-                <h5 class="fw-bold">رادار المهارات</h5>
-                <p class="text-muted small">رسم بياني ذكي يوضح نقاط قوتك ونواقصك المهنية بدقة.</p>
+                <h5 class="fw-bold">رادار المنح</h5>
+                <p class="text-muted small">نفلتر آلاف المنح العالمية لنقدم لك ما يناسب تخصصك ومعدلك الأكاديمي بدقة.</p>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card feature-card h-100 p-4 shadow-sm border-0 rounded-4 bg-white text-center">
-                <div class="icon-circle bg-info-soft text-info mx-auto">
-                    <i class="fas fa-file-invoice fa-2x"></i>
+            <div class="card feature-card h-100 p-4 shadow-sm border-0 rounded-4 text-center">
+                <div class="icon-circle bg-info-soft mx-auto">
+                    <i class="fas fa-magic"></i>
                 </div>
-                <h5 class="fw-bold">CV عالمي (ATS)</h5>
-                <p class="text-muted small">تحويل سيرتك الذاتية لنسخة احترافية تطابق المعايير العالمية بضغطة زر.</p>
+                <h5 class="fw-bold">ملف قبول ذكي</h5>
+                <p class="text-muted small">مساعدة احترافية في كتابة رسائل الدافع (Motivation Letter) والسير الذاتية الأكاديمية.</p>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card feature-card h-100 p-4 shadow-sm border-0 rounded-4 bg-white text-center">
-                <div class="icon-circle bg-success-soft text-success mx-auto">
-                    <i class="fas fa-users-cog fa-2x"></i>
+            <div class="card feature-card h-100 p-4 shadow-sm border-0 rounded-4 text-center">
+                <div class="icon-circle bg-primary-soft mx-auto">
+                    <i class="fas fa-handshake-angle"></i>
                 </div>
-                <h5 class="fw-bold">مجتمع الخبراء</h5>
-                <p class="text-muted small">تواصل مع زملاء المهنة وشارك تجاربك في بيئة سودانية احترافية.</p>
+                <h5 class="fw-bold">تشبيك وظيفي</h5>
+                <p class="text-muted small">نصلك بمدراء التوظيف والشركات التي تبحث عن الكفاءات السودانية مباشرة.</p>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card feature-card h-100 p-4 shadow-sm border-0 rounded-4 bg-white text-center">
-                <div class="icon-circle bg-warning-soft text-warning mx-auto">
-                    <i class="fas fa-robot fa-2x"></i>
+            <div class="card feature-card h-100 p-4 shadow-sm border-0 rounded-4 text-center">
+                <div class="icon-circle bg-warning-soft mx-auto">
+                    <i class="fas fa-user-graduate"></i>
                 </div>
-                <h5 class="fw-bold">وكيلك الشخصي</h5>
-                <p class="text-muted small">AI يجهزك للمقابلات ويقترح عليك كورسات لسد فجوات مهاراتك.</p>
+                <h5 class="fw-bold">توجيه المبتعثين</h5>
+                <p class="text-muted small">تواصل مع طلاب سودانيين في الخارج واستفد من تجاربهم في القبول والسفر.</p>
             </div>
         </div>
     </div>
 </div>
 
 <div class="container py-5" dir="rtl">
-    <div class="d-flex justify-content-between align-items-center mb-5">
-        <div class="text-end">
-            <h3 class="fw-bold mb-0">🔥 أحدث الفرص المتاحة</h3>
-            <p class="text-muted small mb-0">فرص مختارة بعناية لتناسب طموحك</p>
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-5">
+        <div class="text-center text-md-end mb-3 mb-md-0">
+            <h2 class="fw-bold mb-1">💼 بوصلة الفرص اليومية</h2>
+            <p class="text-muted mb-0">وظائف ومنح منتقاة بواسطة الذكاء الاصطناعي</p>
         </div>
-        <a href="{{ url_for('jobs.jobs_list') }}" class="btn btn-outline-primary rounded-pill px-4">استكشف كافة الوظائف</a>
+        <a href="{{ url_for('jobs.jobs_list') }}" class="btn btn-outline-primary btn-lg rounded-pill px-4">استكشف كافة الفرص <i class="fas fa-arrow-left ms-2"></i></a>
     </div>
 
-    <div class="row g-4 text-end">
+    <div class="row g-4">
         {% if jobs %}
             {% for job in jobs %}
             <div class="col-md-4">
                 <div class="card h-100 p-4 shadow-sm border-0 feature-card rounded-4">
-                    <div class="d-flex justify-content-between mb-2">
-                        <h5 class="fw-bold mb-0 text-dark">{{ job.title }}</h5>
-                        <span class="badge bg-light text-primary rounded-pill small">{{ job.job_type or 'دوام كامل' }}</span>
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <span class="badge bg-primary-soft text-primary rounded-pill px-3">{{ job.job_type or 'دوام كامل' }}</span>
+                        <small class="text-muted"><i class="far fa-clock me-1"></i> جديد</small>
                     </div>
-                    <p class="text-muted small mb-3">
-                        <i class="fas fa-building me-1"></i> {{ job.company_name }} |
-                        <i class="fas fa-map-marker-alt me-1"></i> {{ job.location }}
+                    <h5 class="fw-bold text-dark mb-2">{{ job.title }}</h5>
+                    <p class="text-muted small mb-4">
+                        <i class="fas fa-building text-info me-1"></i> {{ job.company_name }} <br>
+                        <i class="fas fa-map-marker-alt text-danger me-1"></i> {{ job.location }}
                     </p>
-                    <div class="mt-auto d-flex justify-content-between align-items-center">
-                        <span class="text-primary fw-bold small">{{ job.salary or 'راتب تنافسي' }}</span>
-                        <a href="{{ url_for('jobs.job_detail', job_id=job.id) }}" class="btn btn-dark btn-sm rounded-pill px-3">تفاصيل الوظيفة</a>
+                    <div class="mt-auto pt-3 border-top d-flex justify-content-between align-items-center">
+                        <span class="fw-bold text-primary">{{ job.salary or 'راتب تنافسي' }}</span>
+                        <a href="{{ url_for('jobs.job_detail', job_id=job.id) }}" class="btn btn-dark btn-sm rounded-pill px-4">التفاصيل</a>
                     </div>
                 </div>
             </div>
             {% endfor %}
         {% else %}
-            <div class="col-12 text-center py-5 border rounded-5 bg-white shadow-sm" style="border-style: dashed !important;">
-                <h4 class="text-muted">لا توجد وظائف معروضة حالياً</h4>
-                <p class="text-muted small">اشترك في تنبيهات التلجرام لتصلك الفرص فور توفرها.</p>
+            <div class="col-12 text-center py-5 border rounded-5 bg-white shadow-sm" style="border-style: dashed !important; border-width: 2px !important;">
+                <div class="mb-3"><i class="fas fa-search-location fa-3x text-muted opacity-25"></i></div>
+                <h4 class="text-muted">الرادار يبحث عن فرص ومنح جديدة...</h4>
+                <p class="text-muted mb-4">تأكد من إكمال ملفك الشخصي لتصلك الفرص فور توفرها.</p>
+                <a href="{{ url_for('auth.dashboard') }}" class="btn btn-primary rounded-pill px-4">تحديث بروفايلي</a>
             </div>
         {% endif %}
     </div>
 </div>
 
 <div class="container py-5 text-center" dir="rtl">
-    <div class="bg-white p-5 rounded-5 shadow-sm border overflow-hidden position-relative">
-        <div class="row align-items-center">
-            <div class="col-lg-8 text-lg-end mb-4 mb-lg-0">
-                <h2 class="fw-bold mb-3">جوبيني في جيبك 📱</h2>
-                <p class="text-muted fs-5">صوّر الرمز لفتح المنصة مباشرة. تجربة أسرع، تنبيهات فورية لمطابقة الوظائف، وتواصل أسهل مع الشركات في أي مكان.</p>
-                <div class="d-flex gap-2 justify-content-center justify-content-lg-start mt-4">
-                    <span class="badge bg-dark px-3 py-2 rounded-pill"><i class="fab fa-android me-1"></i> Android</span>
-                    <span class="badge bg-dark px-3 py-2 rounded-pill"><i class="fab fa-apple me-1"></i> iOS</span>
-                    <span class="badge bg-info px-3 py-2 rounded-pill"><i class="fas fa-globe me-1"></i> Web App</span>
+    <div class="bg-dark p-5 rounded-5 shadow-lg overflow-hidden position-relative">
+        <div class="row align-items-center position-relative" style="z-index: 5;">
+            <div class="col-lg-8 text-lg-end mb-4 mb-lg-0 text-white">
+                <h2 class="display-5 fw-bold mb-3">جوبيني في جيبك 📱</h2>
+                <p class="opacity-75 fs-5">تثبيت التطبيق يمنحك أفضلية الوصول للمنح والوظائف الحصرية قبل الجميع عبر تنبيهات "الجلاد" اللحظية.</p>
+                <div class="d-flex gap-3 justify-content-center justify-content-lg-start mt-4">
+                    <div class="text-center">
+                        <i class="fab fa-android fa-2x mb-2 text-info"></i>
+                        <p class="small mb-0">Android</p>
+                    </div>
+                    <div class="vr mx-2 bg-white opacity-25"></div>
+                    <div class="text-center">
+                        <i class="fab fa-apple fa-2x mb-2 text-white"></i>
+                        <p class="small mb-0">iOS</p>
+                    </div>
+                    <div class="vr mx-2 bg-white opacity-25"></div>
+                    <div class="text-center">
+                        <i class="fas fa-bolt fa-2x mb-2 text-warning"></i>
+                        <p class="small mb-0">Web App</p>
+                    </div>
                 </div>
             </div>
-            <div class="col-lg-4">
-                <div class="qr-card d-inline-block p-3 bg-white rounded-4 shadow-sm">
-                    <img src="{{ url_for('static', filename='img/App_qr.png') }}" alt="Jobeni QR Code" class="img-fluid" style="width: 180px;">
+            <div class="col-lg-4 animate__animated animate__zoomIn">
+                <div class="qr-card d-inline-block shadow-lg">
+                    <img src="{{ url_for('static', filename='img/App_qr.png') }}" alt="QR Code" class="img-fluid" style="width: 200px;">
+                    <p class="small text-dark fw-bold mt-3 mb-0">امسح لتثبيت التطبيق</p>
                 </div>
-                <p class="small text-primary fw-bold mt-2 mb-0">Scan Me - امسح الكود</p>
             </div>
         </div>
     </div>
 </div>
 
-<div class="container-fluid py-5 bg-light shadow-inner mt-4" dir="rtl">
+<div class="container-fluid py-5 bg-white mt-4" dir="rtl">
     <div class="container">
         <div class="row align-items-center">
-            <div class="col-lg-5 mb-4 mb-lg-0 text-end">
-                <h2 class="fw-bold mb-3">أكبر تجمع مهني سوداني.. <br><span class="text-primary">هذا هو مكانك الطبيعي.</span></h2>
-                <p class="text-muted mb-4">انضم لنقاشات الخبراء، تابع المبدعين في مجالك، وابنِ بروفايل احترافي يراك من خلاله أصحاب العمل حتى لو لم تقدم على وظيفة.</p>
-                <ul class="list-unstyled mb-4 ps-0">
-                    <li class="mb-2"><i class="fas fa-check-circle text-success ms-2"></i> متابعة الخبراء والشركات السودانية.</li>
-                    <li class="mb-2"><i class="fas fa-check-circle text-success ms-2"></i> بناء شبكة علاقات مهنية (Networking) قوية.</li>
-                    <li class="mb-2"><i class="fas fa-check-circle text-success ms-2"></i> بروفايل ذكي يعرض مهاراتك للباحثين عن كفاءات.</li>
-                </ul>
-                <a href="{{ url_for('community.index') }}" class="btn btn-primary rounded-pill px-5 py-2 fw-bold shadow">استكشف ساحة المجتمع</a>
+            <div class="col-lg-6 mb-5 mb-lg-0 text-end">
+                <h2 class="fw-bold mb-4 display-6">انضم إلى أكبر <span class="text-primary">عقل مهني سوداني</span></h2>
+                <p class="text-muted fs-5 mb-4">ساحة جوبيني هي المكان الذي تلتقي فيه الطموحات. ابنِ شبكتك، تعلم من خبراء المبتعثين، واجعل ملفك هو هويتك المهنية العالمية.</p>
+                <div class="row g-3 mb-4">
+                    <div class="col-6"><div class="d-flex align-items-center"><i class="fas fa-check-circle text-primary ms-2"></i> <span class="fw-bold">نقاشات منح</span></div></div>
+                    <div class="col-6"><div class="d-flex align-items-center"><i class="fas fa-check-circle text-primary ms-2"></i> <span class="fw-bold">فرص تدريب</span></div></div>
+                    <div class="col-6"><div class="d-flex align-items-center"><i class="fas fa-check-circle text-primary ms-2"></i> <span class="fw-bold">توجيه أكاديمي</span></div></div>
+                    <div class="col-6"><div class="d-flex align-items-center"><i class="fas fa-check-circle text-primary ms-2"></i> <span class="fw-bold">وظائف ريموت</span></div></div>
+                </div>
+                <a href="{{ url_for('community.index') }}" class="btn btn-primary btn-massive shadow-lg">دخل الساحة الآن <i class="fas fa-users ms-2"></i></a>
             </div>
-            <div class="col-lg-7">
+            <div class="col-lg-6">
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <div class="card border-0 shadow-sm rounded-4 p-3 community-preview-card">
-                            <div class="d-flex align-items-center mb-2">
-                                <div class="bg-primary text-white rounded-circle p-2 ms-2" style="width:35px; height:35px; display:flex; align-items:center; justify-content:center; font-size: 12px;">أ.م</div>
-                                <h6 class="mb-0 small fw-bold text-end">أحمد محمد - مبرمج</h6>
+                        <div class="card border-0 shadow-sm rounded-4 p-4 community-preview-card mb-3">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-primary text-white rounded-circle p-2 ms-2 shadow-sm" style="width:40px; height:40px; display:flex; align-items:center; justify-content:center;">م</div>
+                                <h6 class="mb-0 fw-bold small text-end">محمد عثمان - مهندس بيانات</h6>
                             </div>
-                            <p class="small text-dark mb-0 text-end">"نصيحة اليوم: الـ Soft Skills أهم من لغة البرمجة في المقابلات التقنية.."</p>
+                            <p class="small text-dark mb-0 text-end">"بفضل رادار المنح في جوبيني، حصلت على قبول في جامعة تكنولوجية مرموقة."</p>
+                        </div>
+                        <div class="card border-0 shadow-sm rounded-4 p-4 community-preview-card">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-success text-white rounded-circle p-2 ms-2 shadow-sm" style="width:40px; height:40px; display:flex; align-items:center; justify-content:center;">هـ</div>
+                                <h6 class="mb-0 fw-bold small text-end">هدى إبراهيم - مصممة UI/UX</h6>
+                            </div>
+                            <p class="small text-dark mb-0 text-end">"المنصة فعلاً مختلفة، الذكاء الاصطناعي بيوفر عليك شهور من البحث الضائع."</p>
                         </div>
                     </div>
                     <div class="col-md-6 mt-md-5">
-                        <div class="card border-0 shadow-sm rounded-4 p-3 community-preview-card">
-                            <div class="d-flex align-items-center mb-2">
-                                <div class="bg-info text-white rounded-circle p-2 ms-2" style="width:35px; height:35px; display:flex; align-items:center; justify-content:center; font-size: 12px;">س.ع</div>
-                                <h6 class="mb-0 small fw-bold text-end">سارة علي - مديرة HR</h6>
+                        <div class="card border-0 shadow-sm rounded-4 p-4 community-preview-card mb-3" style="border-right-color: #0dcaf0;">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-info text-white rounded-circle p-2 ms-2 shadow-sm" style="width:40px; height:40px; display:flex; align-items:center; justify-content:center;">خ</div>
+                                <h6 class="mb-0 fw-bold small text-end">خالد كمال - طالب دراسات عليا</h6>
                             </div>
-                            <p class="small text-dark mb-0 text-end">"نبحث حالياً عن مطورين عبر جوبيني، الـ AI فرز لينا أفضل الكفاءات فعلاً!"</p>
+                            <p class="small text-dark mb-0 text-end">"أنصح كل خريج طموح بتثبيت التطبيق ومتابعة رادار المنح يومياً."</p>
+                        </div>
+                        <div class="card border-0 shadow-sm rounded-4 p-4 community-preview-card" style="border-right-color: #6610f2;">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-purple text-white rounded-circle p-2 ms-2 shadow-sm" style="width:40px; height:40px; display:flex; align-items:center; justify-content:center; background: #6610f2;">أ</div>
+                                <h6 class="mb-0 fw-bold small text-end">أمل يوسف - مترجمة</h6>
+                            </div>
+                            <p class="small text-dark mb-0 text-end">"مجتمع جوبيني خلاني أعرف ناس في مجالي ما كنت حأقدر أصل ليهم في الواقع."</p>
                         </div>
                     </div>
                 </div>
@@ -265,4 +338,5 @@
         </div>
     </div>
 </div>
+
 {% endblock %}
