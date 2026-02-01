@@ -230,6 +230,19 @@ def generate_interview_prep():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
 
+@auth_bp.route('/test_whatsapp_agent')
+@login_required
+def test_whatsapp_agent():
+    """اختبار اتصال الواتساب لمهندسي الاتصالات"""
+    if not current_user.whatsapp_number:
+        return jsonify({'status': 'error', 'message': 'يرجى إضافة رقم الواتساب في الإعدادات أولاً.'})
+    try:
+        from app.agent_worker import send_whatsapp_via_whapi
+        send_whatsapp_via_whapi(current_user.whatsapp_number, f"إشارة فحص من جوبيني 2026: رادارك شغال يا مكنة 🚀")
+        return jsonify({'status': 'success', 'message': 'تم إرسال رسالة الاختبار بنجاح!'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+
 @auth_bp.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
@@ -252,6 +265,13 @@ def scanner():
     """ماسح الـ QR الذكي للتوثيق"""
     return render_template('scanner.html')
 
+@auth_bp.route('/verify_certificate/<username>')
+def verify_certificate(username):
+    """توثيق الهوية الرقمية والشهادات (إصلاح BuildError)"""
+    user = User.query.filter_by(username=username).first_or_404()
+    user_qr = generate_secure_qr(request.url)
+    return render_template('certificate_verify.html', user=user, user_qr=user_qr)
+
 @auth_bp.route('/user/<path:username>')
 def user_profile(username):
     user = User.query.filter_by(username=username).first_or_404()
@@ -273,17 +293,17 @@ def force_upgrade():
         # تحديثات المستخدم
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT \'jobseeker\''))
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)'))
-        
+
         # تحديثات السيرة الذاتية (الحقول الأكاديمية الصارمة)
         db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS optimized_text TEXT'))
         db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS gpa VARCHAR(50)'))
-        db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS graduation_year INTEGER')) # تم التعديل لـ INTEGER ليطابق الموديل
+        db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS graduation_year INTEGER'))
         db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS academic_level VARCHAR(100)'))
         db.session.execute(text('ALTER TABLE "cv" ADD COLUMN IF NOT EXISTS university_name VARCHAR(500)'))
-        
+
         # تحديثات الذاكرة والمنح
         db.session.execute(text('ALTER TABLE "agent_memory" ADD COLUMN IF NOT EXISTS scholarship_id INTEGER'))
-        
+
         db.session.commit()
         return "✅ تم ترويض قاعدة البيانات بنظام 'الجلاد' الصارم! كل الأعمدة الآن جاهزة."
     except Exception as e:

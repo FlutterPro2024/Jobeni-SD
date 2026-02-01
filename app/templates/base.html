@@ -145,7 +145,7 @@
                 <ul class="navbar-nav ms-auto align-items-center">
                     <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('jobs.jobs_list') }}">الوظائف</a></li>
                     <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('community.index') }}">المجتمع</a></li>
-                    
+
                     {% if current_user.is_authenticated %}
                         <li class="nav-item">
                             <a class="nav-link px-2 text-info" href="{{ url_for('auth.scanner') }}" title="QR Scanner">
@@ -286,9 +286,11 @@
                 deferredPrompt = null;
             }
         });
+
         document.getElementById('pwa-close').addEventListener('click', () => {
             document.getElementById('pwa-install-banner').style.display = 'none';
         });
     </script>
 </body>
 </html>
+## ok tm
