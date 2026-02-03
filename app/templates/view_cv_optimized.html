@@ -1,63 +1,38 @@
 {% extends "base.html" %}
-{% block title %}النسخة المحسنة - {{ cv.profession }}{% endblock %}
-
-{% block content %}
-<div class="container py-5">
+{% block title %}النسخة المحسنة - {{ cv.profession }}{% endblock %}                                                             
+{% block content %}                                             <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-lg-9">
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 gap-3 d-print-none">
-                <h3 class="text-white fw-bold mb-0">🚀 النسخة الاحترافية المطورة (2026)</h3>
-
-                <div class="d-flex gap-2">
-                    <a href="{{ url_for('jobs.smart_match_jobs') }}" class="btn btn-warning rounded-pill px-3 shadow-sm">
+                <h3 class="text-white fw-bold mb-0">🚀 النسخة الاحترافية المطورة (2026)</h3>                                    
+                <div class="d-flex gap-2">                                          <a href="{{ url_for('jobs.smart_match_jobs') }}" class="btn btn-warning rounded-pill px-3 shadow-sm">
                         <i class="fas fa-magic me-1"></i> رادار الوظائف والمنح
-                    </a>
-
-                    <div class="btn-group shadow-sm">
-                        <button onclick="window.print()" class="btn btn-primary px-4 rounded-pill me-2">
-                            <i class="fas fa-print me-2"></i> حفظ كـ PDF / طباعة
-                        </button>
-                        
-                        {% if current_user.telegram_id %}
-                        <a href="{{ url_for('cv.send_cv_telegram', cv_id=cv.id) }}" class="btn btn-info text-white px-3 rounded-pill me-2">
-                            <i class="fab fa-telegram-plane me-1"></i> إرسال للتليجرام
-                        </a>
-                        {% endif %}
-
-                        <a href="{{ url_for('cv.my_cvs') }}" class="btn btn-outline-light rounded-pill">
+                    </a>                                        
+                    <div class="btn-group shadow-sm">                                   <button onclick="window.print()" class="btn btn-primary px-4 rounded-pill me-2">                                                    <i class="fas fa-print me-2"></i> حفظ كـ PDF / طباعة
+                        </button>                                                                                                                       {% if current_user.telegram_id %}                               <a href="{{ url_for('cv.send_cv_telegram', cv_id=cv.id) }}" class="btn btn-info text-white px-3 rounded-pill me-2">                                                                                 <i class="fab fa-telegram-plane me-1"></i> إرسال للتليجرام                                                                  </a>
+                        {% endif %}                                                                                                                     <a href="{{ url_for('cv.my_cvs') }}" class="btn btn-outline-light rounded-pill">
                             العودة للخزنة
-                        </a>
-                    </div>
-                </div>
-            </div>
-
+                        </a>                                                        </div>
+                </div>                                                      </div>                                              
             <div class="cv-paper shadow-lg rounded-3 bg-white text-dark p-5" id="cv-content">
-                <div class="cv-header text-center border-bottom pb-4 mb-4">
-                    <h1 class="fw-bold text-uppercase mb-1" style="letter-spacing: 2px; color: #1e293b;">
-                        {{ current_user.full_name or current_user.username }}
+                <div class="cv-header text-center border-bottom pb-4 mb-4">                                                                         <h1 class="fw-bold text-uppercase mb-1" style="letter-spacing: 2px; color: #1e293b;">                                               {{ current_user.full_name or current_user.username }}
                     </h1>
                     <p class="text-primary fw-bold h5 mb-3">{{ cv.profession }}</p>
-                    
+
                     <div class="d-flex justify-content-center flex-wrap gap-4 small text-muted">
                         <span><i class="fas fa-envelope me-1 text-secondary"></i> {{ current_user.email }}</span>
                         {% if current_user.whatsapp_number %}
                         <span><i class="fab fa-whatsapp me-1 text-success"></i> {{ current_user.whatsapp_number }}</span>
                         {% endif %}
-                        <span><i class="fas fa-shield-alt me-1 text-success"></i> Verified by Jobeni AI</span>
-                    </div>
-
-                    <div class="mt-3 d-flex justify-content-center gap-2">
-                        {% if cv.academic_level %}
-                        <span class="badge bg-light text-dark border">{{ cv.academic_level }}</span>
-                        {% endif %}
+                        <span><i class="fas fa-shield-alt me-1 text-success"></i> Verified by Jobeni AI</span>                                      </div>
+                                                                                    <div class="mt-3 d-flex justify-content-center gap-2">
+                        {% if cv.academic_level %}                                      <span class="badge bg-light text-dark border">{{ cv.academic_level }}</span>                                                    {% endif %}
                         {% if cv.gpa %}
                         <span class="badge bg-light text-dark border">GPA: {{ cv.gpa }}</span>
-                        {% endif %}
-                    </div>
+                        {% endif %}                                                 </div>
                 </div>
 
-                <div class="cv-body lh-base" style="white-space: pre-wrap; font-size: 1.05rem; font-family: 'Times New Roman', Times, serif; text-align: left; direction: ltr;">
-                    {{ cv.optimized_text | safe }}
+                <div class="cv-body lh-base" style="white-space: pre-wrap; font-size: 1.05rem; font-family: 'Times New Roman', Times, serif; text-align: left; direction: ltr;">                                    {{ cv.optimized_text | safe }}
                 </div>
 
                 <div class="cv-footer mt-5 pt-4 border-top text-center text-muted small">
@@ -72,8 +47,7 @@
                     <div>
                         <h6 class="fw-bold mb-1">نصيحة "الجلاد" الصارمة:</h6>
                         <p class="mb-0 small text-dark">هذه النسخة مطورة باستخدام محرك 2026 لتجاوز فلاتر <strong>ATS</strong>. عند الحفظ، اختر "Save as PDF" وتأكد من إيقاف "Headers and Footers" في إعدادات الطباعة للحصول على مظهر رسمي.</p>
-                    </div>
-                </div>
+                    </div>                                                      </div>
             </div>
         </div>
     </div>
@@ -84,31 +58,23 @@
         background: #0f172a !important; /* خلفية داكنة للموقع لبروز الورقة البيضاء */
     }
 
-    .cv-paper {
-        min-height: 29.7cm; /* مقاس A4 */
+    .cv-paper {                                                         min-height: 29.7cm; /* مقاس A4 */
         width: 100%;
         max-width: 21cm;
         margin: auto;
-        border: 1px solid #e2e8f0;
-        position: relative;
-        transition: transform 0.3s ease;
+        border: 1px solid #e2e8f0;                                      position: relative;                                             transition: transform 0.3s ease;
         box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    }
-
+    }                                                           
     .cv-body {
-        color: #334155;
-        padding: 10px 20px;
-    }
+        color: #334155;                                                 padding: 10px 20px;                                         }
 
-    /* تحسينات الطباعة */
-    @media print {
+    /* تحسينات الطباعة */                                           @media print {
         body {
             background: white !important;
             margin: 0;
             padding: 0;
         }
-        .container {
-            width: 100% !important;
+        .container {                                                        width: 100% !important;
             max-width: 100% !important;
             padding: 0 !important;
             margin: 0 !important;
@@ -121,20 +87,16 @@
             border: none !important;
             width: 100% !important;
             padding: 0 !important;
-            margin: 0 !important;
-        }
+            margin: 0 !important;                                       }
         @page {
             margin: 1.5cm;
-            size: A4;
-        }
-    }
-
+            size: A4;                                                   }
+    }                                                           
     @media (max-width: 768px) {
         .cv-paper {
             width: 100%;
             padding: 20px !important;
         }
         h1 { font-size: 1.5rem; }
-    }
-</style>
+    }                                                           </style>
 {% endblock %}

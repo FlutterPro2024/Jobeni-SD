@@ -6,10 +6,10 @@
     <div class="row mb-4 d-print-none">
         <div class="col-md-8">
             <h2 class="text-white fw-bold">🕵️‍♂️ نتائج الرادار الصارم (AI Auditor)</h2>
-            <p class="text-info">تم تحليل { { matches|length } } فرصة بناءً على معايير الجودة العالمية 2026.</p>
+            <p class="text-info">تم تحليل {{ matches|length }} فرصة بناءً على معايير الجودة العالمية 2026.</p>
         </div>
         <div class="col-md-4 text-md-end">
-            <a href="{{ url_for('cv.view_optimized', cv_id=cv.id) }}" class="btn btn-outline-light rounded-pill">
+            <a href="{{ url_for('cv.optimize_cv_view', cv_id=cv.id) }}" class="btn btn-outline-light rounded-pill">
                 <i class="fas fa-chevron-right me-2"></i> العودة للـ CV
             </a>
         </div>
@@ -50,11 +50,10 @@
                             </h2>
                             <small class="text-muted fw-bold">نسبة المطابقة</small>
                             <div class="progress w-100 mt-2" style="height: 6px;">
-                                <div class="progress-bar {% if item.score >= 80 %}bg-success{% else %}bg-warning{% endif %}" 
+                                <div class="progress-bar {% if item.score >= 80 %}bg-success{% else %}bg-warning{% endif %}"
                                      style="width: {{ item.score }}%"></div>
                             </div>
                         </div>
-                        
                         <div class="col-md-9 bg-white">
                             <div class="card-body p-4">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
@@ -64,10 +63,10 @@
                                     </span>
                                 </div>
                                 <p class="text-secondary small mb-3">
-                                    <i class="fas fa-university me-1"></i> {{ item.university or item.company }} | 
+                                    <i class="fas fa-university me-1"></i> {{ item.university or item.company }} |
                                     <i class="fas fa-map-marker-alt ms-2 me-1"></i> {{ item.country or 'Global' }}
                                 </p>
-                                
+
                                 <div class="bg-light p-3 rounded-3 mb-3 border-start border-4 {% if item.score >= 70 %}border-success{% else %}border-danger{% endif %}">
                                     <strong class="small text-dark"><i class="fas fa-robot me-1"></i> تحليل الوكيل الصارم:</strong>
                                     <p class="small mb-0 text-muted mt-1 italic">"{{ item.notes }}"</p>
@@ -99,16 +98,13 @@
 
 <style>
     body { background: #0f172a !important; }
-    
     .match-card {
         transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
-    
     .match-card:hover {
         transform: translateY(-5px);
         box-shadow: 0 15px 35px rgba(0,0,0,0.4) !important;
     }
-
     .italic { font-style: italic; }
 
     /* تحسين شكل التقديم على الموبايل */

@@ -143,6 +143,8 @@
 
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('auth.instructions') }}">كيف تعمل المنصة</a></li>
+                    
                     <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('jobs.jobs_list') }}">الوظائف</a></li>
                     <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('community.index') }}">المجتمع</a></li>
 
@@ -180,117 +182,88 @@
                                 <li><a class="dropdown-item small py-2" href="{{ url_for('auth.dashboard') }}"><i class="fas fa-tachometer-alt ms-2 text-success"></i> لوحة التحكم</a></li>
                                 {% if current_user.role == 'admin' %}
                                     <li><a class="dropdown-item small py-2 text-danger fw-bold" href="{{ url_for('admin.global_dashboard') }}"><i class="fas fa-shield-alt ms-2"></i> لوحة السيادة</a></li>
-                                {% endif %}
-                                <li><hr class="dropdown-divider"></li>
+                                {% endif %}                                                     
+                                <li><hr class="dropdown-divider"></li>                                                                                          
                                 <li><a class="dropdown-item small py-2 text-danger" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt ms-2"></i> خروج</a></li>
                             </ul>
                         </li>
                     {% else %}
-                        <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('auth.login') }}">دخول</a></li>
-                        <li class="nav-item"><a class="btn btn-primary btn-sm rounded-pill px-4 ms-2 fw-bold shadow-sm" href="{{ url_for('auth.register') }}">انضم الآن</a></li>
+                        <li class="nav-item"><a class="nav-link px-3" href="{{ url_for('auth.login') }}">دخول</a></li>                                  
+                        <li class="nav-item"><a class="btn btn-primary btn-sm rounded-pill px-4 ms-2 fw-bold shadow-sm" href="{{ url_for('auth.register') }}">انضم الآن</a></li>                                    
                     {% endif %}
                 </ul>
             </div>
         </div>
-    </nav>
+    </nav>                                                                                                                          
 
     <main class="animate__animated animate__fadeIn">
-        {% block content %}{% endblock %}
-    </main>
-
+        {% block content %}{% endblock %}                           
+    </main>                                                     
+    
     <footer class="py-5 text-center mt-5 bg-white border-top">
         <div class="container">
             <div class="mb-3">
-                <h6 class="fw-bold mb-1">مطور المنصة: Jobeni Sudan AI Team</h6>
-                <p class="small text-muted mb-0">contact@jobeni-sd.com</p>
-            </div>
-            <p class="text-muted small mb-1">© 2026 Jobeni SD. جميع الحقوق محفوظة</p>
+                <h6 class="fw-bold mb-1">مطور المنصة: Jobeni Sudan AI Team</h6>                                                                 <p class="small text-muted mb-0">contact@jobeni-sd.com</p>
+            </div>                                                          <p class="text-muted small mb-1">© 2026 Jobeni SD. جميع الحقوق محفوظة</p>
             <p class="small fw-bold" style="color: #0d6efd;">صنع بكل فخر في السودان 🇸🇩</p>
         </div>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-    <script>
+                                                                    <script>
         // إغلاق شريط التعميم
         function closeAnnouncement() {
             const bar = document.getElementById('announcement-bar');
-            if (bar) {
-                bar.classList.add('animate__fadeOutUp');
-                setTimeout(() => {
-                    bar.remove();
+            if (bar) {                                                          bar.classList.add('animate__fadeOutUp');
+                setTimeout(() => {                                                  bar.remove();
                     document.body.classList.remove('has-announcement');
                     document.querySelector('.navbar').style.top = '0';
-                }, 500);
-            }
-        }
-
+                }, 500);                                                    }
+        }                                                       
         // نظام الإشعارات اللحظي
         let lastCount = 0;
         function fetchNotifications() {
             fetch("{{ url_for('notifications.unread_count') }}")
             .then(res => res.json())
-            .then(data => {
-                const badge = document.getElementById('notif-count');
-                if (data.count > 0) {
-                    badge.innerText = data.count;
-                    badge.style.display = 'block';
-                    if (data.count > lastCount) {
+            .then(data => {                                                     const badge = document.getElementById('notif-count');                                                                           if (data.count > 0) {
+                    badge.innerText = data.count;                                   badge.style.display = 'block';                                  if (data.count > lastCount) {
                         document.getElementById('notification-sound').play().catch(() => {});
                     }
-                } else {
-                    badge.style.display = 'none';
-                }
-                lastCount = data.count;
-            });
-
+                } else {                                                            badge.style.display = 'none';
+                }                                                               lastCount = data.count;
+            });                                                 
             fetch("{{ url_for('notifications.latest_notifications') }}")
-            .then(res => res.json())
-            .then(data => {
+            .then(res => res.json())                                        .then(data => {
                 const list = document.getElementById('notif-list');
                 if (data.length > 0) {
-                    list.innerHTML = data.map(n => `
-                        <li>
-                            <a class="dropdown-item small py-2 border-bottom ${n.is_read ? '' : 'bg-light fw-bold'}" href="${n.link}">
-                                <span>${n.title}</span><br>
+                    list.innerHTML = data.map(n => `                                    <li>
+                            <a class="dropdown-item small py-2 border-bottom ${n.is_read ? '' : 'bg-light fw-bold'}" href="${n.link}">                                                                                          <span>${n.title}</span><br>
                                 <span class="text-muted" style="font-size: 11px;">${n.message}</span>
-                            </a>
-                        </li>`).join('') + '<li><a class="dropdown-item text-center small text-primary fw-bold" href="{{ url_for("notifications.index") }}">عرض الكل</a></li>';
+                            </a>                                                        </li>`).join('') + '<li><a class="dropdown-item text-center small text-primary fw-bold" href="{{ url_for("notifications.index") }}">عرض الكل</a></li>';
                 } else {
                     list.innerHTML = '<li class="text-center py-2 small text-muted">لا توجد تنبيهات</li>';
                 }
-            });
-        }
-
+            });                                                         }                                                       
         function markAllRead() {
             fetch("{{ url_for('notifications.mark_read') }}", { method: 'POST' });
-        }
-
-        {% if current_user.is_authenticated %}
-            setInterval(fetchNotifications, 30000);
-            fetchNotifications();
-        {% endif %}
-
-        // إعدادات PWA
+        }                                                                                                                               {% if current_user.is_authenticated %}
+            setInterval(fetchNotifications, 30000);                         fetchNotifications();                                       {% endif %}
+                                                                        // إعدادات PWA
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
             document.getElementById('pwa-install-banner').style.display = 'block';
         });
-
-        document.getElementById('pwa-install-btn').addEventListener('click', () => {
+                                                                        document.getElementById('pwa-install-btn').addEventListener('click', () => {
             document.getElementById('pwa-install-banner').style.display = 'none';
             if (deferredPrompt) {
-                deferredPrompt.prompt();
-                deferredPrompt = null;
+                deferredPrompt.prompt();                                        deferredPrompt = null;
             }
-        });
-
+        });                                                     
         document.getElementById('pwa-close').addEventListener('click', () => {
             document.getElementById('pwa-install-banner').style.display = 'none';
         });
     </script>
 </body>
 </html>
-## ok tm
