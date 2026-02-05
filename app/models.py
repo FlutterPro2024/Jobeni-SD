@@ -48,16 +48,17 @@ class User(db.Model, UserMixin):
     last_evaluation = db.Column(db.Text)
     qr_code_key = db.Column(db.String(50), unique=True, default=lambda: str(uuid.uuid4())[:8])
 
-    # العلاقات (Relationships)
+    # العلاقات (Relationships) - تم إضافة cascade لضمان الحذف النظيف
     cvs = db.relationship('CV', backref='owner', lazy=True, cascade="all, delete-orphan")
-    jobs = db.relationship('Job', back_populates='employer_user', lazy=True, foreign_keys='Job.user_id')
-    applications = db.relationship('Application', backref='applicant', lazy=True)
-    posts = db.relationship('Post', backref='author', lazy='dynamic')
+    jobs = db.relationship('Job', back_populates='employer_user', lazy=True, foreign_keys='Job.user_id', cascade="all, delete-orphan")
+    applications = db.relationship('Application', backref='applicant', lazy=True, cascade="all, delete-orphan")
+    posts = db.relationship('Post', backref='author', lazy='dynamic', cascade="all, delete-orphan")
     agent_memories = db.relationship('AgentMemory', backref='user', lazy=True, cascade="all, delete-orphan")
 
-    # علاقة الإشعارات والنتائج
-    notifications = db.relationship('Notification', backref='recipient', lazy='dynamic', foreign_keys='Notification.user_id')
-    quiz_results = db.relationship('QuizResult', backref='user', lazy=True)
+    # تعديل الإشعارات ونتائج الكويزات لحل مشكلة NOT NULL
+    notifications = db.relationship('Notification', backref='recipient', lazy='dynamic', 
+                                    foreign_keys='Notification.user_id', cascade="all, delete-orphan")
+    quiz_results = db.relationship('QuizResult', backref='user', lazy=True, cascade="all, delete-orphan")
 
     # علاقة المتابعة
     followed = db.relationship('User', secondary=followers,
@@ -167,13 +168,12 @@ class CV(db.Model):
     radar_labels = db.Column(db.JSON)
     radar_scores = db.Column(db.JSON)
     course_recommendations = db.Column(db.Text)
-    optimized_text = db.Column(db.Text) # النص المحسن بواسطة AI
+    optimized_text = db.Column(db.Text) 
 
-    # --- حقول الدقة الأكاديمية (New Smart Fields) ---
-    gpa = db.Column(db.String(50))           # المعدل الأكاديمي
-    graduation_year = db.Column(db.Integer)   # سنة التخرج
-    academic_level = db.Column(db.String(100)) # (بكالوريوس، ماجستير، دكتوراه)
-    university_name = db.Column(db.String(500))# اسم الجامعة
+    gpa = db.Column(db.String(50))           
+    graduation_year = db.Column(db.Integer)   
+    academic_level = db.Column(db.String(100)) 
+    university_name = db.Column(db.String(500))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 

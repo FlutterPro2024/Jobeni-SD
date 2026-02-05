@@ -2,7 +2,7 @@
 import os
 from flask import Blueprint, render_template, abort, request, redirect, url_for, flash, Response
 from flask_login import login_required, current_user
-from app.models import User, Job, Application, CV, db, Post, SystemConfig
+from app.models import User, Job, Application, CV, db, Post, SystemConfig, Notification
 from sqlalchemy import func, or_
 from datetime import datetime, timedelta
 
@@ -61,7 +61,7 @@ def global_dashboard():
     # قراءة الإعدادات من قاعدة البيانات (آمن لـ Vercel/Postgres)
     is_maintenance = get_config('maintenance') == 'on'
     current_announcement = get_config('announcement')
-    
+
     # اللون يتم جره من extra_value في موديل SystemConfig
     announcement_entry = SystemConfig.query.filter_by(key='announcement').first()
     color_type = announcement_entry.extra_value if announcement_entry else 'danger'
@@ -121,15 +121,25 @@ def update_user_role(user_id, new_role):
 @admin_bp.route('/super-admin/delete-user/<int:user_id>', methods=['POST'])
 @login_required
 def delete_user(user_id):
-    """طرد مستخدم نهائياً من المنصة وحذف بياناته"""
+    """طرد مستخدم نهائياً من المنصة وحذف بياناته مع معالجة أخطاء القيود"""
     if current_user.role != 'admin': abort(403)
     user = User.query.get_or_404(user_id)
+    
     if user.id == current_user.id:
         flash("❌ عملية غير مسموحة: لا يمكنك حذف حسابك الإداري!", "danger")
     else:
-        db.session.delete(user)
-        db.session.commit()
-        flash(f"👤 تم طرد المستخدم {user.username} بنجاح.", "info")
+        try:
+            # 1. حذف التنبيهات يدوياً كخطوة احترازية لحل خطأ الـ NOT NULL
+            Notification.query.filter_by(user_id=user.id).delete()
+            
+            # 2. حذف المستخدم (بقية العلاقات ستحذف عبر الـ Cascade في الموديل)
+            db.session.delete(user)
+            db.session.commit()
+            flash(f"👤 تم طرد المستخدم {user.username} وجميع بياناته بنجاح.", "info")
+        except Exception as e:
+            db.session.rollback()
+            flash(f"⚠️ خطأ في الحذف: {str(e)}", "danger")
+            
     return redirect(url_for('admin.global_dashboard'))
 
 @admin_bp.route('/super-admin/export-users')
