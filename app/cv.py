@@ -25,7 +25,7 @@ def my_cvs():
 @login_required
 def view_cv_by_user(user_id):
     """رؤية الـ CV الخاص بالمتقدم (لصاحب العمل أو لجان المنح)"""
-    # التحقق من الصلاحية: هل العارض صاحب عمل تقدم له المستخدم؟
+    # التحقق من الصلاحية: هل العارض صاحب عمل تقدم له المستخدم?
     is_candidate = Application.query.join(Job).filter(
         Application.user_id == user_id,
         Job.user_id == current_user.id
@@ -63,14 +63,16 @@ def view_cv(cv_id):
         is_academic = True if current_user.role == 'scholarship_seeker' else False
         analysis = openrouter_ai.analyze_cv_complete(cv.extracted_text[:3000], is_academic=is_academic)
         session[analysis_key] = analysis
-        
+
     return render_template('view_cv.html', cv=cv, analysis=analysis)
 
 @cv_bp.route('/upload-cv', methods=['GET', 'POST'])
 @login_required
 def upload_cv():
     """رفع وتحليل السيرة الذاتية بنظام الجلاد الصارم 2026"""
-    if current_user.role not in ['jobseeker', 'seeker', 'scholarship_seeker']:
+    # التعديل: السماح لكل الباحثين (عمل أو منح) بالدخول
+    allowed_roles = ['jobseeker', 'job_seeker', 'seeker', 'scholarship_seeker']
+    if current_user.role not in allowed_roles:
         flash('هذه الصفحة مخصصة للباحثين عن الفرص فقط.', 'warning')
         return redirect(url_for('auth.dashboard'))
 
@@ -83,7 +85,7 @@ def upload_cv():
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         original_ext = file.filename.split('.')[-1].lower()
         filename = secure_filename(f"user_{current_user.id}_{timestamp}.{original_ext}")
-        
+
         path = current_app.config['UPLOAD_FOLDER']
         os.makedirs(path, exist_ok=True)
         file_full_path = os.path.join(path, filename)
@@ -102,11 +104,11 @@ def upload_cv():
 
             # --- محرك التحليل الخبير (Scholarship vs Jobs) ---
             is_academic = (current_user.role == 'scholarship_seeker')
-            
+
             strict_prompt = f"""
             Act as a Senior Academic Auditor and Global Technical Recruiter.
             Analyze the CV and extract metadata for {'Scholarship' if is_academic else 'Job'} matching.
-            
+
             TEXT:
             {extracted_text[:3500]}
 
@@ -122,7 +124,7 @@ def upload_cv():
                 "feedback": "Critique for {'academic' if is_academic else 'ATS'} success"
             }}
             """
-            
+
             analysis_res = openrouter_ai.get_ai_response(strict_prompt, temperature=0.1)
 
             try:
@@ -191,7 +193,7 @@ def generate_ats_pdf(cv_id):
     """تحويل النسخة المحسنة إلى ملف PDF جاهز للتقديم"""
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id: abort(403)
-    
+
     mode = 'scholarship' if current_user.role == 'scholarship_seeker' else 'job'
     optimized_en_text = cv.optimized_text if cv.optimized_text else openrouter_ai.build_global_cv(cv.extracted_text, mode=mode)
 
@@ -202,7 +204,7 @@ def generate_ats_pdf(cv_id):
     title = "Academic CV" if mode == 'scholarship' else "Professional CV"
     pdf.cell(200, 10, txt=f"{title}: {current_user.username}", ln=True, align='C')
     pdf.ln(10)
-    
+
     pdf.set_font("Arial", size=11)
     clean_text = optimized_en_text.encode('latin-1', 'ignore').decode('latin-1')
     pdf.multi_cell(0, 7, txt=clean_text)
@@ -210,7 +212,7 @@ def generate_ats_pdf(cv_id):
     output_filename = f"Jobeni_{mode}_{current_user.id}.pdf"
     output_path = os.path.join(current_app.config['UPLOAD_FOLDER'], output_filename)
     pdf.output(output_path)
-    
+
     return send_file(output_path, as_attachment=True)
 
 @cv_bp.route('/cv/send-telegram/<int:cv_id>')
@@ -219,7 +221,7 @@ def send_cv_telegram(cv_id):
     """إرسال ملف الـ PDF المحسن مباشرة لهاتف المستخدم"""
     cv = CV.query.get_or_404(cv_id)
     if cv.user_id != current_user.id: abort(403)
-    
+
     if not current_user.telegram_id:
         flash("اربط تليجرام أولاً من الإعدادات.", "warning")
         return redirect(url_for('auth.profile'))
